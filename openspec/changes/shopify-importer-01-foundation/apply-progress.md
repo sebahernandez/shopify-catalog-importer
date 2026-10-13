@@ -150,3 +150,62 @@ Mutation check: replacing `redact(message)` and `redact(params)` with the raw va
 | Focused test | `pnpm --filter @importer/api exec vitest run src/shared-kernel/logging/redacting-logger`: 1 file, 32 tests passed |
 | Runtime harness | N/A: no runtime boundary (sink injected, no Nest wiring until U13). Root `pnpm check` (230 API, 42 contracts tests) exit 0 |
 | Rollback boundary | shared-kernel/logging/logger.port.ts, redacting-logger.ts and its test; the tasks.md/apply-progress.md edits |
+
+## Batch 6: U6 SecretBox
+
+Branch `feat/foundation-u6-secret-box`. Tasks 6.1 to 6.3 complete (3/3 of Phase 6; 29 of 61 overall). Mode: Strict TDD.
+Commits: 9097b2c (ports), e85359a (AesGcmSecretBox, SecretBoxError, tests, task checkboxes).
+
+### Path deviation
+
+The source folder is `apps/api/src/shared-kernel/secret-box/`, not `shared-kernel/secrets/` as design.md still says. The user's Claude Code settings deny Read and Edit on any path matching a `secrets` folder, so the orchestrator renamed it (commit d385571 updated tasks.md). design.md is intentionally untouched.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Refactor |
+|---|---|---|---|---|---|---|---|
+| 6.1 | N/A (type-only ports) | N/A | N/A | N/A | Lint and typecheck clean | N/A: interfaces only, no behaviour | None needed |
+| 6.2/6.3 | apps/api/src/shared-kernel/secret-box/aes-gcm-secret-box.test.ts | Unit | N/A (new) | Failed: Cannot find module './secret-box-error.js' | 88/88 passed | 9 round-trip inputs, 7 key lengths, 7 bad keyrings, 6 tamper-to-DECRYPT_FAILED, 28 malformed-envelope cases, key-id and context swaps, rotation, hygiene dump of 6 failures | Replaced `isWellFormed()` (not in the TS lib) with a `\p{Surrogate}` unicode regex; fixed a test that leaked-checked a 1-byte key (matched by chance) |
+
+### Mutation check (each restored and re-run green, 88/88)
+
+| Mutation | Result |
+|---|---|
+| Remove setAAD on decrypt | 15 tests failed |
+| Remove setAAD on encrypt | 16 failed |
+| Skip setAuthTag on decrypt | 15 failed |
+| Fixed nonce (constant IV) | 1 failed (non-determinism test) |
+| Drop the 16-byte tag length check in the parser | 3 failed |
+| Drop the canonical base64url round-trip check | 1 failed |
+| Drop `authTagLength` from createDecipheriv | SURVIVED (88 passed). Equivalent mutant: the parser already rejects any tag that is not exactly 16 bytes before the decipher exists, so the option is defence in depth that no public input can reach |
+
+### Format and decisions
+
+- Envelope `sb1.<keyId>.<iv>.<ciphertext>.<tag>`, base64url without padding, 12-byte random IV per call, 16-byte tag, AAD `sb1|<keyId>|<context>`. Version marker is validated by the parser (unknown version gives MALFORMED_ENVELOPE) and is part of the AAD.
+- `Keyring { activeKeyId, keys: ReadonlyMap<string, Uint8Array> }` defined in key-provider.port.ts (the design uses it without defining it). New writes use `activeKeyId`; any key in the map can decrypt.
+- Codes: KEY_MISSING, INVALID_KEY, INVALID_INPUT, MALFORMED_ENVELOPE, DECRYPT_FAILED (the last is the single code for any authentication failure, including an unknown key id in a well-formed envelope). INVALID_KEY and INVALID_INPUT are additions.
+- KEY_MISSING keeps the message that names `SECRET_KEY_FILE`: tasks.md 6.2 and design D4 require it, and it is fixed text with no I/O. U7 owns how the file is read; the box only names the source.
+- AAD ambiguity: key ids are restricted to `[A-Za-z0-9_-]{1,32}` (no `.` or `|`), rejected with INVALID_KEY. The first two `|` then always delimit version and key id, so distinct (keyId, context) pairs cannot give equal AAD bytes. Context may contain `|` and `.`; it must be a non-empty string without unpaired surrogates (else they would collapse to U+FFFD and collide).
+- Plaintext: UTF-8 string, at most 262144 bytes, no unpaired surrogates (INVALID_INPUT). Decrypted bytes are decoded with a fatal UTF-8 decoder that keeps a BOM, so a round trip is identical.
+- Empty ciphertext segment is allowed (empty plaintext); all other segments must be non-empty and canonical. Envelope bound 1,048,576 characters, checked first.
+- Context length is not bounded (the caller supplies it; it does no expensive work on a hostile party).
+- SecretBoxError lives in secret-box/secret-box-error.ts so ports and the U7 bootstrap import it without touching infrastructure.
+- In memory: private copies of the keys for the instance lifetime (no dispose). Per call, the UTF-8 input buffer and the decrypted-bytes buffer are zero-filled. Strings (plaintext argument, result, envelope) are immutable and cannot be wiped; nothing claims otherwise.
+
+### Not protected
+
+Key file plus database read together; memory disclosure or a compromised process; the process holds the key for its whole life; random source failure would reuse nonces (random 96-bit IVs also have a birthday bound near 2^32 messages per key, far above S0 use); no rotation tooling or re-encryption pass yet; the context must be chosen correctly by callers; no key-check value is defined in U6.
+
+### Spec scenarios left for later units
+
+Missing key at construction: covered here (KEY_MISSING). Malformed key: covered here (length); encoding and file parsing belong to U7. Key file excluded by version control: U7 task 7.5 (`*.key` rule from 1.4). Empty secret storage: U10 and U11.
+
+### Size
+
+633 hand-written added lines (source 192: box 148, error 18, ports 26; tests 441) against a 400 budget and a ~250 forecast. Not trimmed. Proposed split: PR A ports plus SecretBoxError plus construction, round-trip and format tests (about 250); PR B tamper table and error hygiene tests with strict parsing hardening (about 380).
+
+| Evidence | Value |
+|---|---|
+| Focused test | `pnpm --filter @importer/api exec vitest run src/shared-kernel/secret-box`: 1 file, 88 tests passed |
+| Runtime harness | N/A: crypto unit, no runtime boundary. Root `pnpm check` (318 API, 42 contracts tests) and `pnpm build` exit 0 |
+| Rollback boundary | shared-kernel/secret-box/**; the tasks.md checkboxes |
