@@ -19,7 +19,7 @@ phases:
   specs: done
   design: done
   tasks: done
-  apply: in_progress (U1 merged via PR 1; U2 merged via PR 3; U3 merged via PR 4 with a user-accepted size:exception (506 hand-written lines); U4 merged via PR 5, 574 hand-written lines, size:exception accepted by the user on 2026-10-13 for U4; ESM, DI and native SQLite spikes passed, no fallback)
+  apply: in_progress (U1 merged via PR 1; U2 merged via PR 3; U3 merged via PR 4 with a user-accepted size:exception (506 hand-written lines); U4 merged via PR 5, 574 hand-written lines, size:exception accepted by the user on 2026-10-13 for U4; U5 done on its branch, not pushed, 366 hand-written lines, kernel-owned LoggerPort instead of a NestJS type import (design D8 deviation, LoggerService assignability check carried to U13); ESM, DI and native SQLite spikes passed, no fallback)
   verify: pending
   archive: pending
 

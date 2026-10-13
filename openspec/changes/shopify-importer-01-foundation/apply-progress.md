@@ -114,3 +114,39 @@ Secrets in free text that match no pattern and are not registered; secrets in ob
 | Runtime harness | N/A: pure function, no runtime boundary. Root `pnpm check` (198 API, 42 contracts tests) exit 0 |
 | Rollback boundary | shared-kernel/logging/redact*; the spec wording edit is a separate commit |
 | Size | 574 hand-written added lines (source 212, tests 362) against a 400 budget; not trimmed |
+
+## Batch 5: U5 RedactingLogger
+
+Branch `feat/foundation-u5-redacting-logger`. Tasks 5.1 to 5.3 complete (3/3 of Phase 5; 26 of 61 overall). Mode: Strict TDD.
+
+### Task 5.1 finding (design item 8)
+
+Read from the installed type declarations of @nestjs/common 12.1.3 (logger.service.d.ts). `LoggerService` requires only `log`, `error` and `warn`, each `(message: any, ...optionalParams: any[]): any`. `debug?`, `verbose?`, `fatal?` and `setLogLevels?(levels: LogLevel[])` are optional. Difference from the design: it assumed a generic "NestJS logger interface"; the required set is just three methods and the rest is optional. `RedactingLogger` implements all six log methods and omits `setLogLevels` (level is fixed at construction).
+
+### Design deviation
+
+D8 and task 5.3 allowed importing the NestJS interface type. The implemented kernel imports nothing from NestJS: the D2 shared-kernel lint rule (`@nestjs/*` pattern, no `allowTypeImports`) rejects even `import type`, verified with a probe file (exit 1, no-restricted-imports). The lint rule was kept as is and design.md untouched. Replacement: a local `LoggerPort` in shared-kernel/logging/logger.port.ts with the same six methods, typed with `unknown` instead of `any` (parameters are contravariant, so it stays assignable to Nest's `LoggerService`; not yet compile-checked, see carry-over). Decision by the orchestrator.
+
+Carry-over for U13: assert RedactingLogger is assignable to LoggerService at the composition root. A note was added under Phase 13 in tasks.md.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Refactor |
+|---|---|---|---|---|---|---|---|
+| 5.2/5.3 | apps/api/src/shared-kernel/logging/redacting-logger.test.ts | Unit | N/A (new) | Failed: Cannot find module './redacting-logger.js' | 32/32 passed | Line shape, 6 method-to-level mappings, 4 level thresholds, secrets via field, object message, string message, params, error stack arg, Error and cause, Map/Set, sink failure and recovery, BigInt, cycle, throwing toJSON/getter/clock, no args and odd types | Strengthened the Error test (it passed vacuously when unredacted: JSON.stringify of a raw Error is {}); lint fix in a test |
+
+Mutation check: replacing `redact(message)` and `redact(params)` with the raw values failed 9 tests.
+
+### Decisions where the design was silent
+
+- Line shape: `{time, level, message, params?}`; `params` holds all optional parameters (including Nest's stack and context strings) redacted as one array. No context extraction.
+- Levels: error, warn, info, debug (the LOG_LEVEL domain). log maps to info, verbose to debug, fatal to error. Filtered events are not built or redacted. The logger does not read the environment; U13 passes the parsed LOG_LEVEL.
+- Sink failure: the event is dropped and counted in `droppedEvents`; nothing is written to stdout, stderr or console, because a fallback channel would carry the same data. A throwing clock or unbuildable event is dropped the same way. Tested.
+- BigInt becomes a redacted string; a failed property read or toJSON becomes a marker from redact().
+- Limit: a dropped event is invisible except through the counter; U13 may expose it.
+
+| Evidence | Value |
+|---|---|
+| Focused test | `pnpm --filter @importer/api exec vitest run src/shared-kernel/logging/redacting-logger`: 1 file, 32 tests passed |
+| Runtime harness | N/A: no runtime boundary (sink injected, no Nest wiring until U13). Root `pnpm check` (230 API, 42 contracts tests) exit 0 |
+| Rollback boundary | shared-kernel/logging/logger.port.ts, redacting-logger.ts and its test; the tasks.md/apply-progress.md edits |

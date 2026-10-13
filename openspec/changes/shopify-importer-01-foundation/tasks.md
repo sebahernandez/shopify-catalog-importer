@@ -130,9 +130,9 @@ Satisfies: local-security-baseline (redaction: seeded field, non-secret preserve
 
 Satisfies: local-security-baseline (message secret, field secret, non-secret preserved).
 
-- [ ] 5.1 Verify scaffold item 8 (logger interface): confirm the NestJS `LoggerService` shape for Nest 12. Fallback: adapt the method set in the class; the test below fails first.
-- [ ] 5.2 RED: create `apps/api/src/shared-kernel/logging/redacting-logger.test.ts` with an injected sink: one JSON line per event, `accessToken: "shpat_seed123"` absent, configured key `K` in a message absent after `registerSecret(K)`, `count: 3` kept, level filtering via `LOG_LEVEL`.
-- [ ] 5.3 GREEN: create `apps/api/src/shared-kernel/logging/redacting-logger.ts` (sink as constructor argument; no NestJS import beyond the interface type).
+- [x] 5.1 Verify scaffold item 8 (logger interface): confirm the NestJS `LoggerService` shape for Nest 12. Fallback: adapt the method set in the class; the test below fails first.
+- [x] 5.2 RED: create `apps/api/src/shared-kernel/logging/redacting-logger.test.ts` with an injected sink: one JSON line per event, `accessToken: "shpat_seed123"` absent, configured key `K` in a message absent after `registerSecret(K)`, `count: 3` kept, level filtering via `LOG_LEVEL`.
+- [x] 5.3 GREEN: create `apps/api/src/shared-kernel/logging/redacting-logger.ts` (sink as constructor argument; no NestJS import beyond the interface type).
 
 ## Phase 6: U6 SecretBox
 
@@ -195,6 +195,8 @@ Satisfies: local-security-baseline (origin guard: foreign, allowed, missing orig
 ## Phase 13: U13 Ordered boot, CORS, binding
 
 Satisfies: local-security-baseline (loopback bind, restrictive CORS, origin guard over HTTP, key redaction), runtime-configuration (abort before listen).
+
+Carry-over from U5: assert RedactingLogger is assignable to the Nest LoggerService at the composition root (main.ts passes it to NestFactory.create); the shared kernel cannot import Nest, so the check lives here.
 
 - [ ] 13.1 Verify scaffold items 8 and 10: the global /api prefix with the /health route excluded, `listen(port, host)`, and that the Nest CORS options produce exactly the D7 policy (exact-match list, no credentials, no allow header for other origins, `Vary: Origin`). Fallback: a small hand-written CORS middleware inside `local-security`.
 - [ ] 13.2 RED: create `apps/api/src/main.int.test.ts` on an ephemeral loopback port with a test-only `POST` controller registered in a test-built module (never in `AppModule`, excluded from `tsconfig.build.json`): foreign-origin POST is 403 and the handler does not run; allowed origin passes; no-origin POST passes; preflight allows only allow-listed origins; foreign-origin `GET` runs with no allow header; bound address is loopback; `0.0.0.0` with opt-in binds and logs one `non_loopback_bind` warn event; bad config, loose key file and key mismatch throw `BootError` before `listen`; the configured key value never appears in captured log output.
