@@ -785,3 +785,138 @@ Hand-written added lines, 1,436 in total against a 400 budget and a ~350 forecas
 | Focused test | `pnpm --filter @importer/api exec vitest run src/local-security`: 7 files, 2,053 tests passed |
 | Runtime harness | Real HTTP round trips on an ephemeral 127.0.0.1 port (and a raw socket for repeated headers) inside local-security.int.test.ts, torn down in afterEach. Root `pnpm install --frozen-lockfile`, `pnpm check` (2,786 API and 42 contracts tests, 2 skipped) and `pnpm build` exit 0; no route in dist |
 | Rollback boundary | apps/api/src/local-security/** only; the tasks.md checkbox hunk and this batch. No dependency, lockfile, config or earlier-unit file was changed |
+
+## Batch 13: U13 Ordered boot, CORS, binding
+
+Branch `feat/foundation-u13-boot`. Tasks 13.1 to 13.3 complete (3/3 of Phase 13; 52 of 65 overall, counting as native SDD status does). Mode: Strict TDD.
+Commits (separable, each green on its own): 376ada3 (CORS policy middleware and tests), 9ecbe8e (key reconciliation, bind verification, exit mapping, with tests), 49245c4 (AppModule wiring, main.ts bootstrap, HTTP boot suite, task checkboxes), plus a docs commit for this file.
+
+### Task 13.1 findings (design items 8 and 10)
+
+Read from the installed packages, then exercised: Nest 12.1.3 `setGlobalPrefix(prefix, { exclude })`, `listen(port, hostname, callback?)` (from the installed interface declaration and `nest-application.js`), and the `cors` package 2.8.6 that Nest's `enableCors` wraps (read its source and drove it with fake request and response objects, no socket).
+
+| Question | Result |
+|---|---|
+| Global prefix with the health route excluded | Works: `setGlobalPrefix('api', { exclude: ['health'] })`; a test-only health controller answers at the root and 404s under the prefix; a feature controller answers only under the prefix. |
+| `listen` signature | `listen(port, hostname, callback?)` returns a promise; it rejects on an error event (for example EADDRINUSE), after logging the error text through the Nest logger. |
+| Do Nest CORS options give exactly D7? | No. With an origin list, a foreign preflight still gets `Access-Control-Allow-Methods` and `Access-Control-Allow-Headers` (204, no allow-origin). With an origin callback that returns false, the package skips itself entirely, so there is no `Vary: Origin` for foreign origins and the preflight falls through to the router (404). No option set gives both halves of D7. Fallback applied. |
+| Abort on failure | `abortOnError: false` is passed to the only `NestFactory.create`; a provider that throws during creation surfaces as an ordinary rejection (tested). With the default, the test worker crashes (process abort), confirmed by mutation. |
+
+### CORS policy as implemented (cors-middleware.ts, hand-written, framework-free)
+
+Exact-match list from the validated configuration (canonical http or https origins only; the constructor throws for a wildcard or any non-canonical value, with fixed text). `Vary: Origin` on every response. Credentials never allowed. A preflight is an OPTIONS request with `Origin` and `Access-Control-Request-Method`; it is answered by the middleware itself with 204 and never reaches the router (no OPTIONS handler exists or is added, and nothing changes state on OPTIONS).
+
+| Request | Status | CORS headers |
+|---|---|---|
+| Preflight, allow-listed origin | 204, empty body, content-length 0 | allow-origin (that origin), allow-methods (GET,POST,PUT,PATCH,DELETE), allow-headers (Content-Type), Vary: Origin |
+| Preflight, any other origin (foreign, null, other port or scheme, other case, trailing slash, comma list, wildcard, empty) | 204, empty body | none at all; Vary: Origin only |
+| OPTIONS that is not a preflight (no Origin, or no request-method header) | left to the router (404 on every route) | Vary: Origin; allow-origin only for an allow-listed origin |
+| Actual request, allow-listed origin | handler runs (guard still applies) | allow-origin (that origin), Vary: Origin |
+| Actual request, foreign origin (GET) | handler runs | no allow header, Vary: Origin; so the page cannot read it |
+| Foreign-origin POST | 403 from the guard, handler not run | no allow header, Vary: Origin |
+| No Origin header | passes through | Vary: Origin only |
+
+### Boot order as implemented, and the difference from the design diagram
+
+1. `loadConfig` (env file plus injected environment), before any Nest application. ConfigError, EnvFileError and PathError abort here.
+2. `RedactingLogger` with the parsed `LOG_LEVEL`; near-miss env-file hints collected during the load are logged as warnings.
+3. `FileKeyProvider.load()` through `loadKeyring` (diagram step "load key"): a malformed or too permissive file aborts before any app exists; a key that already exists is registered with the redactor now.
+4. `NestFactory.create(AppModule.forRoot(...), { logger, abortOnError: false })`.
+5. Connect `PrismaService` (typed MIGRATION_REQUIRED and DATA_DIR errors), then `reconcileKey` against the real `KeyCheckStore`, then register the (possibly just generated) key, then the one-time backup warning when the key was generated.
+6. CORS middleware, global prefix with the health route excluded, the single `non_loopback_bind` warning when it applies, then `listen(port, host)`.
+7. Bound address read back from the server; a non-loopback address without the opt-in closes the application and throws.
+Any failure after step 4 closes the application (server and database connection) and rethrows.
+
+Difference from the brief (the design wins): the brief put key and database before creating the application; the diagram creates it first and connects after, and that is what is implemented. Difference from the diagram: none other than the extra early key read (the diagram has it too). Consequence: the Nest startup lines are logged before the database is connected; a key that does not exist yet cannot be in any log line by then, and an existing one is registered before step 4 (proved by a test that logs the key from a provider factory during creation).
+
+### Key forms registered as secrets
+
+For every key in the ring (not only the active one): base64 as written in the key file (padded), base64 without padding, base64url (padded and without padding), hex lower case and hex upper case, de-duplicated. Reason: these are the encodings an operator or a library would print (the file line, a URL-safe token, a hex dump). Not covered, by design of exact-match redaction: pieces of the key, other encodings (for example decimal byte lists), and a key inside an object key name. Buffers and typed arrays are already reduced to a byte count by `redact()`.
+
+### Duplicate-key decision
+
+On Prisma P2002 from the insert-only key-check store, `reconcileKey` re-runs the bootstrap exactly once. That run reads the winner's row and verifies against it (verified when the keys agree, KEY_MISMATCH when they do not). A second P2002 aborts with the new typed `BootError` code KEY_CHECK_CONFLICT. Other failures are never retried. Known remaining race, not changed: two first starts that both find no key file; the loser's exclusive create fails and it aborts with KEY_FILE_INVALID (the file is never overwritten); a restart succeeds.
+
+### Other decisions where the design or the brief was silent
+
+- `bootstrap(options)` returns `{ address, droppedEvents(), close() }` and never calls `process.exit`. Inputs: environment, workspace root, env file, home, log sink, port override, plus two test seams, `extraModules` and `listen`. `main.ts` passes neither seam (asserted in the no-ship test) and no environment variable reads them.
+- `droppedEvents` is exposed on the handle (a getter function), tested by breaking the sink after boot.
+- LoggerService assertion: `main.ts` declares a type alias constrained to Nest's `LoggerService` for `RedactingLogger`; `tsc` evaluates it. Negative control: removing the `error` method made `tsc` fail at that line.
+- `AppModule.forRoot({ config, logger, extraModules? })` gives `ConfigModule` the configuration already loaded in step 1 (a value provider under `APP_CONFIG`), so the env file is read once and every module sees one object. `ConfigModule.forRoot` was not changed.
+- The loopback rule exists twice (the schema's private helper and `local-security/bind-policy.ts`); a test compares them over 16 hosts so they cannot drift. Exporting the schema's helper later would remove the copy.
+- The bound-address rule: a loopback address is always accepted; anything else needs the opt-in; a pipe or a missing address is always refused. IPv4-mapped IPv6 loopback is refused, as in the schema.
+- Exit mapping (pure, tested per class): BootError, ConfigError, EnvFileError, PathError, PersistenceError, SecretBoxError exit 1 with one redacted line (class, code, reason); everything else exits 70 and prints only the class name, because unknown messages were never audited. SIGINT and SIGTERM in the entry block close the application and exit 0.
+- Entry block: `isMainModule(import.meta.url, argv[1])` tolerates the Nest CLI starting the build output without the file extension.
+- With 0.0.0.0 and the opt-in the guard's Host list comes from configuration only. Tested: a Host with the machine's address and also 127.0.0.1 on the API port get 403 HOST_NOT_ALLOWED until ALLOWED_ORIGINS names the externally used origin. The single `non_loopback_bind` event now lists the accepted Host values and says to add the origin, so the lock-out is visible at start-up; no second event was added and boot does not refuse.
+- Routed requests only: the Host check and the guard run for routes that exist. The built program answered an unrouted foreign POST with 404 (no route in S0); the HTTP suite proves 403 on real routes.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Refactor |
+|---|---|---|---|---|---|---|---|
+| 13.1/13.3 CORS | apps/api/src/local-security/cors-middleware.test.ts | Integration (loopback port 0, real http server) | 293 existing config and no-ship tests green | Failed: Cannot find module './cors-middleware.js' | 33/33 | 2 allowed preflights, 10 foreign preflights, 2 non-preflight OPTIONS, 5 allowed and 3 foreign methods, no origin, credentials, custom and empty lists, 6 bad constructor values, error hygiene | Lint fix (useless assignment) |
+| 13.3 bind policy | apps/api/src/local-security/bind-policy.test.ts | Unit | N/A (new) | Failed: Cannot find module './bind-policy.js' | 103/103 with the two files below | 5 and 10 address cases, 4 and 6 host cases, 16 schema-agreement hosts, 4 refused, 3 accepted with opt-in, 2 non-network values, event cases | None needed |
+| 13.3 exit mapping | apps/api/src/process-exit.test.ts | Unit | N/A (new) | Failed: Cannot find module './process-exit.js' | 24/24 | one case per class (6), multi-issue line, redaction, 7 unexpected values, 4 entry-path cases plus 5 negatives | Joined ConfigError lines more readably after a failing exact-line assertion |
+| 13.3 key helpers | apps/api/src/key-boot.int.test.ts | Integration (temp databases, two connections) | N/A (new) | Failed: Cannot find module './key-boot.js'; later loadKeyring is not a function | 24/24 | key forms, ring registration, real P2002, 7 error shapes, 6 reconcile scenarios, 4 loadKeyring cases | None needed |
+| 13.2/13.3 boot and HTTP | apps/api/src/main.int.test.ts | Integration (real servers on loopback port 0, temp dirs) | N/A (new) | Failed: Cannot find module './main.js' | 41/41 (first run green) | see list below | Prettier; spy typed for lint |
+| 13.3 no-ship | apps/api/src/local-security/no-test-route-ships.test.ts | Unit | 5/5 existing | n/a (the behaviour already held; proven by mutation instead) | 7/7 | AppModule dynamic graph has no controller; main.ts starts with no options and reads no environment | None needed |
+
+The boot suite covers: default bind and the really bound address; IPv6 loopback; the name localhost; a stubbed non-loopback bound address closing the server (with and without the opt-in); port already taken; close(); the opt-in event (exactly one, before the socket call, with host and port); no event for loopback or without the opt-in; refusal without the opt-in before any app, key or listen; the lock-out and its fix; six configuration failure shapes before any app exists; the env file read from the injected root; LOG_LEVEL honoured; key generation with the backup warning once; the default key path under the injected home; loose key file; key mismatch never reaching listen; absent key with a stored check never regenerating; unmigrated database with no key generated; unusable DATA_DIR; two simultaneous starts; the key in six forms absent from output (seeded, generated, and logged during creation); Nest lines through the redacting logger; droppedEvents; prefix and health exclusion; allowed and foreign preflights; foreign GET without an allow header; foreign, allowed and no-origin POST; plain OPTIONS answered 404; Host rejection; process.exit never called.
+
+### Mutation checks (each restored, suite re-run green)
+
+| Mutation | Result |
+|---|---|
+| CORS: drop Vary | 22 failed |
+| CORS: wildcard allow-origin | 10 failed |
+| CORS: reflect any origin | 16 failed |
+| CORS: allow-methods for foreign origins | 11 failed |
+| CORS: add allow-credentials | 3 failed |
+| CORS: preflight passed to the router | 13 failed |
+| Key helpers: remove the duplicate-key retry | 3 failed |
+| Key helpers: second duplicate not typed / registerKeyring registers nothing / drop upper-case hex, unpadded base64 or padded base64url (one each) / isDuplicate never true | 1, 2, 1 each, 6 failed |
+| Exit mapping: known error exits 0 / unexpected exits 0 / BootError or PathError not recognised | 7, 7, 2, 1 failed |
+| Bind policy: verification skipped / opt-in ignored / event without opt-in / any IPv6 is loopback | 4, 3, 1, 7 failed |
+| main.ts: Nest application created before the configuration is loaded | 6 failed |
+| main.ts: skip registerSecret after reconcile | 1 failed (generated key) |
+| main.ts: skip registerSecret everywhere | 1 failed; skipping only the early registration first SURVIVED, then a test logging the key during creation was added and it fails 1 |
+| main.ts: skip CORS middleware | 4 failed |
+| main.ts: skip bound-address verification / treat opt-in as always on | 1 failed each |
+| main.ts: continue after a key mismatch | 1 failed |
+| main.ts: no health exclusion | 1 failed |
+| main.ts: event emitted twice / after listen | 1 and 2 failed |
+| main.ts: application not closed on failure | 3 failed |
+| main.ts: droppedEvents fixed at 0 / no backup warning / port override ignored | 1, 1, 3 failed |
+| main.ts: abortOnError left at default | the test worker crashes (process abort), no pass line; it left one temp folder, removed by hand |
+| AppModule gets a controller / main.ts passes options | 1 failed each (no-ship test) |
+| redacting-logger.ts loses its error method | tsc fails at the main.ts assertion |
+
+### Runtime harness
+
+Built program: `pnpm build`, then the built entry file run with an explicit minimal environment (empty inherited environment, home, data folder, key file and an ephemeral loopback port all inside a scratch folder), after applying the committed baseline SQL with the driver. Results: HTTP answered on loopback; allowed preflight 204 with the allow headers; foreign preflight 204 with Vary only; key file mode 600 in a 700 folder; the key text absent from stdout and stderr; seven JSON log lines; SIGTERM exit 0 and no listener left. Three failing starts printed one line each and exited 1 (bad port, non-loopback host without opt-in, unmigrated database); the unmigrated start created no key folder. The scratch folders were removed.
+
+### Spec traceability (scenarios assigned to U13)
+
+| Scenario | Test |
+|---|---|
+| Loopback binding: default bind | main.int.test.ts "listens on the configured loopback address and reports what is really bound" (default host) |
+| Non-loopback without opt-in (aborts naming the host setting) | main.int.test.ts "refuses a non-loopback host without the opt-in before anything is created or listened on" |
+| Non-loopback with opt-in (listens on that host, warns once) | main.int.test.ts "logs exactly one non_loopback_bind warning, before the socket call" (stubbed listen, nothing bound on the network); the really bound address check with a stubbed address |
+| Restrictive CORS: allowed and disallowed preflight | main.int.test.ts HTTP block (two tests) and cors-middleware.test.ts matrix |
+| Origin guard over HTTP: foreign, allowed, missing origin | main.int.test.ts HTTP block (foreign POST 403 with handler not run, allowed POST, no-origin POST); foreign GET without an allow header |
+| Log redaction: configured key value never in output | main.int.test.ts "the key never appears in log output" (three tests) |
+| runtime-configuration: abort before listening, exit path | main.int.test.ts configuration block; process-exit.test.ts; built-program exit codes |
+| persistence-baseline: unwritable path, migration required at boot | main.int.test.ts "the data directory" and the unmigrated test; process-exit.test.ts |
+| secret-protection: key mismatch, absent key with stored check, loose key at boot | main.int.test.ts key handling block |
+| Open for U14: foreign-origin GET on the health route; readiness; U17: README statement of the missing-Origin decision | not in U13 |
+
+### Size
+
+Hand-written lines on the branch, excluding openspec: 2,138 added and 3 removed (about 575 source, 1,560 tests) against a 400 budget and a ~295 forecast (7.3 times). By commit: CORS 272 (source 62, tests 210), boot helpers 777 (source 244, tests 533), AppModule, main.ts and the HTTP suite 1,102 (source about 271 with main.ts 207, tests about 831 with the boot suite 764). Not trimmed. A `size:exception` is recommended, or the PR can be sliced along the three commits (272, 777 and 1,102), of which only the first fits the budget.
+
+| Evidence | Value |
+|---|---|
+| Focused test | `pnpm --filter @importer/api exec vitest run src/main src/local-security`: all green; `main.int.test.ts` 41 tests |
+| Full gate | `pnpm check` exit 0 (2,969 API tests, 42 contracts, 2 skipped); `pnpm build` exit 0 |
+| Runtime harness | built program run described above |
+| Rollback boundary | apps/api/src/main.ts, app.module.ts (back to the empty module), key-boot.ts, process-exit.ts, local-security/cors-middleware.ts and bind-policy.ts with their tests, the three added BootError codes, the no-ship test additions; the tasks.md checkboxes and this batch |
