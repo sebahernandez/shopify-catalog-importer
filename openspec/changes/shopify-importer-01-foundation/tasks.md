@@ -138,9 +138,9 @@ Satisfies: local-security-baseline (message secret, field secret, non-secret pre
 
 Satisfies: secret-protection (round-trip, non-determinism, hides plaintext, tamper, wrong key, malformed, malformed key).
 
-- [ ] 6.1 Create `apps/api/src/shared-kernel/secret-box/secret-box.port.ts`, `key-provider.port.ts`, `key-check-store.port.ts` per Interfaces.
-- [ ] 6.2 RED: create `apps/api/src/shared-kernel/secret-box/aes-gcm-secret-box.test.ts`: round trip, two encryptions differ, ciphertext lacks plaintext, tamper each of IV/ciphertext/tag/keyId/context fails with `DECRYPT_FAILED`, wrong key fails, empty and malformed envelope give `MALFORMED_ENVELOPE`, no keyring gives `KEY_MISSING` naming `SECRET_KEY_FILE`, wrong key length error does not contain the key value.
-- [ ] 6.3 GREEN: create `apps/api/src/shared-kernel/secret-box/infrastructure/aes-gcm-secret-box.ts` (envelope `sb1.<keyId>.<iv>.<ct>.<tag>`, AAD `sb1|keyId|context`) and `SecretBoxError`.
+- [x] 6.1 Create `apps/api/src/shared-kernel/secret-box/secret-box.port.ts`, `key-provider.port.ts`, `key-check-store.port.ts` per Interfaces.
+- [x] 6.2 RED: create `apps/api/src/shared-kernel/secret-box/aes-gcm-secret-box.test.ts`: round trip, two encryptions differ, ciphertext lacks plaintext, tamper each of IV/ciphertext/tag/keyId/context fails with `DECRYPT_FAILED`, wrong key fails, empty and malformed envelope give `MALFORMED_ENVELOPE`, no keyring gives `KEY_MISSING` naming `SECRET_KEY_FILE`, wrong key length error does not contain the key value.
+- [x] 6.3 GREEN: create `apps/api/src/shared-kernel/secret-box/infrastructure/aes-gcm-secret-box.ts` (envelope `sb1.<keyId>.<iv>.<ct>.<tag>`, AAD `sb1|keyId|context`) and `SecretBoxError`.
 
 ## Phase 7: U7 Key file provider and bootstrap
 
