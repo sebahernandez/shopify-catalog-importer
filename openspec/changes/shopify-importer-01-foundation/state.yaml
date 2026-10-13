@@ -19,7 +19,7 @@ phases:
   specs: done
   design: done
   tasks: done
-  apply: in_progress (U1 merged via PR 1; U2 merged via PR 3; U3 done on its branch, not pushed, 506 hand-written lines (over the 400 budget, size decision pending); ESM, DI and native SQLite spikes passed, no fallback)
+  apply: in_progress (U1 merged via PR 1; U2 merged via PR 3; U3 done on its branch, not pushed, 506 hand-written lines (over the 400 budget; size:exception accepted by the user on 2026-10-13 for U3 only); ESM, DI and native SQLite spikes passed, no fallback)
   verify: pending
   archive: pending
 
