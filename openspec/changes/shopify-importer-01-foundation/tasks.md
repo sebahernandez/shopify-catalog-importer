@@ -113,10 +113,10 @@ Satisfies: workspace-tooling (strict compilation, layout), persistence-baseline 
 
 Satisfies: money-value-object (all four requirements, nine scenarios).
 
-- [ ] 3.1 RED: create `apps/api/src/shared-kernel/money/money.test.ts` with tables of accepted and rejected inputs (`1,234`, `1.234,56`, `""`, `1.2.3`, `1e3`, `abc`, `NaN`, `+1`, `.5`, `5.`, whitespace, non-ASCII digits, a JS number), canonical forms (`007.50` is `7.5`, `12.00` is `12`, `-0.00` is `0`), `0.1 + 0.2 = 0.3`, `12345678901234567890.123456789` round trip, `1.50` equals `1.5`, `a` unchanged after `add`, `toFixed`, `compare`, `toJSON` returns a string.
-- [ ] 3.2 GREEN: create `apps/api/src/shared-kernel/money/money.ts` (bigint plus scale, `parse`, `tryParse`, `add`, `equals`, `compare`, `toFixed`, `isNegative`, `toString`, `toJSON`). Use a `MoneyError` with `code` of `AMBIGUOUS_SEPARATOR` for comma input and `INVALID_FORMAT` for everything else (the spec requires an ambiguity error distinct from a validation error).
-- [ ] 3.3 RED then GREEN: create `packages/contracts/src/money.ts` (`MoneyString` zod type on the canonical regex) and `money.test.ts`; export from `index.ts`.
-- [ ] 3.4 Add a cross-check test in `apps/api/src/shared-kernel/money/money-contract.int.test.ts`: every canonical output of `Money` parses under `MoneyString` and a JSON round trip stays a string.
+- [x] 3.1 RED: create `apps/api/src/shared-kernel/money/money.test.ts` with tables of accepted and rejected inputs (`1,234`, `1.234,56`, `""`, `1.2.3`, `1e3`, `abc`, `NaN`, `+1`, `.5`, `5.`, whitespace, non-ASCII digits, a JS number), canonical forms (`007.50` is `7.5`, `12.00` is `12`, `-0.00` is `0`), `0.1 + 0.2 = 0.3`, `12345678901234567890.123456789` round trip, `1.50` equals `1.5`, `a` unchanged after `add`, `toFixed`, `compare`, `toJSON` returns a string.
+- [x] 3.2 GREEN: create `apps/api/src/shared-kernel/money/money.ts` (bigint plus scale, `parse`, `tryParse`, `add`, `equals`, `compare`, `toFixed`, `isNegative`, `toString`, `toJSON`). Use a `MoneyError` with `code` of `AMBIGUOUS_SEPARATOR` for comma input and `INVALID_FORMAT` for everything else (the spec requires an ambiguity error distinct from a validation error).
+- [x] 3.3 RED then GREEN: create `packages/contracts/src/money.ts` (`MoneyString` zod type on the canonical regex) and `money.test.ts`; export from `index.ts`.
+- [x] 3.4 Add a cross-check test in `apps/api/src/shared-kernel/money/money-contract.int.test.ts`: every canonical output of `Money` parses under `MoneyString` and a JSON round trip stays a string.
 
 ## Phase 4: U4 redact() and spec alignment
 
