@@ -6,7 +6,7 @@ context: |
   Planned stack (PLANNED, not installed; source: prompt section 3): TypeScript strict, React + Vite, NestJS, Tailwind CSS, SQLite + Prisma, Sharp, XLSX library, Vitest or Jest, Playwright, pnpm.
   Constraints: no Redis/Docker by default; Shopify tokens never exposed to the frontend; never claim verification against a real store without a real connection.
   Testing: no runner installed yet; no test command available.
-  Not a git repository at init time.
+  Git repository on branch main with remote origin (initialized after sdd-init, on 2026-10-13).
 
 strict_tdd: false
 
