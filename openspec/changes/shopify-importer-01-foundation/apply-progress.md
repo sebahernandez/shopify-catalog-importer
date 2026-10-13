@@ -502,3 +502,94 @@ Hand-written added lines, 1,008 in total against a 400 budget and a ~185 forecas
 | Focused test | `pnpm --filter @importer/api exec vitest run src/config`: 5 files, 288 tests passed |
 | Runtime harness | `loadConfig` against env files written by the tests into fresh temp directories (default .env name, a custom name, missing, directory, unreadable, malformed), and the sample used as an env file. Root `pnpm install --frozen-lockfile`, `pnpm check` (687 API, 42 contracts tests, 2 skipped) and `pnpm build` exit 0 |
 | Rollback boundary | apps/api/src/config/paths*, load-config*, config.module*, env-example.test.ts, and env.example at the repository root; the tasks.md checkboxes |
+
+## Batch 10: U10 Persistence core and migration
+
+Branch `feat/foundation-u10-persistence`. Tasks 10.1 to 10.4 complete (4/4 of Phase 10; 44 of 61 overall). Mode: Strict TDD.
+Commits: b1c21c6 (`.env.*` ignore line), f5c9508 (Prisma dependencies, schema, config file, scripts, baseline migration, migration test), 1f022b0 (data directory and file created owner-only), 59885b4 (connection settings check), and a fifth commit (PrismaService, PersistenceModule, tests, task checkboxes, this file; hash in the git log).
+
+Resolved versions (exact pins): prisma 7.10.0, @prisma/client 7.10.0 (matches @prisma/adapter-better-sqlite3 7.10.0; the npm latest tag is 8.0.0-rc.22 and was not installed). better-sqlite3 stays 12.11.1.
+
+### Verification of the three design assumptions (task 10.1)
+
+| Item | Verdict | Evidence |
+|---|---|---|
+| 3: generated client under the strict flags | PASS, by the generator's own exclusion, no fallback applied | The generated files start with a ts-nocheck and eslint-disable header, so `tsc` passes with the strict base flags unchanged and ESLint already ignores the folder (`globalIgnores`) and Prettier too (`.prettierignore`). With the ts-nocheck line stripped from a scratch copy, `tsc` reports 4 errors, all about missing WebAssembly lib types and untyped wasm modules in the runtime import; none comes from `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `verbatimModuleSyntax` or NodeNext. Hand-written code calls the client under the strict flags without errors. The client type is opaque to the compiler, so the persistence code and tests describe the few members they touch. |
+| 4: pragmas, busy timeout, one connection | PASS | Read from the installed adapter's declaration and source: the adapter takes the better-sqlite3 Options plus `url`; its `timeout` option is the busy timeout. There is no pragma option. `connect()` of the factory builds exactly one `new Database(...)` per call and the adapter guards transactions with a mutex. WAL and foreign keys are therefore statements through the client, and they persist because the connection is single (test: adapter `connect` called once across connect twice, 8 parallel reads and a transaction; foreign_keys reads 1 every time; busy_timeout reads back the configured value). |
+| 5: generate, deploy, no implicit generation | PASS | `prisma generate` and `prisma migrate deploy` both load `prisma.config.ts` (it imports the project's ESM TypeScript with a `.js` specifier and it works under Prisma's config loader, no fallback needed). With the generated folder deleted, `migrate deploy` applied the baseline and did NOT recreate the folder. A second deploy printed "No pending migrations to apply" and exited 0. `generate` with an absent data directory did not create it. Prisma 7's `migrate dev` does not generate either. |
+
+### Install and scripts
+
+- Prisma needed `allowBuilds` for `@prisma/engines` (set to true; its postinstall downloaded the schema-engine binary for darwin-arm64, 26 MB, into the engines package folder). `prisma` itself is set to false: its preinstall only checks the Node version, which the CLI repeats at every start. Nothing else was approved.
+- Generation is triggered by: `pretypecheck`, `pretest`, `prebuild` and `predev` in `@importer/api` (so root `pnpm typecheck`, `pnpm test`, `pnpm build`, `pnpm dev`, and therefore `pnpm check`) and by the root `prelint` (so `pnpm lint` on its own works after a fresh clone). `pnpm db:generate` runs it explicitly. Calling vitest or eslint directly does not generate.
+- `pnpm db:migrate` is `prisma migrate deploy` in the API package; the API never migrates at boot. The migrate commands create the data directory (0700) and the database file (0600) first, through the config file (only when the Prisma sub-command is migrate).
+- Baseline migration command (run once, against a temporary data directory with the home directory also pointed into a temp folder): `prisma migrate dev --name baseline` in the API package, with DATA_DIR set explicitly. Output: migration 20261013180211_baseline and migration_lock.toml, committed untouched.
+
+### Table definition
+
+`CREATE TABLE "app_setting" ("key" TEXT NOT NULL PRIMARY KEY, "value" TEXT NOT NULL, "updated_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`. Prisma model AppSetting with `@@map("app_setting")` and `updatedAt @default(now()) @updatedAt @map("updated_at")`. No other table, column or index.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Refactor |
+|---|---|---|---|---|---|---|---|
+| 10.2/10.3 migration | apps/api/src/persistence/baseline-migration.int.test.ts | Integration (real Prisma CLI in a temp dir) | N/A (new) | Failed: Failed to resolve import './database-location.js'; then 3 failed (ENOENT for the migrations folder, app_setting missing) | 5/5 after generating the migration; 6/6 after the permissions test | committed SQL checksum equals the recorded checksum, second deploy no-op with identical history, exact table and column list, location equals loader result, directory 0700 and file 0600 | Prettier; added a row-count assertion because the no-op test passed vacuously at RED |
+| 10.3/10.4 location | apps/api/src/persistence/database-location.int.test.ts | Integration (temp dir) | N/A (new) | Failed: Cannot find module './persistence-error.js' | 5/5 | umask 0 creation, untouched content plus tighten 0644 to 0600, loose directory refused, path is a file, read-only parent (skipped as root) | None needed |
+| 10.3/10.4 settings | apps/api/src/persistence/connection-settings.test.ts | Unit | N/A (new) | Failed: Cannot find module './connection-settings.js' | 8/8 | 2 integer types, 6 mismatch cases, all-wrong list | Typed the parameter as RawConnectionSettings |
+| 10.3/10.4 service and module | apps/api/src/persistence/prisma.service.int.test.ts | Integration (temp dir, Nest context) | N/A (new) | Failed: Cannot find module './persistence.module.js' | 33/33, then 34/34 | create-then-refuse as one scenario, zero rows, WAL plus busy timeout 1234 and 777 plus foreign keys, other handle sees WAL, read/write/update/transaction, one adapter connect, DATA_DIR unusable, corrupt file, WAL read-back failure, reachable before/true/false after removal/false after replacement, disconnect twice with no WAL leftovers, 0700/0600 on directory, database and WAL files, module build and shutdown | Renamed the pragma helper; `$queryRawUnsafe` given an explicit type argument (lint); the module test replaced a lint-rejected cast |
+
+### Mutation checks (each restored, suite re-run green 34/34)
+
+| Mutation | Result |
+|---|---|
+| Skip setting WAL | 11 failed (boot refuses; WAL test fails) |
+| Skip the busy timeout (driver default 5000 used) | 11 failed |
+| Serve without the baseline check | 1 failed (create-then-refuse scenario) |
+| Prisma config points at a different location than the loader | 3 failed |
+| Skip the settings verification call | 1 failed (read-back mismatch test); first survived until that test was added |
+| Verification ignores journal_mode | 3 failed |
+| isReachable ignores file identity | 1 failed (replaced file) |
+| No error mapping on driver failure | 1 failed (corrupt file) |
+| disconnect does nothing / module shutdown hook removed | 1 failed each |
+| mkdir without mode 0700 | 19 failed |
+| Directory-mode check removed / tighten removed | 1 failed each |
+| Config file does not prepare the directory on migrate | 1 failed (0700/0600 after db:migrate) |
+| SURVIVED: skip `PRAGMA foreign_keys = ON` | Equivalent mutant: better-sqlite3 is built with foreign keys on, so the read-back is 1 either way; the statement and the read-back stay as defence in depth |
+| SURVIVED: open the file without mode 0600 | Equivalent mutant in outcome: the follow-up tighten step still yields 0600; the explicit mode only closes a brief window after creation |
+
+### Decisions where the design was silent or differed
+
+- PrismaService is a framework-free plain class. The lint rules would allow Nest in `persistence/` (only the shared kernel and `*.port.ts` files are restricted), so this was a choice, not a lint constraint: a plain class constructed by a factory provider is testable without Nest and matches the ordered-boot design. Shutdown is driven by `PersistenceModule.onApplicationShutdown`. Wiring: `PersistenceModule.forRoot(configModule)` takes the same `ConfigModule.forRoot(...)` the app imports; token `PRISMA_SERVICE`. Building the module does not connect.
+- Typed error: a new `PersistenceError` (DATA_DIR_UNUSABLE, MIGRATION_REQUIRED, DATABASE_SETUP_FAILED) instead of extending U7's `BootErrorCode`, which kept earlier units' files untouched. U13 maps it to exit 1, like ConfigError and EnvFileError.
+- Who creates the directory: the persistence layer (`prepareDatabaseFile`), called by `PrismaService.connect` and by the config file for migrate commands. Directory and parents 0700, file 0600, independent of the umask. An existing directory with any group or other bit is refused with a chmod 700 hint (same stance as the key directory); an existing database file wider than 0600 is tightened. SQLite gives `-wal` and `-shm` the mode of the database file (observed 0600 in the test), and the directory mode covers them regardless. Nothing is checked on Windows.
+- Foreign keys: the design says set and read back; both done. Journal mode must be wal, busy timeout and foreign keys must read back as configured, else DATABASE_SETUP_FAILED.
+- `isReachable()` also compares the file's device and inode with those seen at connect: on POSIX an open handle keeps working after the file is deleted, so a bare SELECT 1 would report a removed database as up.
+- The migrate-only data directory preparation in `prisma.config.ts` reads `process.argv` for the word migrate. It is a small, tested hack, chosen because Prisma would otherwise create the folder 0755 and file 0644 and the service would then refuse the folder.
+- `tsconfig.json` of the API now includes `prisma.config.ts` (so the type-aware lint project service can see it); the build config still compiles `src` only.
+- The generated client path is the one `.gitignore` already listed; it stays untracked. Prisma's update notice appears on stdout (network check); `CHECKPOINT_DISABLE=1` and `PRISMA_HIDE_UPDATE_MESSAGE=1` silence it and the tests set both.
+- The migration test runs the real Prisma CLI as a child process with an explicit minimal environment and the home directory inside the sandbox. Service tests apply the committed SQL with the driver directly (faster); the CLI path is covered once in the migration test.
+
+### Spec traceability (persistence-baseline and secret-protection)
+
+| Scenario | Test |
+|---|---|
+| Local access: Connect to configured file (creates if absent) | prisma.service.int.test.ts "creates the database file when absent, then refuses..." and "connects to a migrated database..."; baseline-migration.int.test.ts "puts the database where the application configuration says" |
+| Local access: Unwritable path (names the path setting) | database-location.int.test.ts (file in place of directory, read-only parent, loose directory); prisma.service.int.test.ts "names DATA_DIR and leaves nothing behind" |
+| Baseline migration: Apply to empty database | baseline-migration.int.test.ts "applies the committed SQL to an empty database and records it" |
+| Baseline migration: Re-apply | baseline-migration.int.test.ts "changes nothing and exits 0 when applied again" |
+| Readiness: Reachable | prisma.service.int.test.ts "connects to a migrated database..." and "reports false..." (true before removal) |
+| Readiness: Unreachable (removed file, no throw) | prisma.service.int.test.ts "reports false, without throwing, once the database file has been removed" and "replaced" |
+| Readiness consumed by /health | U14 |
+| secret-protection: Empty secret storage (no credential persisted) | U10 part: zero rows in a migrated database (service test, migration test); the key-check-row-only half is U11 |
+| Key-check store, four key states | U11 |
+| Boot ordering, exit code mapping | U13 |
+
+### Size
+
+Hand-written added plus deleted lines, 977 in total against a 400 budget and a ~290 forecast: .gitignore 1; Prisma dependencies, schema, config, scripts and migration test 221 (source and config 70, test 151); data directory 182 (source 59, tests 123); connection settings 94 (source 41, tests 53); service and module 479 (source 159, test 320). Generated, counted separately: pnpm-lock.yaml 1,053 added and 38 removed, migration SQL 6, migration_lock.toml 3. Not trimmed. Only the service and module commit is over 400 on its own; the test file (320 lines) is most of it.
+
+| Evidence | Value |
+|---|---|
+| Focused test | `pnpm --filter @importer/api exec vitest run src/persistence`: 5 files, 34 tests passed |
+| Runtime harness | Real `prisma migrate deploy` twice on a temp DATA_DIR (second: no pending migrations, exit 0), WAL read back, built output (`node` on dist) refusing an unmigrated temp database with the typed error; root `pnpm install --frozen-lockfile`, `pnpm check` (721 tests) and `pnpm build` exit 0 |
+| Rollback boundary | apps/api/prisma/**, apps/api/prisma.config.ts, apps/api/src/persistence/**, the script and dependency lines in both package manifests, the lockfile delta, the allowBuilds lines for prisma, the prisma.config.ts line in apps/api tsconfig.json, the .gitignore line is separate |
