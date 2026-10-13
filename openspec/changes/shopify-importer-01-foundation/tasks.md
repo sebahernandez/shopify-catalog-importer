@@ -32,7 +32,7 @@ Hand-written = additions authored by hand, tests included. Generated figures are
 | U6 | U3 (part) | `SecretBox` ports plus `AesGcmSecretBox` | ~250 (130 / 120) | none | U2 |
 | U7 | U3 (part) | `FileKeyProvider` plus `SecretKeyBootstrap` | ~340 (150 / 190) | none | U6 |
 | U8 | U4 (part) | Env schema and loopback rules | ~230 (100 / 130) | none | U2 |
-| U9 | U4 (part) | Loader, paths, `ConfigModule`, `.env.example` | ~185 (115 / 70) | none | U8 |
+| U9 | U4 (part) | Loader, paths, `ConfigModule`, `env.example` | ~185 (115 / 70) | none | U8 |
 | U10 | U6 (part) | Prisma schema and config, `PrismaService`, baseline migration | ~290 (150 / 140) | lockfile ~1,200, SQL ~15 | U9, U2 |
 | U11 | U6 (part) | `PrismaKeyCheckStore` with the four key states | ~125 (35 / 90) | none | U7, U10 |
 | U12 | U5 (part) | `allowed-origins`, `LocalRequestGuard`, error filter | ~350 (150 / 200) | none | U8, U1 |
@@ -62,7 +62,7 @@ Needs no size exception: none. Needs the most attention: U1, U7, U12.
 | U6 | `SecretBox` | PR 6 | `pnpm --filter @importer/api exec vitest run src/shared-kernel/secret-box` | N/A: crypto unit, no runtime boundary | `shared-kernel/secret-box/**` excluding infrastructure key provider |
 | U7 | Key file provider and key bootstrap | PR 7 | `pnpm --filter @importer/api exec vitest run src/shared-kernel/secret-box` | Temp-dir key file: generated `0600`, loose mode rejected | `file-key-provider*`, `secret-key-bootstrap*`, `key-check-store.port.ts` |
 | U8 | Env schema | PR 8 | `pnpm --filter @importer/api exec vitest run src/config` | N/A: pure schema | `config/env.schema*` |
-| U9 | Loader, paths, `.env.example` | PR 9 | `pnpm --filter @importer/api exec vitest run src/config` | `loadConfig` against a temp `.env` file | `config/**` except schema, `.env.example` |
+| U9 | Loader, paths, `env.example` | PR 9 | `pnpm --filter @importer/api exec vitest run src/config` | `loadConfig` against a temp `.env` file | `config/**` except schema, `env.example` |
 | U10 | Persistence core and migration | PR 10 | `pnpm --filter @importer/api exec vitest run src/persistence` | `pnpm db:migrate` twice on a temp `DATA_DIR`; WAL read back | `apps/api/prisma/**`, `prisma.config.ts`, `persistence/prisma.service*` |
 | U11 | Key-check store | PR 11 | `pnpm --filter @importer/api exec vitest run src/persistence/prisma-key-check-store` | Four key-check states against a real temp database | `persistence/prisma-key-check-store*` |
 | U12 | Local request guard | PR 12 | `pnpm --filter @importer/api exec vitest run src/local-security` | N/A: header matrix on the guard; HTTP runtime proof is in U13 | `local-security/**` |
@@ -159,14 +159,14 @@ Satisfies: runtime-configuration (validated startup, pinned API version, loopbac
 - [x] 8.1 RED: create `apps/api/src/config/env.schema.test.ts`: defaults for all twelve D6 variables, `API_PORT=abc` names `API_PORT`, `SHOPIFY_API_VERSION=latest` names it, default `2026-10`, `API_HOST=0.0.0.0` without opt-in names `API_HOST`, same for `WEB_HOST`, opt-in only for the literal `true`, `ALLOWED_ORIGINS` rejects paths and `*`, derived default origins, all errors listed together and none contains a value.
 - [x] 8.2 GREEN: create `apps/api/src/config/env.schema.ts` (zod; single source for the API version; `process.env` never read here).
 
-## Phase 9: U9 Loader, paths, `.env.example`
+## Phase 9: U9 Loader, paths, `env.example`
 
 Satisfies: runtime-configuration (valid configuration, sample complete, real env ignored), persistence-baseline (configurable path default).
 
 - [ ] 9.1 Verify scaffold item 6: Node 24 built-in env-file loader reads root `.env` and tolerates an absent file; note whether `prisma.config.ts` must call it (used in U10). Fallback: a small explicit file reader inside `load-config.ts`.
-- [ ] 9.2 RED: create `apps/api/src/config/load-config.test.ts` and `paths.test.ts`: exit-path error lists variable names only, relative paths resolve against the workspace root, the home directory expands in `SECRET_KEY_FILE`, `.env.example` lists every schema variable, `git check-ignore .env` succeeds.
+- [ ] 9.2 RED: create `apps/api/src/config/load-config.test.ts` and `paths.test.ts`: exit-path error lists variable names only, relative paths resolve against the workspace root, the home directory expands in `SECRET_KEY_FILE`, `env.example` lists every schema variable, `git check-ignore .env` succeeds.
 - [ ] 9.3 GREEN: create `apps/api/src/config/load-config.ts`, `paths.ts`, `config.module.ts`.
-- [ ] 9.4 Create `.env.example` with every variable, empty or placeholder values, no secrets.
+- [ ] 9.4 Create `env.example` with every variable, empty or placeholder values, no secrets.
 
 ## Phase 10: U10 Persistence core and migration
 
