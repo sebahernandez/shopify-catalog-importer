@@ -593,3 +593,60 @@ Hand-written added plus deleted lines, 977 in total against a 400 budget and a ~
 | Focused test | `pnpm --filter @importer/api exec vitest run src/persistence`: 5 files, 34 tests passed |
 | Runtime harness | Real `prisma migrate deploy` twice on a temp DATA_DIR (second: no pending migrations, exit 0), WAL read back, built output (`node` on dist) refusing an unmigrated temp database with the typed error; root `pnpm install --frozen-lockfile`, `pnpm check` (721 tests) and `pnpm build` exit 0 |
 | Rollback boundary | apps/api/prisma/**, apps/api/prisma.config.ts, apps/api/src/persistence/**, the script and dependency lines in both package manifests, the lockfile delta, the allowBuilds lines for prisma, the prisma.config.ts line in apps/api tsconfig.json, the .gitignore line is separate |
+
+## Batch 11: U11 Key-check store
+
+Branch `feat/foundation-u11-key-check-store`. Tasks 11.1 and 11.2 complete (2/2 of Phase 11; 46 of 65 overall, as counted by native SDD status). Implementation and local verification complete; delivery is pending. Next unit: U12. Mode: Strict TDD.
+
+`PrismaKeyCheckStore` implements the kernel's `KeyCheckStore` port using the connected `PrismaService`. It stores envelopes under `secret-key-check:<keyId>` in `app_setting`, keeping the key-check namespace separate from unrelated settings. An absent row returns null; database failures propagate.
+
+Writes are insert-only. The primary key rejects duplicate and competing inserts with Prisma's P2002 error, leaving the original envelope and timestamp untouched. This closes the read/write race identified in Batch 7: a losing bootstrap fails rather than accepting a competing check or replacing it. It does not retry or silently ignore the conflict.
+
+`PersistenceModule` exports `KEY_CHECK_STORE` and constructs the store from the same `PRISMA_SERVICE` provider. Module creation remains lazy; ordered connection and boot error mapping belong to U13. The module integration test injects both tokens into an importing module and observes shutdown through the store.
+
+### TDD evidence
+
+#### TDD Cycle Evidence
+
+| Task | RED (tests first) | GREEN | REFACTOR |
+|---|---|---|---|
+| 11.1 | Integration suite written first; missing adapter import failed, then a no-op adapter produced 10 failed and 1 passed | All four key/database states passed against real temporary SQLite and key files | Typed assertions and cross-module injection proof; final suite 12/12 |
+| 11.2 | The same pre-existing integration suite rejected missing writes, overwritten checks and hidden persistence failures | Adapter read/create and module wiring passed 11/11 | Insert-only contract documented; independent connections and query failures covered in final 12/12 |
+
+| Stage | Result |
+|---|---|
+| RED, missing adapter | Focused suite failed to import `prisma-key-check-store.js` |
+| RED, wired no-op adapter | 10 failed, 1 passed: no row, no verification, lost/wrong key accepted, duplicate inserts accepted, persistence failure hidden |
+| GREEN | 11/11 passed after implementing read and insert-only write |
+| Final verification | 12/12 passed after adding a real query-failure scenario and strengthening cross-module injection assertions; typed assertions pass lint |
+
+### Scenario evidence
+
+| Scenario | Integration proof |
+|---|---|
+| Absent file, absent row | Generates k1; the only application row is an sb1 envelope decrypting to the public check, containing neither its plaintext nor base64 key material |
+| Present file, absent row | Records the check; key file bytes unchanged |
+| Present file, present row | Reopens the database, verifies the check; file, envelope and timestamp unchanged |
+| Present file, wrong key | KEY_MISMATCH; replacement file and original row unchanged |
+| Absent file, present row | KEY_FILE_REQUIRED; never regenerates; row unchanged |
+| Malformed file | KEY_FILE_INVALID; both persisted artifacts unchanged |
+| Multiple key ids and unrelated settings | Separate reads, absent id returns null, unrelated setting untouched |
+| Duplicate and competing inserts | P2002, one winner across independent database connections, original check preserved |
+| Persistence failure | Disconnected service and dropped table both propagate errors; no new key file |
+| Nest module boundary | Importing consumer resolves both exported tokens; shared connection stays lazy and closes at shutdown |
+
+Existing U7 limitations remain: bootstrap checks only the active key id (k1 when the file is absent); rotation tooling and reconciliation of historical key ids are deferred.
+
+### Verification and rollback
+
+Run with Node 24.21.0 and pnpm 12.11.2. All databases and key files used temporary directories and were removed by test/harness cleanup.
+
+| Evidence | Value |
+|---|---|
+| Focused command | `pnpm --filter @importer/api exec vitest run src/persistence/prisma-key-check-store`: 1 file, 12 tests passed |
+| Full gate | `pnpm check`: exit 0; API 733 passed, contracts 42 passed and 2 skipped; typecheck, lint and format pass. The first sandboxed attempt failed only because the existing ESM smoke could not listen on 127.0.0.1; rerun outside the sandbox passed. |
+| Build | `pnpm build`: exit 0 |
+| Built runtime harness | `node /private/tmp/u11-key-check-smoke.mjs`: exit 0, generated/recorded/verified/lost-key/wrong-key scenarios against the compiled adapters and a real migrated temporary SQLite database |
+| Attempt recovery | The sandbox-only `EPERM` loopback-bind failure was settled as failed; the subsequent Node 24 retry is the correction candidate and reran all U11 evidence successfully. |
+| Rollback boundary | Delete `persistence/prisma-key-check-store.ts` and its integration test; remove only the key-check import, token, factory and export from `persistence.module.ts`; revert the U11 task/checkpoint/progress hunks. U10 service, schema and migration remain independently usable. |
+| Size | 296 authored code/test changed lines: adapter 25, integration test 260, module 10 additions and 1 deletion. No generated or dependency changes; SDD evidence is recorded alongside the unit. |
