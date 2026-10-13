@@ -19,7 +19,7 @@ phases:
   specs: done
   design: done
   tasks: done
-  apply: pending
+  apply: in_progress (U1 of 17 done, not pushed)
   verify: pending
   archive: pending
 

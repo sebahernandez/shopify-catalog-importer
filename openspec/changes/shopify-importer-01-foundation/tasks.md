@@ -87,17 +87,17 @@ Conventions for every unit: conventional commits, no AI attribution, English cod
 
 Satisfies: workspace-tooling (layout, install, strict compilation, quality scripts), health-check (contract shape), runtime-configuration (`.gitignore` of real env).
 
-- [ ] 1.1 Verify scaffold item 12 and 7: resolve and pin exact versions of TypeScript, ESLint, `typescript-eslint`, Prettier, `eslint-config-prettier`, Vitest, zod. Verify pnpm 12 syntax for strict engine checks and whether `pre*` scripts run on `pnpm test`. Fallback for pre-scripts: call the contracts build explicitly in the root scripts.
-- [ ] 1.2 Create `package.json` (private, `engines.node >=24`, exact `packageManager`, scripts from D9), `pnpm-workspace.yaml`, `.node-version`.
-- [ ] 1.3 Create `tsconfig.base.json` (strict, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, `NodeNext`).
-- [ ] 1.4 Create `.prettierrc.json`, `.prettierignore`; modify `.gitignore` to add `node_modules`, `dist`, `data/`, `.env`, `*.key`, `apps/api/src/generated/`.
-- [ ] 1.5 RED: create `packages/contracts/src/health.test.ts` and `api-error.test.ts` (valid and invalid bodies for `HealthResponse` and `ApiError`). Create `packages/contracts/package.json` (`@importer/contracts`, `exports` to `dist`), `tsconfig.json`, `vitest.config.ts` so the tests run and fail.
-- [ ] 1.6 GREEN: create `packages/contracts/src/health.ts`, `api-error.ts`, `index.ts` per the Interfaces section.
-- [ ] 1.7 RED then GREEN: create `packages/contracts/src/workspace-invariants.int.test.ts` asserting: web manifest, if present, has no `@importer/api` dependency and only `@importer/contracts` as workspace dependency; root `engines.node` is set. Vacuous for web until U15 by design.
-- [ ] 1.8 Create `eslint.config.js` (flat, type-aware, layer `no-restricted-imports` per D2, `process.env` ban outside `apps/api/src/config/` and `apps/web/vite.config.ts`, `no-floating-promises`).
-- [ ] 1.9 Create `README.md` stub in Spanish (title, state, link to the future quick start).
-- [ ] 1.10 Verify negative gates in a scratch copy outside the repo: type error fails `pnpm typecheck` naming the file; failing test fails `pnpm test`; `engines.node >=99` makes `pnpm install` report the mismatch; an import across a layer fails `pnpm lint`.
-- [ ] 1.11 Run `pnpm install --frozen-lockfile`, `pnpm check`, `pnpm build`; confirm the lockfile is unchanged.
+- [x] 1.1 Verify scaffold item 12 and 7: resolve and pin exact versions of TypeScript, ESLint, `typescript-eslint`, Prettier, `eslint-config-prettier`, Vitest, zod. Verify pnpm 12 syntax for strict engine checks and whether `pre*` scripts run on `pnpm test`. Fallback for pre-scripts: call the contracts build explicitly in the root scripts.
+- [x] 1.2 Create `package.json` (private, `engines.node >=24`, exact `packageManager`, scripts from D9), `pnpm-workspace.yaml`, `.node-version`.
+- [x] 1.3 Create `tsconfig.base.json` (strict, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, `NodeNext`).
+- [x] 1.4 Create `.prettierrc.json`, `.prettierignore`; modify `.gitignore` to add `node_modules`, `dist`, `data/`, `.env`, `*.key`, `apps/api/src/generated/`.
+- [x] 1.5 RED: create `packages/contracts/src/health.test.ts` and `api-error.test.ts` (valid and invalid bodies for `HealthResponse` and `ApiError`). Create `packages/contracts/package.json` (`@importer/contracts`, `exports` to `dist`), `tsconfig.json`, `vitest.config.ts` so the tests run and fail.
+- [x] 1.6 GREEN: create `packages/contracts/src/health.ts`, `api-error.ts`, `index.ts` per the Interfaces section.
+- [x] 1.7 RED then GREEN: create `packages/contracts/src/workspace-invariants.int.test.ts` asserting: web manifest, if present, has no `@importer/api` dependency and only `@importer/contracts` as workspace dependency; root `engines.node` is set. Vacuous for web until U15 by design.
+- [x] 1.8 Create `eslint.config.js` (flat, type-aware, layer `no-restricted-imports` per D2, `process.env` ban outside `apps/api/src/config/` and `apps/web/vite.config.ts`, `no-floating-promises`).
+- [x] 1.9 Create `README.md` stub in Spanish (title, state, link to the future quick start).
+- [x] 1.10 Verify negative gates in a scratch copy outside the repo: type error fails `pnpm typecheck` naming the file; failing test fails `pnpm test`; `engines.node >=99` makes `pnpm install` report the mismatch; an import across a layer fails `pnpm lint`.
+- [x] 1.11 Run `pnpm install --frozen-lockfile`, `pnpm check`, `pnpm build`; confirm the lockfile is unchanged.
 
 ## Phase 2: U2 API skeleton and spikes
 
