@@ -156,8 +156,8 @@ Satisfies: secret-protection (missing key, malformed key, key file excluded), de
 
 Satisfies: runtime-configuration (validated startup, pinned API version, loopback defaults), local-security-baseline (non-loopback refusal and opt-in rule).
 
-- [ ] 8.1 RED: create `apps/api/src/config/env.schema.test.ts`: defaults for all twelve D6 variables, `API_PORT=abc` names `API_PORT`, `SHOPIFY_API_VERSION=latest` names it, default `2026-10`, `API_HOST=0.0.0.0` without opt-in names `API_HOST`, same for `WEB_HOST`, opt-in only for the literal `true`, `ALLOWED_ORIGINS` rejects paths and `*`, derived default origins, all errors listed together and none contains a value.
-- [ ] 8.2 GREEN: create `apps/api/src/config/env.schema.ts` (zod; single source for the API version; `process.env` never read here).
+- [x] 8.1 RED: create `apps/api/src/config/env.schema.test.ts`: defaults for all twelve D6 variables, `API_PORT=abc` names `API_PORT`, `SHOPIFY_API_VERSION=latest` names it, default `2026-10`, `API_HOST=0.0.0.0` without opt-in names `API_HOST`, same for `WEB_HOST`, opt-in only for the literal `true`, `ALLOWED_ORIGINS` rejects paths and `*`, derived default origins, all errors listed together and none contains a value.
+- [x] 8.2 GREEN: create `apps/api/src/config/env.schema.ts` (zod; single source for the API version; `process.env` never read here).
 
 ## Phase 9: U9 Loader, paths, `.env.example`
 
