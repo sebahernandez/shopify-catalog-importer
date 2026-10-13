@@ -1,0 +1,58 @@
+schema: spec-driven
+
+context: |
+  Project: shopify-catalog-importer (greenfield; only the master prompt shopify-catalog-importer-prompt.md exists).
+  Product: local app that imports a product catalog from XLSX into Shopify (backend-only Shopify calls, resumable, duplicate-safe).
+  Planned stack (PLANNED, not installed; source: prompt section 3): TypeScript strict, React + Vite, NestJS, Tailwind CSS, SQLite + Prisma, Sharp, XLSX library, Vitest or Jest, Playwright, pnpm.
+  Constraints: no Redis/Docker by default; Shopify tokens never exposed to the frontend; never claim verification against a real store without a real connection.
+  Testing: no runner installed yet; no test command available.
+  Not a git repository at init time.
+
+strict_tdd: false
+
+testing:
+  strict_tdd: false
+  reason: "No project, package.json, or test runner exists yet, and no explicit workspace-level test command covers any in-scope project."
+  detected: false
+  planned:
+    unit: "Vitest or Jest (to be decided at scaffold time)"
+    e2e: "Playwright"
+    package_manager: "pnpm"
+  test_command: ""
+  coverage_command: ""
+
+projects: []
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Write artifacts in English; the source prompt is in Spanish
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+    - Keep frontend, backend, and shared contracts clearly separated
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+    - Forecast review workload against the 400 changed-line budget
+  apply:
+    guidelines:
+      - Follow existing code patterns once scaffolded
+      - Never add mandatory services (Redis, Docker) without a justified need
+    tdd: false
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: ""
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
+
+session:
+  execution_mode: interactive
+  artifact_store: openspec
+  delivery_strategy: ask-on-risk
+  review_budget_lines: 400
