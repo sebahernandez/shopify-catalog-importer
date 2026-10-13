@@ -1,4 +1,10 @@
-export type BootErrorCode = 'KEY_FILE_INVALID' | 'KEY_FILE_REQUIRED' | 'KEY_MISMATCH';
+export type BootErrorCode =
+  | 'KEY_FILE_INVALID'
+  | 'KEY_FILE_REQUIRED'
+  | 'KEY_MISMATCH'
+  | 'KEY_CHECK_CONFLICT'
+  | 'BIND_ADDRESS_NOT_ALLOWED'
+  | 'LISTEN_FAILED';
 
 /**
  * A fatal start-up condition. The caller (`main.ts`) maps it to a non-zero exit code; code that
