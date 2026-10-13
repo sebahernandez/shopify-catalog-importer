@@ -59,8 +59,8 @@ Needs no size exception: none. Needs the most attention: U1, U7, U12.
 | U3 | `Money` | PR 3 | `pnpm --filter @importer/api exec vitest run src/shared-kernel/money` | N/A: pure value object, no runtime boundary | `shared-kernel/money/**`, `packages/contracts/src/money*` |
 | U4 | `redact()` | PR 4 | `pnpm --filter @importer/api exec vitest run src/shared-kernel/logging/redact` | N/A: pure function | `shared-kernel/logging/redact*`; the spec wording edit is a separate hunk |
 | U5 | `RedactingLogger` | PR 5 | `pnpm --filter @importer/api exec vitest run src/shared-kernel/logging` | Logger writes a seeded secret to an injected sink; assert absence | `shared-kernel/logging/redacting-logger*` |
-| U6 | `SecretBox` | PR 6 | `pnpm --filter @importer/api exec vitest run src/shared-kernel/secrets` | N/A: crypto unit, no runtime boundary | `shared-kernel/secrets/**` excluding infrastructure key provider |
-| U7 | Key file provider and key bootstrap | PR 7 | `pnpm --filter @importer/api exec vitest run src/shared-kernel/secrets` | Temp-dir key file: generated `0600`, loose mode rejected | `file-key-provider*`, `secret-key-bootstrap*`, `key-check-store.port.ts` |
+| U6 | `SecretBox` | PR 6 | `pnpm --filter @importer/api exec vitest run src/shared-kernel/secret-box` | N/A: crypto unit, no runtime boundary | `shared-kernel/secret-box/**` excluding infrastructure key provider |
+| U7 | Key file provider and key bootstrap | PR 7 | `pnpm --filter @importer/api exec vitest run src/shared-kernel/secret-box` | Temp-dir key file: generated `0600`, loose mode rejected | `file-key-provider*`, `secret-key-bootstrap*`, `key-check-store.port.ts` |
 | U8 | Env schema | PR 8 | `pnpm --filter @importer/api exec vitest run src/config` | N/A: pure schema | `config/env.schema*` |
 | U9 | Loader, paths, `.env.example` | PR 9 | `pnpm --filter @importer/api exec vitest run src/config` | `loadConfig` against a temp `.env` file | `config/**` except schema, `.env.example` |
 | U10 | Persistence core and migration | PR 10 | `pnpm --filter @importer/api exec vitest run src/persistence` | `pnpm db:migrate` twice on a temp `DATA_DIR`; WAL read back | `apps/api/prisma/**`, `prisma.config.ts`, `persistence/prisma.service*` |
@@ -138,18 +138,18 @@ Satisfies: local-security-baseline (message secret, field secret, non-secret pre
 
 Satisfies: secret-protection (round-trip, non-determinism, hides plaintext, tamper, wrong key, malformed, malformed key).
 
-- [ ] 6.1 Create `apps/api/src/shared-kernel/secrets/secret-box.port.ts`, `key-provider.port.ts`, `key-check-store.port.ts` per Interfaces.
-- [ ] 6.2 RED: create `apps/api/src/shared-kernel/secrets/aes-gcm-secret-box.test.ts`: round trip, two encryptions differ, ciphertext lacks plaintext, tamper each of IV/ciphertext/tag/keyId/context fails with `DECRYPT_FAILED`, wrong key fails, empty and malformed envelope give `MALFORMED_ENVELOPE`, no keyring gives `KEY_MISSING` naming `SECRET_KEY_FILE`, wrong key length error does not contain the key value.
-- [ ] 6.3 GREEN: create `apps/api/src/shared-kernel/secrets/infrastructure/aes-gcm-secret-box.ts` (envelope `sb1.<keyId>.<iv>.<ct>.<tag>`, AAD `sb1|keyId|context`) and `SecretBoxError`.
+- [ ] 6.1 Create `apps/api/src/shared-kernel/secret-box/secret-box.port.ts`, `key-provider.port.ts`, `key-check-store.port.ts` per Interfaces.
+- [ ] 6.2 RED: create `apps/api/src/shared-kernel/secret-box/aes-gcm-secret-box.test.ts`: round trip, two encryptions differ, ciphertext lacks plaintext, tamper each of IV/ciphertext/tag/keyId/context fails with `DECRYPT_FAILED`, wrong key fails, empty and malformed envelope give `MALFORMED_ENVELOPE`, no keyring gives `KEY_MISSING` naming `SECRET_KEY_FILE`, wrong key length error does not contain the key value.
+- [ ] 6.3 GREEN: create `apps/api/src/shared-kernel/secret-box/infrastructure/aes-gcm-secret-box.ts` (envelope `sb1.<keyId>.<iv>.<ct>.<tag>`, AAD `sb1|keyId|context`) and `SecretBoxError`.
 
 ## Phase 7: U7 Key file provider and bootstrap
 
 Satisfies: secret-protection (missing key, malformed key, key file excluded), design D4 boot table.
 
-- [ ] 7.1 RED: create `apps/api/src/shared-kernel/secrets/infrastructure/file-key-provider.int.test.ts` in a temp directory: generated with mode `0600` in a `0700` directory, exclusive create never overwrites, loose permissions rejected, malformed line, wrong length, duplicate id rejected with the file left untouched, permission check skipped with a warning on Windows.
-- [ ] 7.2 GREEN: create `apps/api/src/shared-kernel/secrets/infrastructure/file-key-provider.ts` (never logs key material; errors name path and reason).
-- [ ] 7.3 RED: create `apps/api/src/shared-kernel/secrets/secret-key-bootstrap.test.ts` with an in-memory `KeyCheckStore`: the five rows of the D4 table (generate and write; write only; decrypt ok; decrypt failure exits; key absent with row present exits and never regenerates).
-- [ ] 7.4 GREEN: create `apps/api/src/shared-kernel/secrets/secret-key-bootstrap.ts` throwing a typed `BootError` the caller maps to exit 1.
+- [ ] 7.1 RED: create `apps/api/src/shared-kernel/secret-box/infrastructure/file-key-provider.int.test.ts` in a temp directory: generated with mode `0600` in a `0700` directory, exclusive create never overwrites, loose permissions rejected, malformed line, wrong length, duplicate id rejected with the file left untouched, permission check skipped with a warning on Windows.
+- [ ] 7.2 GREEN: create `apps/api/src/shared-kernel/secret-box/infrastructure/file-key-provider.ts` (never logs key material; errors name path and reason).
+- [ ] 7.3 RED: create `apps/api/src/shared-kernel/secret-box/secret-key-bootstrap.test.ts` with an in-memory `KeyCheckStore`: the five rows of the D4 table (generate and write; write only; decrypt ok; decrypt failure exits; key absent with row present exits and never regenerates).
+- [ ] 7.4 GREEN: create `apps/api/src/shared-kernel/secret-box/secret-key-bootstrap.ts` throwing a typed `BootError` the caller maps to exit 1.
 - [ ] 7.5 Verify `git check-ignore` for a `secret.key` file inside the workspace (`*.key` rule from 1.4); record the output.
 
 ## Phase 8: U8 Env schema
