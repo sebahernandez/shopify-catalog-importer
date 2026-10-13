@@ -45,7 +45,8 @@ export interface FileKeyProviderOptions {
 }
 
 const KEY_BYTES = 32;
-const FIRST_KEY_ID = 'k1';
+/** The id of the key that `generate` writes. */
+export const FIRST_KEY_ID = 'k1';
 const DIRECTORY_MODE = 0o700;
 const FILE_MODE = 0o600;
 const GROUP_AND_OTHER = 0o077;

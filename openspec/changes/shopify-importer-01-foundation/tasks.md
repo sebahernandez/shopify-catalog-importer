@@ -148,8 +148,8 @@ Satisfies: secret-protection (missing key, malformed key, key file excluded), de
 
 - [x] 7.1 RED: create `apps/api/src/shared-kernel/secret-box/infrastructure/file-key-provider.int.test.ts` in a temp directory: generated with mode `0600` in a `0700` directory, exclusive create never overwrites, loose permissions rejected, malformed line, wrong length, duplicate id rejected with the file left untouched, permission check skipped with a warning on Windows.
 - [x] 7.2 GREEN: create `apps/api/src/shared-kernel/secret-box/infrastructure/file-key-provider.ts` (never logs key material; errors name path and reason).
-- [ ] 7.3 RED: create `apps/api/src/shared-kernel/secret-box/secret-key-bootstrap.test.ts` with an in-memory `KeyCheckStore`: the five rows of the D4 table (generate and write; write only; decrypt ok; decrypt failure exits; key absent with row present exits and never regenerates).
-- [ ] 7.4 GREEN: create `apps/api/src/shared-kernel/secret-box/secret-key-bootstrap.ts` throwing a typed `BootError` the caller maps to exit 1.
+- [x] 7.3 RED: create `apps/api/src/shared-kernel/secret-box/secret-key-bootstrap.test.ts` with an in-memory `KeyCheckStore`: the five rows of the D4 table (generate and write; write only; decrypt ok; decrypt failure exits; key absent with row present exits and never regenerates).
+- [x] 7.4 GREEN: create `apps/api/src/shared-kernel/secret-box/secret-key-bootstrap.ts` throwing a typed `BootError` the caller maps to exit 1.
 - [x] 7.5 Verify `git check-ignore` for a `secret.key` file inside the workspace (`*.key` rule from 1.4); record the output. Result: `.gitignore:6:*.key` matches a non-existent `apps/api/secret.key` and `keys/secret.key`; no key file was created.
 
 ## Phase 8: U8 Env schema
