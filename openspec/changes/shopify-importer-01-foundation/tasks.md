@@ -163,10 +163,10 @@ Satisfies: runtime-configuration (validated startup, pinned API version, loopbac
 
 Satisfies: runtime-configuration (valid configuration, sample complete, real env ignored), persistence-baseline (configurable path default).
 
-- [ ] 9.1 Verify scaffold item 6: Node 24 built-in env-file loader reads root `.env` and tolerates an absent file; note whether `prisma.config.ts` must call it (used in U10). Fallback: a small explicit file reader inside `load-config.ts`.
-- [ ] 9.2 RED: create `apps/api/src/config/load-config.test.ts` and `paths.test.ts`: exit-path error lists variable names only, relative paths resolve against the workspace root, the home directory expands in `SECRET_KEY_FILE`, `env.example` lists every schema variable, `git check-ignore .env` succeeds.
-- [ ] 9.3 GREEN: create `apps/api/src/config/load-config.ts`, `paths.ts`, `config.module.ts`.
-- [ ] 9.4 Create `env.example` with every variable, empty or placeholder values, no secrets.
+- [x] 9.1 Verify scaffold item 6: Node 24 built-in env-file loader reads root `.env` and tolerates an absent file; note whether `prisma.config.ts` must call it (used in U10). Fallback: a small explicit file reader inside `load-config.ts`.
+- [x] 9.2 RED: create `apps/api/src/config/load-config.test.ts` and `paths.test.ts`: exit-path error lists variable names only, relative paths resolve against the workspace root, the home directory expands in `SECRET_KEY_FILE`, `env.example` lists every schema variable, `git check-ignore .env` succeeds.
+- [x] 9.3 GREEN: create `apps/api/src/config/load-config.ts`, `paths.ts`, `config.module.ts`.
+- [x] 9.4 Create `env.example` with every variable, empty or placeholder values, no secrets.
 
 ## Phase 10: U10 Persistence core and migration
 
