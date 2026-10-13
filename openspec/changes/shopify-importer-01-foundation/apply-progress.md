@@ -650,3 +650,138 @@ Run with Node 24.21.0 and pnpm 12.11.2. All databases and key files used tempora
 | Attempt recovery | The sandbox-only `EPERM` loopback-bind failure was settled as failed; the subsequent Node 24 retry is the correction candidate and reran all U11 evidence successfully. |
 | Rollback boundary | Delete `persistence/prisma-key-check-store.ts` and its integration test; remove only the key-check import, token, factory and export from `persistence.module.ts`; revert the U11 task/checkpoint/progress hunks. U10 service, schema and migration remain independently usable. |
 | Size | 296 authored code/test changed lines: adapter 25, integration test 260, module 10 additions and 1 deletion. No generated or dependency changes; SDD evidence is recorded alongside the unit. |
+
+## Batch 12: U12 Local request guard
+
+Branch `feat/foundation-u12-local-request-guard`. Tasks 12.1 to 12.3 complete (3/3 of Phase 12; 49 of 65 overall, counting as native SDD status does). Mode: Strict TDD.
+Commits (separable, each green on its own): a578674 (pure allow-lists and decision rules), d9e69df (request facts, rejection type, tokens, Nest guard), 8822d85 (ApiError filter, module, HTTP and no-ship suites). The first commit is the contingency split named in tasks.md.
+
+### Task 12.1: documentation check (design item 11, no browser)
+
+Sources read, by fetching the published text (not from memory): the WHATWG Fetch Standard (living standard), the W3C Fetch Metadata Request Headers specification, and the MDN reference pages for the Origin and Sec-Fetch-Site headers.
+
+Confirmed:
+
+- Origin is added by the browser to cross-origin requests and to same-origin requests that are not GET or HEAD (MDN lists same-origin POST, OPTIONS, PUT, PATCH and DELETE). The documented exception is a cross-origin GET or HEAD in no-cors mode, which carries none; that is a safe method, which the guard does not restrict.
+- Origin can be the string null (opaque origins: data and file documents, sandboxed documents, cross-origin redirects, privacy-blanked cases). The guard rejects it because it is on no allow-list.
+- Sec-Fetch-Site values are same-origin, same-site, cross-site and none. The Fetch Metadata text says servers SHOULD ignore a value it does not define. D7 is stricter (a garbage value with no Origin is rejected); see decisions.
+- Non-forgeability from page script: the Fetch Standard puts every header whose name starts with Sec- and the Origin and Host headers on the forbidden request-header list, so fetch and XMLHttpRequest cannot set or remove them from script. MDN marks Sec-Fetch-Site as a forbidden request header (Sec- prefix).
+
+Not guaranteed, and so not relied upon: a non-browser client (curl, a script, a malicious local process) can send any value or none for any of these headers; a browser extension or a very old browser may omit Sec-Fetch-Site; Fetch Metadata shipped in browsers from about 2020 and later (Safari 16.4), so older browsers send nothing. The guard therefore never treats any of these headers as authentication: a bad Origin is rejected whatever Sec-Fetch-Site says (tested), and the rule only decides what to do for a request that has no Origin. The residual risk D7 accepts is unchanged: an old browser that sends neither header on a cross-site write. The loopback bind and the Host rule are the independent layers.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Refactor |
+|---|---|---|---|---|---|---|---|
+| 12.2/12.3 allow-lists | apps/api/src/local-security/allowed-origins.test.ts | Unit | N/A (new) | Failed: Cannot find module './allowed-origins.js' | 22/22, then 27/27 | default, custom port, IPv6, https, default port 80, non-loopback bind with and without a configured origin, 9 non-canonical origins, 5 bad ports, 6 bad hosts, error text fixed | Prettier; host test widened to six hosts after adding the path and userinfo cases |
+| 12.2/12.3 decision | apps/api/src/local-security/request-policy.test.ts | Unit | N/A (new) | Failed: Cannot find module './request-policy.js' | 1,999/1,999 (1,972 in this file plus the 27 above) | 27 Host cases, 20 Origin cases, 11 Sec-Fetch-Site cases, 3 safe and 13 unusual methods, IPv6 host, and a 9 x 5 x 7 x 6 matrix (1,890 cells) | Removed one row that passed vacuously (an upper-cased digit string) |
+| 12.2/12.3 facts | apps/api/src/local-security/request-facts.test.ts | Unit | N/A (new) | Failed: Cannot find module './request-facts.js' | 2,052 across the folder | single, absent, empty, case-insensitive names, repeated header, value not read as a name, 5 unreadable shapes | Dropped a needless cast reported by lint |
+| 12.2/12.3 guard | apps/api/src/local-security/local-request.guard.test.ts | Unit (direct calls, fake execution context) | N/A (new) | Failed: Cannot find module './local-request.guard.js' | same run | 3 rejection kinds, no value in message, stack, JSON or property names for 3 headers, 4 fail-closed inputs, non-HTTP context, throwing context, logging once per rejection and nothing on allow, throwing logger | None needed |
+| 12.3 filter | apps/api/src/local-security/local-request.filter.test.ts | Unit | N/A (new) | Failed: Cannot find module './local-request.filter.js' | same run | both codes validate against ApiError, no extra field copied, scoped to rejections only | None needed |
+| 12.2/12.3 HTTP | apps/api/src/local-security/local-security.int.test.ts | Integration (real loopback socket, port 0) | N/A (new) | Failed: Cannot find module './local-security.module.js' | 21/21 (one test-side slip fixed first: a seed that was a valid hostname) | see list below | Prettier |
+| 12.3 no-ship | apps/api/src/local-security/no-test-route-ships.test.ts | Unit (reads the source tree and build config) | N/A (new) | Failed: Cannot find module './local-security.module.js' | 5/5 | see proof below | None needed |
+
+Matrix note: the decision file holds 1,890 generated cells plus the named tables (1,972 tests); with the allow-list file the two pure files hold 1,999.
+
+### Mutation checks (each restored, folder re-run green; final 2,053/2,053)
+
+| Mutation | Result |
+|---|---|
+| Host accepted when it only starts with an allowed value | 384 failed |
+| Origin null accepted | 74 failed |
+| No Origin with Sec-Fetch-Site cross-site accepted | 26 failed |
+| Unknown or lower-case method treated as safe | 117 failed |
+| Multi-valued Sec-Fetch-Site accepted | 1 failed |
+| Non-canonical configured origin accepted | 5 failed |
+| Guard allows on an internal error | 5 failed |
+| Filter echoes the offending header value into the body | 6 failed |
+| Repeated header collapsed to its first value | 3 failed |
+| Guard not registered globally | 12 failed |
+| Filter not registered | 10 failed |
+| Non-HTTP context allowed | 1 failed |
+| Rejection status 400 instead of 403 | 19 failed |
+| Logging error escapes the guard | 1 failed |
+| Log event carries an extra field | 2 failed |
+| Policy ignores configuration | 10 failed |
+| Policy build error swallowed into allow-everything | 1 failed |
+| SURVIVED: remove the typeof check on Host | Equivalent mutant: a Set lookup of undefined or an array is false anyway; the check is a type narrowing |
+
+### Guard decision table as implemented (default configuration)
+
+Allowed Hosts: 127.0.0.1:3000, 127.0.0.1:5173, localhost:5173. Allowed Origins: http://127.0.0.1:3000, http://127.0.0.1:5173, http://localhost:5173. All rejections are 403.
+
+| Method | Host | Origin | Sec-Fetch-Site | Result |
+|---|---|---|---|---|
+| any | missing, empty, repeated, or not on the list | any | any | 403 HOST_NOT_ALLOWED |
+| GET, HEAD, OPTIONS | on the list | any (even foreign, null or repeated) | any | allow |
+| any other method (POST, PUT, PATCH, DELETE, TRACE, CONNECT, lower-case or unknown) | on the list | on the list | any (including cross-site, garbage) | allow |
+| non-safe | on the list | present and not on the list: foreign, null, empty, repeated, other scheme, port, case, slash, path | any (a forged same-origin does not help) | 403 ORIGIN_NOT_ALLOWED |
+| non-safe | on the list | absent | absent, same-origin, none | allow |
+| non-safe | on the list | absent | same-site, cross-site, any other value, empty, repeated, other case | 403 ORIGIN_NOT_ALLOWED |
+| non-HTTP context, or any fault reading configuration or request | n/a | n/a | n/a | 403 HOST_NOT_ALLOWED |
+
+### Evaluation order and the shape of a rejection
+
+Host first, because it needs no other fact and applies to every method; then, for a non-safe method, Origin if present, else Sec-Fetch-Site. A request failing both reports only the Host check (tested). Status is 403 for every failure; the two checks differ only in the code (HOST_NOT_ALLOWED, ORIGIN_NOT_ALLOWED) and the fixed message (host not allowed, origin not allowed). The body is the ApiError shape from the contracts package, validated in the filter test and again over HTTP. No request value is echoed: tested on the error text, stack, JSON, property names, the HTTP body and the logged event, with a seeded odd value in Host, Origin and Sec-Fetch-Site. A fault inside the guard is reported as HOST_NOT_ALLOWED, because the first check could not be completed.
+
+### Host normalisation (all strict: exact string match, nothing is normalised)
+
+Missing or empty: rejected. Different letter case (LOCALHOST:5173): rejected, because the list holds the lower-case form browsers send. Trailing dot (localhost.:5173): rejected. Explicit default port (127.0.0.1:80), missing port, wrong port: rejected; when the API port is 80, the list holds the portless form, as a browser writes it. Userinfo, path, query, whitespace, tab: rejected. Several values (a repeated header, or one value with a comma): rejected; the guard reads the raw header list, so a repeat is seen even though Node would keep only the first Host. IPv6 literal in brackets: accepted only when the configured API host or an allowed origin is that address; the API host is bracketed when it contains a colon. IPv4-mapped forms (in dotted or hex form) and decimal IPv4 spellings: rejected unless configured verbatim (the origin list is canonical through the URL parser, so a hex mapped form is the form that would match). Prefix, suffix and embedded matches (127.0.0.1.evil.test, evil.test/127.0.0.1, localhost.attacker.example): rejected, there is no substring or pattern match anywhere.
+
+### OPTIONS and preflight (what U13 can rely on)
+
+The rules treat OPTIONS as a safe method: rule 1 applies, rules 2 and 3 do not, and the Access-Control-Request-Method header is never read, so a preflight and a plain OPTIONS are treated alike. In this application the guard is rarely even reached: Nest registers no OPTIONS handler, so an OPTIONS request to a write route is answered 404 by the router before any guard runs (tested for both forms, from a foreign origin, with no handler run and no allow-origin header). Consequences for U13: the CORS middleware must be registered so that it answers the preflight itself (the cors package ends the preflight with 204 before routing); an OPTIONS request that the middleware does not answer reaches nothing. Do not add an OPTIONS handler to any route, and never perform a state change on OPTIONS: it would be exempt from rules 2 and 3 by design. The guard only runs for requests that match a route, so an unrouted path (404) and the router's own OPTIONS answers do not get the Host check; they carry no data.
+
+### Structure and the lint rules
+
+The lint rules restrict NestJS imports only in the shared kernel and in port files, so a guard and a filter in the local-security folder are allowed by lint. The framework-free split was kept anyway, by choice: allowed-origins.ts, request-policy.ts and request-facts.ts are plain functions with no framework import and carry all the decisions (tested without Nest, 2,000 cases); local-request.guard.ts, local-request.filter.ts and local-security.module.ts are thin adapters with explicit tokens and explicit Inject, as earlier units did. The module is registered with forRoot(configModule, { logger }) like PersistenceModule, and installs the guard and filter through the global APP_GUARD and APP_FILTER providers. eslint.config.js was not touched.
+
+### Proof that the test-only route does not ship
+
+1. The controller exists only inside local-security.int.test.ts and is registered in a module that test builds.
+2. no-test-route-ships.test.ts asserts: tsconfig.build.json excludes test files; no production source mentions the route prefix or the controller class; neither the security module (static or dynamic form) nor AppModule declares any controller; no file of the security folder reads process.env or import.meta.env, so no variable can enable it.
+3. After pnpm build, a search of the dist folder for the route prefix and the controller name found nothing, and the folder holds no test file (command output in the report).
+
+### Decisions where the design was silent or differed
+
+- Unexpected exceptions: ApiError allows only HOST_NOT_ALLOWED and ORIGIN_NOT_ALLOWED, and this unit may not redefine it, so the filter handles guard rejections only. Any fault inside the guard is turned into a fail-closed 403 (HOST_NOT_ALLOWED, fixed text). An unexpected error thrown by a handler keeps the framework's generic 500, which exposes no message or stack (tested over HTTP). Brief item "the filter turns unexpected exceptions into a generic ApiError" is therefore met for the guard's own faults but not for handler errors. If a generic internal-error code is wanted, add it to the contracts enum in a later unit and widen the filter.
+- Host allow-list: the API's own host and port plus the host of every allowed origin, exactly as D7 rule 1 says. The brief mentions loopback equivalents the design lists; D7 lists none, so none are added: with API_HOST 127.0.0.1 the Host localhost:3000 is rejected, and with API_HOST 0.0.0.0 the Host 127.0.0.1:3000 is rejected unless the operator adds an origin for it (the risk already noted under tasks.md Traceability).
+- Own origin is built with the http scheme (the API serves plain HTTP).
+- A configured origin that is not its own canonical http or https origin makes module construction throw with fixed text. The schema (U8) already guarantees this, so it is defence in depth; the application cannot start with a guard it cannot trust.
+- Sec-Fetch-Site with an Origin present is ignored (D7 rule 2). It has to be: the web app at localhost:5173 calling 127.0.0.1:3000 is cross-site in a browser, with an allowed Origin. Tested in both directions.
+- Garbage, empty, differently-cased and repeated Sec-Fetch-Site values with no Origin are rejected (D7 says allowed only when absent, same-origin or none). The Fetch Metadata text says servers SHOULD ignore unknown values; D7 is stricter and safer, and a future browser value would need a one-line change.
+- Methods: exactly GET, HEAD, OPTIONS in upper case are safe; every other string, including lower-case spellings, TRACE and CONNECT, is state-changing; a non-string method is state-changing too.
+- Logging: kept, since D7 and task 12.2 require a warn on rejection. The guard logs one event, local_request_rejected, with the check name only (host or origin), through an injected port limited to warn; it defaults to silent and U13 passes the RedactingLogger. A throwing logger never changes the outcome.
+- Headers are read from the raw header list, not from the merged object: Node joins a repeated Origin with a comma and keeps only the first Host, which would hide a repeat. Verified over a raw socket: a repeated Origin (both copies allowed) gets 403 from the guard; a repeated Host also gets 403 from the guard (Node passes it on and keeps only the first copy in its merged object, so only the raw list shows the repeat); a missing Host gets 400 from Node's own parser before the guard.
+- tasks.md names allowed-origins.ts, the guard, a filter and the module; three small support files were added (request-policy.ts for the pure rules, request-facts.ts for header reading, local-request-rejection.ts and local-security.tokens.ts) so the rules stay framework-free and the files stay under about 80 lines each.
+
+### Carry-over for U13
+
+- Import LocalSecurityModule.forRoot(configModule, { logger }) into AppModule with the same ConfigModule.forRoot(...) and the RedactingLogger.
+- Register the CORS middleware for the D7 policy so that it answers preflights itself; the guard does not.
+- The Host rule runs only for routed requests; a global prefix change does not affect it.
+- With ALLOW_NON_LOOPBACK and API_HOST 0.0.0.0, set ALLOWED_ORIGINS to the externally used origin; the Host list is built from configuration only.
+- Spec scenarios owned by U13: default bind, non-loopback refusal and opt-in, both CORS preflight scenarios, the key never in log output, startup abort. Owned by U14: foreign-origin GET /health. Owned by U17: README statement of the missing-Origin decision.
+
+### Spec traceability (local-security-baseline)
+
+| Scenario | Owner | Evidence |
+|---|---|---|
+| Origin guard: Foreign origin write (403, handler not run) | U12 | local-security.int.test.ts "rejects a foreign-origin write with 403 and never runs the handler" (POST, PUT, PATCH, DELETE); request-policy.test.ts matrix; guard and filter unit tests |
+| Origin guard: Allowed origin write | U12 | local-security.int.test.ts "runs the handler for an allowed origin..."; matrix |
+| Origin guard: Missing origin write (allow, unless cross-site or same-site) | U12 | local-security.int.test.ts Sec-Fetch-Site table (5 values); request-policy.test.ts 11 cases and matrix |
+| Origin guard: safe methods unaffected | U12 | local-security.int.test.ts "never blocks a safe method"; matrix; U14 repeats it for the health route |
+| Host rule (beyond the spec, D7 rule 1) | U12 | request-policy.test.ts 27 Host cases; HTTP Host tests; raw-socket repeat cases |
+| Loopback-only binding (3 scenarios) | U8 (schema), U13 (bind) | U8 tests; the HTTP suite here only asserts its own test server bound to 127.0.0.1 |
+| Restrictive CORS (2 preflight scenarios) | U13 | not in U12; U12 proves only that OPTIONS reaches no write handler and carries no allow header |
+| Secret redaction (3 scenarios) | U4 and U5 (and U13 for the configured key) | not in U12 |
+
+### Size
+
+Hand-written added lines, 1,436 in total against a 400 budget and a ~350 forecast (4.1 times): source 341, tests 1,095. By commit: pure rules 497 (source 135, tests 362), guard 405 (source 135, tests 270), filter, module and HTTP 534 (source 71, tests 463). Not trimmed, nothing compressed. The cause is the exhaustive matrices and the HTTP suite the brief asked for; the three-commit split above is the smallest cohesive slicing (497, 405 and 534 lines, all over 400). A `size:exception` is recommended for the PR unless the orchestrator wants to slice the PR along these three commits.
+
+| Evidence | Value |
+|---|---|
+| Focused test | `pnpm --filter @importer/api exec vitest run src/local-security`: 7 files, 2,053 tests passed |
+| Runtime harness | Real HTTP round trips on an ephemeral 127.0.0.1 port (and a raw socket for repeated headers) inside local-security.int.test.ts, torn down in afterEach. Root `pnpm install --frozen-lockfile`, `pnpm check` (2,786 API and 42 contracts tests, 2 skipped) and `pnpm build` exit 0; no route in dist |
+| Rollback boundary | apps/api/src/local-security/** only; the tasks.md checkbox hunk and this batch. No dependency, lockfile, config or earlier-unit file was changed |
