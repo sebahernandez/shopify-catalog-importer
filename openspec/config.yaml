@@ -5,7 +5,7 @@ context: |
   Product: local app that imports a product catalog from XLSX into Shopify (backend-only Shopify calls, resumable, duplicate-safe).
   Planned stack (PLANNED, not installed; source: prompt section 3): TypeScript strict, React + Vite, NestJS, Tailwind CSS, SQLite + Prisma, Sharp, XLSX library, Vitest or Jest, Playwright, pnpm.
   Constraints: no Redis/Docker by default; Shopify tokens never exposed to the frontend; never claim verification against a real store without a real connection.
-  Testing: no runner installed yet; no test command available.
+  Testing: Vitest wired at the workspace root since S0 work unit U1; run with `pnpm test` on Node 24 (pnpm 12 via corepack).
   Git repository on branch main with remote origin (initialized after sdd-init, on 2026-10-13).
 
 strict_tdd: false
@@ -18,7 +18,7 @@ testing:
     unit: "Vitest or Jest (to be decided at scaffold time)"
     e2e: "Playwright"
     package_manager: "pnpm"
-  test_command: ""
+  test_command: "pnpm test"
   coverage_command: ""
 
 projects: []
@@ -43,10 +43,10 @@ rules:
       - Follow existing code patterns once scaffolded
       - Never add mandatory services (Redis, Docker) without a justified need
     tdd: false
-    test_command: ""
+    test_command: "pnpm test"
   verify:
-    test_command: ""
-    build_command: ""
+    test_command: "pnpm test"
+    build_command: "pnpm build"
     coverage_threshold: 0
   archive:
     - Warn before merging destructive deltas
