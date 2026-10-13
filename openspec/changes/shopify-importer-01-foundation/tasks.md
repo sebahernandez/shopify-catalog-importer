@@ -123,8 +123,8 @@ Satisfies: money-value-object (all four requirements, nine scenarios).
 Satisfies: local-security-baseline (redaction: seeded field, non-secret preserved). Resolves the `key` mismatch.
 
 - [x] 4.1 Align spec wording: edit `openspec/changes/shopify-importer-01-foundation/specs/local-security-baseline/spec.md` so the redaction requirement lists key names as "token, secret, password, authorization, credential, signature, cookie, and secret-bearing key forms such as apiKey or secretKey" instead of bare "key". Confirm no scenario relies on a bare `key` name.
-- [ ] 4.2 RED: create `apps/api/src/shared-kernel/logging/redact.test.ts`: key-name matrix at depth and case-insensitive (`accessToken` redacted; `product_key`, `keyId`, `count` preserved), `Bearer x`, `shpat_` style, URL query values and userinfo, `registerSecret` inside a longer string and the 8-character minimum, `Error` name/message/stack, cycle guard, depth cap, seeded secret absent from serialized output.
-- [ ] 4.3 GREEN: create `apps/api/src/shared-kernel/logging/redact.ts` with the exported key-name constant and `registerSecret`.
+- [x] 4.2 RED: create `apps/api/src/shared-kernel/logging/redact.test.ts`: key-name matrix at depth and case-insensitive (`accessToken` redacted; `product_key`, `keyId`, `count` preserved), `Bearer x`, `shpat_` style, URL query values and userinfo, `registerSecret` inside a longer string and the 8-character minimum, `Error` name/message/stack, cycle guard, depth cap, seeded secret absent from serialized output.
+- [x] 4.3 GREEN: create `apps/api/src/shared-kernel/logging/redact.ts` with the exported key-name constant and `registerSecret`.
 
 ## Phase 5: U5 RedactingLogger
 
