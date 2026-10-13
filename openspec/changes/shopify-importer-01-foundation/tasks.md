@@ -64,7 +64,7 @@ Needs no size exception: none. Needs the most attention: U1, U7, U12.
 | U8 | Env schema | PR 8 | `pnpm --filter @importer/api exec vitest run src/config` | N/A: pure schema | `config/env.schema*` |
 | U9 | Loader, paths, `env.example` | PR 9 | `pnpm --filter @importer/api exec vitest run src/config` | `loadConfig` against a temp `.env` file | `config/**` except schema, `env.example` |
 | U10 | Persistence core and migration | PR 10 | `pnpm --filter @importer/api exec vitest run src/persistence` | `pnpm db:migrate` twice on a temp `DATA_DIR`; WAL read back | `apps/api/prisma/**`, `prisma.config.ts`, `persistence/prisma.service*` |
-| U11 | Key-check store | PR 11 | `pnpm --filter @importer/api exec vitest run src/persistence/prisma-key-check-store` | Four key-check states against a real temp database | `persistence/prisma-key-check-store*` |
+| U11 | Key-check store | PR 11 | `pnpm --filter @importer/api exec vitest run src/persistence/prisma-key-check-store` | Four key-check states against a real temp database | `persistence/prisma-key-check-store*` and the key-check provider/token/export in `persistence.module.ts` |
 | U12 | Local request guard | PR 12 | `pnpm --filter @importer/api exec vitest run src/local-security` | N/A: header matrix on the guard; HTTP runtime proof is in U13 | `local-security/**` |
 | U13 | Ordered boot, CORS, binding | PR 13 | `pnpm --filter @importer/api exec vitest run src/main src/local-security` | Test app on an ephemeral loopback port with test-only `POST` controller | `main.ts`, `app.module.ts`, `local-security.module.ts` wiring |
 | U14 | the /health route | PR 14 | `pnpm --filter @importer/api exec vitest run src/health` | `curl --fail http://127.0.0.1:<port>/health` against a booted API | `apps/api/src/health/**` |
@@ -181,8 +181,8 @@ Satisfies: persistence-baseline (local access, unwritable path, baseline, re-app
 
 Satisfies: secret-protection (external key, no credential persisted), design D4.
 
-- [ ] 11.1 RED: create `apps/api/src/persistence/prisma-key-check-store.int.test.ts` running `SecretKeyBootstrap` with the real store and a temp key file: the four states end to end; after bootstrap `app_setting` holds only the key-check row and its value is an envelope, never a plaintext credential.
-- [ ] 11.2 GREEN: create `apps/api/src/persistence/prisma-key-check-store.ts` implementing `KeyCheckStore`; wire into `persistence.module.ts`.
+- [x] 11.1 RED: create `apps/api/src/persistence/prisma-key-check-store.int.test.ts` running `SecretKeyBootstrap` with the real store and a temp key file: the four states end to end; after bootstrap `app_setting` holds only the key-check row and its value is an envelope, never a plaintext credential.
+- [x] 11.2 GREEN: create `apps/api/src/persistence/prisma-key-check-store.ts` implementing `KeyCheckStore`; wire into `persistence.module.ts`.
 
 ## Phase 12: U12 Local request guard
 
