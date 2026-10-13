@@ -188,9 +188,9 @@ Satisfies: secret-protection (external key, no credential persisted), design D4.
 
 Satisfies: local-security-baseline (origin guard: foreign, allowed, missing origin); design D7 rules 1 to 3.
 
-- [ ] 12.1 Verify scaffold item 11 (documentation check, no browser): confirm `Origin` is sent on cross-origin non-safe requests, may be `null`, and `Sec-Fetch-Site` values and non-forgeability from page script. If the assumption fails, stop and report to the orchestrator; candidate fallback is a required custom header on non-safe requests, which is a design change.
-- [ ] 12.2 RED: create `apps/api/src/local-security/allowed-origins.test.ts` and `local-request.guard.test.ts`: header matrix over method, `Host`, `Origin` (allowed, own, foreign, `null`, absent) and `Sec-Fetch-Site` (absent, `same-origin`, `none`, `same-site`, `cross-site`); `GET`, `HEAD`, `OPTIONS` never rejected by rules 2 and 3; rule 1 applies to every method; 403 bodies match `ApiError` with `HOST_NOT_ALLOWED` or `ORIGIN_NOT_ALLOWED`; rejection logged at `warn`.
-- [ ] 12.3 GREEN: create `apps/api/src/local-security/allowed-origins.ts`, `local-request.guard.ts`, an exception filter producing the `ApiError` body, and `local-security.module.ts`.
+- [x] 12.1 Verify scaffold item 11 (documentation check, no browser): confirm `Origin` is sent on cross-origin non-safe requests, may be `null`, and `Sec-Fetch-Site` values and non-forgeability from page script. If the assumption fails, stop and report to the orchestrator; candidate fallback is a required custom header on non-safe requests, which is a design change. Result: assumption holds, no fallback needed. Read the Fetch Standard, the Fetch Metadata specification and the MDN pages for the Origin and Sec-Fetch-Site headers; details in apply-progress.
+- [x] 12.2 RED: create `apps/api/src/local-security/allowed-origins.test.ts` and `local-request.guard.test.ts`: header matrix over method, `Host`, `Origin` (allowed, own, foreign, `null`, absent) and `Sec-Fetch-Site` (absent, `same-origin`, `none`, `same-site`, `cross-site`); `GET`, `HEAD`, `OPTIONS` never rejected by rules 2 and 3; rule 1 applies to every method; 403 bodies match `ApiError` with `HOST_NOT_ALLOWED` or `ORIGIN_NOT_ALLOWED`; rejection logged at `warn`.
+- [x] 12.3 GREEN: create `apps/api/src/local-security/allowed-origins.ts`, `local-request.guard.ts`, an exception filter producing the `ApiError` body, and `local-security.module.ts`.
 
 ## Phase 13: U13 Ordered boot, CORS, binding
 
