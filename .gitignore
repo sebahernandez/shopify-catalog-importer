@@ -1,1 +1,7 @@
 shopify-catalog-importer-prompt.md
+node_modules
+dist
+data/
+.env
+*.key
+apps/api/src/generated/

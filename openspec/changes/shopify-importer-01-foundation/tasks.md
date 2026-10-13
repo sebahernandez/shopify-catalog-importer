@@ -87,52 +87,52 @@ Conventions for every unit: conventional commits, no AI attribution, English cod
 
 Satisfies: workspace-tooling (layout, install, strict compilation, quality scripts), health-check (contract shape), runtime-configuration (`.gitignore` of real env).
 
-- [ ] 1.1 Verify scaffold item 12 and 7: resolve and pin exact versions of TypeScript, ESLint, `typescript-eslint`, Prettier, `eslint-config-prettier`, Vitest, zod. Verify pnpm 12 syntax for strict engine checks and whether `pre*` scripts run on `pnpm test`. Fallback for pre-scripts: call the contracts build explicitly in the root scripts.
-- [ ] 1.2 Create `package.json` (private, `engines.node >=24`, exact `packageManager`, scripts from D9), `pnpm-workspace.yaml`, `.node-version`.
-- [ ] 1.3 Create `tsconfig.base.json` (strict, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, `NodeNext`).
-- [ ] 1.4 Create `.prettierrc.json`, `.prettierignore`; modify `.gitignore` to add `node_modules`, `dist`, `data/`, `.env`, `*.key`, `apps/api/src/generated/`.
-- [ ] 1.5 RED: create `packages/contracts/src/health.test.ts` and `api-error.test.ts` (valid and invalid bodies for `HealthResponse` and `ApiError`). Create `packages/contracts/package.json` (`@importer/contracts`, `exports` to `dist`), `tsconfig.json`, `vitest.config.ts` so the tests run and fail.
-- [ ] 1.6 GREEN: create `packages/contracts/src/health.ts`, `api-error.ts`, `index.ts` per the Interfaces section.
-- [ ] 1.7 RED then GREEN: create `packages/contracts/src/workspace-invariants.int.test.ts` asserting: web manifest, if present, has no `@importer/api` dependency and only `@importer/contracts` as workspace dependency; root `engines.node` is set. Vacuous for web until U15 by design.
-- [ ] 1.8 Create `eslint.config.js` (flat, type-aware, layer `no-restricted-imports` per D2, `process.env` ban outside `apps/api/src/config/` and `apps/web/vite.config.ts`, `no-floating-promises`).
-- [ ] 1.9 Create `README.md` stub in Spanish (title, state, link to the future quick start).
-- [ ] 1.10 Verify negative gates in a scratch copy outside the repo: type error fails `pnpm typecheck` naming the file; failing test fails `pnpm test`; `engines.node >=99` makes `pnpm install` report the mismatch; an import across a layer fails `pnpm lint`.
-- [ ] 1.11 Run `pnpm install --frozen-lockfile`, `pnpm check`, `pnpm build`; confirm the lockfile is unchanged.
+- [x] 1.1 Verify scaffold item 12 and 7: resolve and pin exact versions of TypeScript, ESLint, `typescript-eslint`, Prettier, `eslint-config-prettier`, Vitest, zod. Verify pnpm 12 syntax for strict engine checks and whether `pre*` scripts run on `pnpm test`. Fallback for pre-scripts: call the contracts build explicitly in the root scripts.
+- [x] 1.2 Create `package.json` (private, `engines.node >=24`, exact `packageManager`, scripts from D9), `pnpm-workspace.yaml`, `.node-version`.
+- [x] 1.3 Create `tsconfig.base.json` (strict, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, `NodeNext`).
+- [x] 1.4 Create `.prettierrc.json`, `.prettierignore`; modify `.gitignore` to add `node_modules`, `dist`, `data/`, `.env`, `*.key`, `apps/api/src/generated/`.
+- [x] 1.5 RED: create `packages/contracts/src/health.test.ts` and `api-error.test.ts` (valid and invalid bodies for `HealthResponse` and `ApiError`). Create `packages/contracts/package.json` (`@importer/contracts`, `exports` to `dist`), `tsconfig.json`, `vitest.config.ts` so the tests run and fail.
+- [x] 1.6 GREEN: create `packages/contracts/src/health.ts`, `api-error.ts`, `index.ts` per the Interfaces section.
+- [x] 1.7 RED then GREEN: create `packages/contracts/src/workspace-invariants.int.test.ts` asserting: web manifest, if present, has no `@importer/api` dependency and only `@importer/contracts` as workspace dependency; root `engines.node` is set. Vacuous for web until U15 by design.
+- [x] 1.8 Create `eslint.config.js` (flat, type-aware, layer `no-restricted-imports` per D2, `process.env` ban outside `apps/api/src/config/` and `apps/web/vite.config.ts`, `no-floating-promises`).
+- [x] 1.9 Create `README.md` stub in Spanish (title, state, link to the future quick start).
+- [x] 1.10 Verify negative gates in a scratch copy outside the repo: type error fails `pnpm typecheck` naming the file; failing test fails `pnpm test`; `engines.node >=99` makes `pnpm install` report the mismatch; an import across a layer fails `pnpm lint`.
+- [x] 1.11 Run `pnpm install --frozen-lockfile`, `pnpm check`, `pnpm build`; confirm the lockfile is unchanged.
 
 ## Phase 2: U2 API skeleton and spikes
 
 Satisfies: workspace-tooling (strict compilation, layout), persistence-baseline (native adapter prerequisite). Spikes first so a fallback is found before dependent work.
 
-- [ ] 2.1 Create `apps/api/package.json` (`@importer/api`, `"type": "module"`, Nest 12, `reflect-metadata`, `rxjs`, `vitest`), `tsconfig.json`, `tsconfig.build.json` (tests excluded), `vitest.config.ts`.
-- [ ] 2.2 Spike item 1 (ESM): RED `apps/api/src/esm-boot.int.test.ts` boots a Nest app from a tiny `apps/api/src/app.module.ts` under native ESM and answers on an ephemeral loopback port. Also run the Nest CLI watch mode once and record the result. Fallback if ESM fails: CommonJS API on Node 24 that loads the ESM contracts build through `require` (D1); record it and stop for CP3.
-- [ ] 2.3 Spike item 2 (DI): in the same test, inject a provider through an explicit `@Inject(TOKEN)` constructor parameter; confirm it resolves under the Vitest transform without decorator metadata. Fallback: add a metadata-emitting transform plugin to `vitest.config.ts`.
-- [ ] 2.4 Spike native driver (items 4 and 7): add `better-sqlite3` and `@prisma/adapter-better-sqlite3`; use the pnpm 12 build-script approval syntax in `pnpm-workspace.yaml`; RED then GREEN `apps/api/src/native-sqlite.int.test.ts` opens `:memory:`, runs `SELECT 1`. Fallback: stop and report; no alternate adapter is in scope (design Migration section).
-- [ ] 2.5 Record spike outcomes (ESM or CommonJS, DI transform, native build) in the apply progress for CP2 and CP3. Run `pnpm check`.
+- [x] 2.1 Create `apps/api/package.json` (`@importer/api`, `"type": "module"`, Nest 12, `reflect-metadata`, `rxjs`, `vitest`), `tsconfig.json`, `tsconfig.build.json` (tests excluded), `vitest.config.ts`.
+- [x] 2.2 Spike item 1 (ESM): RED `apps/api/src/esm-boot.int.test.ts` boots a Nest app from a tiny `apps/api/src/app.module.ts` under native ESM and answers on an ephemeral loopback port. Also run the Nest CLI watch mode once and record the result. Fallback if ESM fails: CommonJS API on Node 24 that loads the ESM contracts build through `require` (D1); record it and stop for CP3.
+- [x] 2.3 Spike item 2 (DI): in the same test, inject a provider through an explicit `@Inject(TOKEN)` constructor parameter; confirm it resolves under the Vitest transform without decorator metadata. Fallback: add a metadata-emitting transform plugin to `vitest.config.ts`.
+- [x] 2.4 Spike native driver (items 4 and 7): add `better-sqlite3` and `@prisma/adapter-better-sqlite3`; use the pnpm 12 build-script approval syntax in `pnpm-workspace.yaml`; RED then GREEN `apps/api/src/native-sqlite.int.test.ts` opens `:memory:`, runs `SELECT 1`. Fallback: stop and report; no alternate adapter is in scope (design Migration section).
+- [x] 2.5 Record spike outcomes (ESM or CommonJS, DI transform, native build) in the apply progress for CP2 and CP3. Run `pnpm check`.
 
 ## Phase 3: U3 Money
 
 Satisfies: money-value-object (all four requirements, nine scenarios).
 
-- [ ] 3.1 RED: create `apps/api/src/shared-kernel/money/money.test.ts` with tables of accepted and rejected inputs (`1,234`, `1.234,56`, `""`, `1.2.3`, `1e3`, `abc`, `NaN`, `+1`, `.5`, `5.`, whitespace, non-ASCII digits, a JS number), canonical forms (`007.50` is `7.5`, `12.00` is `12`, `-0.00` is `0`), `0.1 + 0.2 = 0.3`, `12345678901234567890.123456789` round trip, `1.50` equals `1.5`, `a` unchanged after `add`, `toFixed`, `compare`, `toJSON` returns a string.
-- [ ] 3.2 GREEN: create `apps/api/src/shared-kernel/money/money.ts` (bigint plus scale, `parse`, `tryParse`, `add`, `equals`, `compare`, `toFixed`, `isNegative`, `toString`, `toJSON`). Use a `MoneyError` with `code` of `AMBIGUOUS_SEPARATOR` for comma input and `INVALID_FORMAT` for everything else (the spec requires an ambiguity error distinct from a validation error).
-- [ ] 3.3 RED then GREEN: create `packages/contracts/src/money.ts` (`MoneyString` zod type on the canonical regex) and `money.test.ts`; export from `index.ts`.
-- [ ] 3.4 Add a cross-check test in `apps/api/src/shared-kernel/money/money-contract.int.test.ts`: every canonical output of `Money` parses under `MoneyString` and a JSON round trip stays a string.
+- [x] 3.1 RED: create `apps/api/src/shared-kernel/money/money.test.ts` with tables of accepted and rejected inputs (`1,234`, `1.234,56`, `""`, `1.2.3`, `1e3`, `abc`, `NaN`, `+1`, `.5`, `5.`, whitespace, non-ASCII digits, a JS number), canonical forms (`007.50` is `7.5`, `12.00` is `12`, `-0.00` is `0`), `0.1 + 0.2 = 0.3`, `12345678901234567890.123456789` round trip, `1.50` equals `1.5`, `a` unchanged after `add`, `toFixed`, `compare`, `toJSON` returns a string.
+- [x] 3.2 GREEN: create `apps/api/src/shared-kernel/money/money.ts` (bigint plus scale, `parse`, `tryParse`, `add`, `equals`, `compare`, `toFixed`, `isNegative`, `toString`, `toJSON`). Use a `MoneyError` with `code` of `AMBIGUOUS_SEPARATOR` for comma input and `INVALID_FORMAT` for everything else (the spec requires an ambiguity error distinct from a validation error).
+- [x] 3.3 RED then GREEN: create `packages/contracts/src/money.ts` (`MoneyString` zod type on the canonical regex) and `money.test.ts`; export from `index.ts`.
+- [x] 3.4 Add a cross-check test in `apps/api/src/shared-kernel/money/money-contract.int.test.ts`: every canonical output of `Money` parses under `MoneyString` and a JSON round trip stays a string.
 
 ## Phase 4: U4 redact() and spec alignment
 
 Satisfies: local-security-baseline (redaction: seeded field, non-secret preserved). Resolves the `key` mismatch.
 
-- [ ] 4.1 Align spec wording: edit `openspec/changes/shopify-importer-01-foundation/specs/local-security-baseline/spec.md` so the redaction requirement lists key names as "token, secret, password, authorization, credential, signature, cookie, and secret-bearing key forms such as apiKey or secretKey" instead of bare "key". Confirm no scenario relies on a bare `key` name.
-- [ ] 4.2 RED: create `apps/api/src/shared-kernel/logging/redact.test.ts`: key-name matrix at depth and case-insensitive (`accessToken` redacted; `product_key`, `keyId`, `count` preserved), `Bearer x`, `shpat_` style, URL query values and userinfo, `registerSecret` inside a longer string and the 8-character minimum, `Error` name/message/stack, cycle guard, depth cap, seeded secret absent from serialized output.
-- [ ] 4.3 GREEN: create `apps/api/src/shared-kernel/logging/redact.ts` with the exported key-name constant and `registerSecret`.
+- [x] 4.1 Align spec wording: edit `openspec/changes/shopify-importer-01-foundation/specs/local-security-baseline/spec.md` so the redaction requirement lists key names as "token, secret, password, authorization, credential, signature, cookie, and secret-bearing key forms such as apiKey or secretKey" instead of bare "key". Confirm no scenario relies on a bare `key` name.
+- [x] 4.2 RED: create `apps/api/src/shared-kernel/logging/redact.test.ts`: key-name matrix at depth and case-insensitive (`accessToken` redacted; `product_key`, `keyId`, `count` preserved), `Bearer x`, `shpat_` style, URL query values and userinfo, `registerSecret` inside a longer string and the 8-character minimum, `Error` name/message/stack, cycle guard, depth cap, seeded secret absent from serialized output.
+- [x] 4.3 GREEN: create `apps/api/src/shared-kernel/logging/redact.ts` with the exported key-name constant and `registerSecret`.
 
 ## Phase 5: U5 RedactingLogger
 
 Satisfies: local-security-baseline (message secret, field secret, non-secret preserved).
 
-- [ ] 5.1 Verify scaffold item 8 (logger interface): confirm the NestJS `LoggerService` shape for Nest 12. Fallback: adapt the method set in the class; the test below fails first.
-- [ ] 5.2 RED: create `apps/api/src/shared-kernel/logging/redacting-logger.test.ts` with an injected sink: one JSON line per event, `accessToken: "shpat_seed123"` absent, configured key `K` in a message absent after `registerSecret(K)`, `count: 3` kept, level filtering via `LOG_LEVEL`.
-- [ ] 5.3 GREEN: create `apps/api/src/shared-kernel/logging/redacting-logger.ts` (sink as constructor argument; no NestJS import beyond the interface type).
+- [x] 5.1 Verify scaffold item 8 (logger interface): confirm the NestJS `LoggerService` shape for Nest 12. Fallback: adapt the method set in the class; the test below fails first.
+- [x] 5.2 RED: create `apps/api/src/shared-kernel/logging/redacting-logger.test.ts` with an injected sink: one JSON line per event, `accessToken: "shpat_seed123"` absent, configured key `K` in a message absent after `registerSecret(K)`, `count: 3` kept, level filtering via `LOG_LEVEL`.
+- [x] 5.3 GREEN: create `apps/api/src/shared-kernel/logging/redacting-logger.ts` (sink as constructor argument; no NestJS import beyond the interface type).
 
 ## Phase 6: U6 SecretBox
 
@@ -195,6 +195,8 @@ Satisfies: local-security-baseline (origin guard: foreign, allowed, missing orig
 ## Phase 13: U13 Ordered boot, CORS, binding
 
 Satisfies: local-security-baseline (loopback bind, restrictive CORS, origin guard over HTTP, key redaction), runtime-configuration (abort before listen).
+
+Carry-over from U5: assert RedactingLogger is assignable to the Nest LoggerService at the composition root (main.ts passes it to NestFactory.create); the shared kernel cannot import Nest, so the check lives here.
 
 - [ ] 13.1 Verify scaffold items 8 and 10: the global /api prefix with the /health route excluded, `listen(port, host)`, and that the Nest CORS options produce exactly the D7 policy (exact-match list, no credentials, no allow header for other origins, `Vary: Origin`). Fallback: a small hand-written CORS middleware inside `local-security`.
 - [ ] 13.2 RED: create `apps/api/src/main.int.test.ts` on an ephemeral loopback port with a test-only `POST` controller registered in a test-built module (never in `AppModule`, excluded from `tsconfig.build.json`): foreign-origin POST is 403 and the handler does not run; allowed origin passes; no-origin POST passes; preflight allows only allow-listed origins; foreign-origin `GET` runs with no allow header; bound address is loopback; `0.0.0.0` with opt-in binds and logs one `non_loopback_bind` warn event; bad config, loose key file and key mismatch throw `BootError` before `listen`; the configured key value never appears in captured log output.
