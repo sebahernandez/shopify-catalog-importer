@@ -2,6 +2,7 @@ import { BootError } from './shared-kernel/boot-error.js';
 import { registerSecret } from './shared-kernel/logging/redact.js';
 import type { KeyCheckStore } from './shared-kernel/secret-box/key-check-store.port.js';
 import type { KeyProvider, Keyring } from './shared-kernel/secret-box/key-provider.port.js';
+import { KeyFileError } from './shared-kernel/secret-box/infrastructure/file-key-provider.js';
 import {
   SecretKeyBootstrap,
   type BootstrapResult,
@@ -75,5 +76,19 @@ export async function reconcileKey(
       'KEY_CHECK_CONFLICT',
       'Another start wrote the key-check record at the same time, twice in a row. Start again.',
     );
+  }
+}
+
+/**
+ * Reads the key file ahead of everything else (design boot diagram), so a malformed or too
+ * permissive file stops the start before an application exists, and so a key that is already
+ * there can be registered with the redactor before the first log line. Creates nothing.
+ */
+export function loadKeyring(provider: KeyProvider): Keyring | null {
+  try {
+    return provider.load();
+  } catch (error) {
+    if (error instanceof KeyFileError) throw new BootError('KEY_FILE_INVALID', error.message);
+    throw error;
   }
 }

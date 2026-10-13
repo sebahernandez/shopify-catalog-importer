@@ -40,7 +40,9 @@ function isKnownStartFailure(error: unknown): error is Error {
 export function reportFailure(error: unknown): FailureReport {
   if (isKnownStartFailure(error)) {
     const code = 'code' in error && typeof error.code === 'string' ? ` ${error.code}` : '';
-    const message = error.message.replace(/\s*[\r\n]+\s*/g, '; ');
+    const message = error.message
+      .replace(/:[ \t]*[\r\n]+\s*/g, ': ')
+      .replace(/\s*[\r\n]+\s*/g, '; ');
     return {
       exitCode: EXIT_START_FAILURE,
       line: redactString(`Startup failed: ${error.name}${code}: ${message}`),

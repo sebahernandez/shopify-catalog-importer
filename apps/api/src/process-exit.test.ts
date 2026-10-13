@@ -64,8 +64,9 @@ describe('reportFailure: one case per known error class', () => {
         { variable: 'LOG_LEVEL', problem: 'must be a level' },
       ]),
     );
-    expect(report.line).toContain('API_PORT');
-    expect(report.line).toContain('LOG_LEVEL');
+    expect(report.line).toContain(
+      'Invalid configuration: - API_PORT: must be a port; - LOG_LEVEL: must be a level',
+    );
     expect(report.line).not.toMatch(/[\r\n]/);
   });
 
