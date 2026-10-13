@@ -4,6 +4,7 @@ import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { ConfigModule } from '../config/config.module.js';
+import { parseEnv } from '../config/env.schema.js';
 import { LocalSecurityModule } from './local-security.module.js';
 
 const SRC = fileURLToPath(new URL('..', import.meta.url));
@@ -44,6 +45,23 @@ describe('the test-only write route does not ship', () => {
     expect(Reflect.getMetadata('controllers', LocalSecurityModule) ?? []).toEqual([]);
     const { AppModule } = await import('../app.module.js');
     expect(Reflect.getMetadata('controllers', AppModule) ?? []).toEqual([]);
+  });
+
+  it('declares no controller in the module graph that AppModule.forRoot builds', async () => {
+    const { AppModule } = await import('../app.module.js');
+    const dynamic = AppModule.forRoot({ config: parseEnv({}), logger: { warn: () => undefined } });
+    expect(dynamic.controllers ?? []).toEqual([]);
+    const imports = (dynamic.imports ?? []) as { controllers?: unknown[] }[];
+    expect(imports).toHaveLength(3);
+    for (const imported of imports) expect(imported.controllers ?? []).toEqual([]);
+  });
+
+  it('starts the program with no options, so no extra module and no environment switch', () => {
+    const main = readFileSync(join(SRC, 'main.ts'), 'utf8');
+    expect(main).toMatch(/await bootstrap\(\);/);
+    for (const file of ['main.ts', 'app.module.ts']) {
+      expect(readFileSync(join(SRC, file), 'utf8')).not.toMatch(/process\.env|import\.meta\.env/);
+    }
   });
 
   it('lets no environment variable enable a route: production code reads none for the guard', () => {

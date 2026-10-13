@@ -1,11 +1,17 @@
 import { randomBytes } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, readFileSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { isDuplicateKeyError, keyForms, reconcileKey, registerKeyring } from './key-boot.js';
+import {
+  isDuplicateKeyError,
+  keyForms,
+  loadKeyring,
+  reconcileKey,
+  registerKeyring,
+} from './key-boot.js';
 import { databaseFilePath, prepareDatabaseFile } from './persistence/database-location.js';
 import { PrismaKeyCheckStore } from './persistence/prisma-key-check-store.js';
 import { PrismaService } from './persistence/prisma.service.js';
@@ -237,6 +243,40 @@ describe('reconcileKey', () => {
       () => undefined,
       (caught: unknown) => caught,
     );
+    expect(failure).toMatchObject({ code: 'KEY_FILE_INVALID' });
+    expect(readFileSync(keyFilePath)).toEqual(before);
+  });
+});
+
+describe('loadKeyring', () => {
+  const provider = (): FileKeyProvider => new FileKeyProvider({ keyFilePath });
+
+  it('returns null when no key file exists, and creates nothing', () => {
+    expect(loadKeyring(provider())).toBeNull();
+    expect(() => readFileSync(keyFilePath)).toThrow(/ENOENT/);
+  });
+
+  it('returns the ring of an existing key file', () => {
+    const generated = provider().generate();
+    const loaded = loadKeyring(provider());
+    expect(loaded?.activeKeyId).toBe('k1');
+    expect(loaded?.keys.get('k1')).toEqual(generated.keys.get('k1'));
+  });
+
+  it.each([
+    ['malformed content', (): void => writeFileSync(keyFilePath, 'not a key\n', { mode: 0o600 })],
+    ['group-readable mode', (): void => chmodSync(keyFilePath, 0o640)],
+  ])('maps a %s problem to a typed boot error and leaves the file alone', (_name, damage) => {
+    provider().generate();
+    damage();
+    const before = readFileSync(keyFilePath);
+    let failure: unknown;
+    try {
+      loadKeyring(provider());
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toBeInstanceOf(BootError);
     expect(failure).toMatchObject({ code: 'KEY_FILE_INVALID' });
     expect(readFileSync(keyFilePath)).toEqual(before);
   });
