@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -148,4 +148,14 @@ describe('baseline migration', () => {
     expect(expected).toBe(join(dataDir, 'importer.db'));
     expect(existsSync(expected)).toBe(true);
   });
+
+  it.skipIf(process.platform === 'win32')(
+    'creates the data directory 0700 and the database file 0600',
+    () => {
+      expect(migrate().status).toBe(0);
+
+      expect(statSync(dataDir).mode & 0o777).toBe(0o700);
+      expect(statSync(databaseFilePath(dataDir)).mode & 0o777).toBe(0o600);
+    },
+  );
 });
