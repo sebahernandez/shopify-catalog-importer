@@ -103,11 +103,11 @@ Satisfies: workspace-tooling (layout, install, strict compilation, quality scrip
 
 Satisfies: workspace-tooling (strict compilation, layout), persistence-baseline (native adapter prerequisite). Spikes first so a fallback is found before dependent work.
 
-- [ ] 2.1 Create `apps/api/package.json` (`@importer/api`, `"type": "module"`, Nest 12, `reflect-metadata`, `rxjs`, `vitest`), `tsconfig.json`, `tsconfig.build.json` (tests excluded), `vitest.config.ts`.
-- [ ] 2.2 Spike item 1 (ESM): RED `apps/api/src/esm-boot.int.test.ts` boots a Nest app from a tiny `apps/api/src/app.module.ts` under native ESM and answers on an ephemeral loopback port. Also run the Nest CLI watch mode once and record the result. Fallback if ESM fails: CommonJS API on Node 24 that loads the ESM contracts build through `require` (D1); record it and stop for CP3.
-- [ ] 2.3 Spike item 2 (DI): in the same test, inject a provider through an explicit `@Inject(TOKEN)` constructor parameter; confirm it resolves under the Vitest transform without decorator metadata. Fallback: add a metadata-emitting transform plugin to `vitest.config.ts`.
-- [ ] 2.4 Spike native driver (items 4 and 7): add `better-sqlite3` and `@prisma/adapter-better-sqlite3`; use the pnpm 12 build-script approval syntax in `pnpm-workspace.yaml`; RED then GREEN `apps/api/src/native-sqlite.int.test.ts` opens `:memory:`, runs `SELECT 1`. Fallback: stop and report; no alternate adapter is in scope (design Migration section).
-- [ ] 2.5 Record spike outcomes (ESM or CommonJS, DI transform, native build) in the apply progress for CP2 and CP3. Run `pnpm check`.
+- [x] 2.1 Create `apps/api/package.json` (`@importer/api`, `"type": "module"`, Nest 12, `reflect-metadata`, `rxjs`, `vitest`), `tsconfig.json`, `tsconfig.build.json` (tests excluded), `vitest.config.ts`.
+- [x] 2.2 Spike item 1 (ESM): RED `apps/api/src/esm-boot.int.test.ts` boots a Nest app from a tiny `apps/api/src/app.module.ts` under native ESM and answers on an ephemeral loopback port. Also run the Nest CLI watch mode once and record the result. Fallback if ESM fails: CommonJS API on Node 24 that loads the ESM contracts build through `require` (D1); record it and stop for CP3.
+- [x] 2.3 Spike item 2 (DI): in the same test, inject a provider through an explicit `@Inject(TOKEN)` constructor parameter; confirm it resolves under the Vitest transform without decorator metadata. Fallback: add a metadata-emitting transform plugin to `vitest.config.ts`.
+- [x] 2.4 Spike native driver (items 4 and 7): add `better-sqlite3` and `@prisma/adapter-better-sqlite3`; use the pnpm 12 build-script approval syntax in `pnpm-workspace.yaml`; RED then GREEN `apps/api/src/native-sqlite.int.test.ts` opens `:memory:`, runs `SELECT 1`. Fallback: stop and report; no alternate adapter is in scope (design Migration section).
+- [x] 2.5 Record spike outcomes (ESM or CommonJS, DI transform, native build) in the apply progress for CP2 and CP3. Run `pnpm check`.
 
 ## Phase 3: U3 Money
 

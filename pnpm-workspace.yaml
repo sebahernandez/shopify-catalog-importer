@@ -5,6 +5,10 @@ packages:
 # Make `pnpm install` fail when the Node version does not satisfy `engines`.
 engineStrict: true
 
+# Allow only the SQLite native driver to run its install script (prebuilt binary or node-gyp).
+allowBuilds:
+  better-sqlite3: true
+
 minimumReleaseAgeExclude:
   - '@typescript-eslint/eslint-plugin@8.71.2'
   - '@typescript-eslint/parser@8.71.2'
