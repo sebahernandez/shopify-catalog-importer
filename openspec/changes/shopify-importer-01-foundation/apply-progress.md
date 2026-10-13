@@ -308,3 +308,101 @@ Hand-written added lines, 1,050 against a 400 budget and a ~340 forecast: provid
 | Focused test | `pnpm --filter @importer/api exec vitest run src/shared-kernel/secret-box`: 3 files, 169 tests passed |
 | Runtime harness | Temp-dir key file: generated 0600 in a 0700 directory, loose modes rejected (all inside the tests). Root `pnpm install --frozen-lockfile`, `pnpm check` (399 API, 42 contracts tests) and `pnpm build` exit 0 |
 | Rollback boundary | shared-kernel/boot-error.ts, shared-kernel/secret-box/infrastructure/file-key-provider*, shared-kernel/secret-box/secret-key-bootstrap*; the tasks.md checkboxes |
+
+## Batch 8: U8 Env schema
+
+Branch `feat/foundation-u8-env-schema`. Tasks 8.1 and 8.2 complete (2/2 of Phase 8; 36 of 61 overall). Mode: Strict TDD.
+Commits: 331faf4 (core schema: defaults, strict ports, enums, aggregate error, zod dependency), 4f8dd78 (loopback host rule, opt-in flag, origin allow-list, task checkboxes). The two commits are separable.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Refactor |
+|---|---|---|---|---|---|---|---|
+| 8.1/8.2 core | apps/api/src/config/env.schema.test.ts | Unit | N/A (new) | Failed: Cannot find module './env.schema.js' | 78/78 passed (two test-side slips fixed first: a key-name assertion and an error-wording regex) | 4 ports valid, 17 invalid, 5 NODE_ENV, 6 LOG_LEVEL, 5 and 8 API versions, busy-timeout 3 and 9, path 2 variables, unknown keys, frozen, no mutation, aggregate list, seeded-value hygiene | Prettier only |
+| 8.1/8.2 hosts, flag, origins | same file | Unit | 78/78 existing | 91 failed, 120 passed (211) | 211/211 passed first run | 19 flag near misses (x3 checks), 8 loopback hosts, 15 non-loopback hosts, 18 malformed hosts, 5 + 31 origins, trim, dedupe, wildcard in a list, 12-variable hygiene, cross-rule aggregate | Prettier only |
+
+### Mutation checks (each restored, re-run green 211/211)
+
+| Mutation | Result |
+|---|---|
+| Non-loopback check always passes | 36 tests failed |
+| Any truthy string opts in | 40 failed |
+| Wildcard origin allowed (the explicit star check removed) | 1 failed (the wildcard-host origin; a bare star already fails URL parsing) |
+| Opt-in flag case-insensitive | 4 failed |
+| 0.0.0.0 treated as loopback | 22 failed |
+| Any IPv6 treated as loopback | 3 failed |
+| Origin canonical-equality check removed | 12 failed |
+| No de-duplication | 1 failed |
+| No trimming | 2 failed |
+| Any hostname containing localhost is loopback | 4 failed |
+| Any host starting with 127. is loopback | 4 failed |
+| Error echoes the input value | 2 failed |
+
+### Variables as implemented
+
+All twelve variables from D6, same names and defaults, no addition and no removal. Defaults are applied by running the default string through the same schema.
+
+| Name | Type | Default | Rule |
+|---|---|---|---|
+| NODE_ENV | development, test, production | development | exact, case-sensitive |
+| API_HOST | string, bind-ready | 127.0.0.1 | valid IPv4, IPv6 or hostname; non-loopback needs the opt-in |
+| API_PORT | integer | 3000 | plain digits, 1 to 65535, no sign, no leading zero, no padding, no float, hex or exponent |
+| WEB_HOST | string, bind-ready | 127.0.0.1 | same as API_HOST |
+| WEB_PORT | integer | 5173 | same as API_PORT |
+| ALLOW_NON_LOOPBACK | boolean | false | exactly true or false; anything else is an error |
+| ALLOWED_ORIGINS | list of origins | http://127.0.0.1:WEB_PORT and http://localhost:WEB_PORT | canonical http or https origins, comma separated |
+| SHOPIFY_API_VERSION | string | 2026-10 | four digits, dash, 01, 04, 07 or 10 |
+| DATA_DIR | string | ./data | non-empty, no NUL; resolution is U9 |
+| SECRET_KEY_FILE | string | the key file under the hidden application folder in the home directory | non-empty, no NUL; expansion is U9; no variable carries the key itself |
+| SQLITE_BUSY_TIMEOUT_MS | integer | 5000 | positive plain digits, at most 2147483647 |
+| LOG_LEVEL | error, warn, info, debug | info | same domain as the logger, enforced by a Record keyed on the logger's LogLevel type |
+
+### Rules as implemented
+
+- Loopback: IPv4 inside 127.0.0.0/8 (strict dotted quad), IPv6 equal to ::1 in any spelling (checked through the WHATWG URL normaliser), and the name localhost in any letter case. Brackets are accepted around IPv6 and removed from the returned host, because listen() wants the bare form. Non-loopback but valid: 0.0.0.0, ::, IPv4-mapped loopback, any other address, any other name (sub.localhost, localhost with a trailing dot, look-alike names, names that embed an address). Malformed (error naming the variable, even with the opt-in): empty, padded, with a port or scheme or path, short IPv4 such as 127.1, leading-zero IPv4, all-numeric last label, bad label characters or length, unbalanced brackets, bracketed IPv4.
+- localhost decision: the design lists it as loopback, so it is accepted. It is resolved by the system resolver and could be remapped to another address, which a pure check cannot see; accepted residual risk, flagged for U13, which can verify the bound address.
+- Origins: each entry must parse as a URL, use http or https, and equal its own canonical origin string. That rejects wildcards, paths, a trailing slash, query, fragment, credentials, upper-case scheme or host, default ports written out, non-ASCII hosts and non-URLs in one rule; a star anywhere is also rejected explicitly. Spaces and tabs around entries are trimmed; any other whitespace is an error. Empty entries (a stray comma, an empty value) are errors. Exact duplicates are removed, first occurrence wins, order kept. The derived default uses the parsed WEB_PORT and is skipped silently when WEB_PORT is itself invalid (that variable is already reported).
+- Unknown variables: ignored. The schema reads only its twelve names, case-sensitive, so the hundreds of unrelated variables of a real environment never matter, and a typo such as api_port is silently the default. Strict key rejection was not applied because it would break boot on any real environment; U9 may add a warning for near-miss names if wanted.
+- Error: ConfigError (code INVALID_CONFIG) with an issues list of variable plus fixed problem text. The message is "Invalid configuration:" followed by one line per issue, "- NAME: problem", in D6 order. All invalid variables are reported in one throw. Values are never echoed for any variable: the design says never a value, and no variable was singled out. Tested on message, stack, JSON, String(), and issues for all twelve names with a seeded odd value including a NUL byte.
+- Result: Object.freeze on the config and on the origin list; readonly typed; ports, booleans and the timeout are numbers and booleans. parseEnv is pure and does not mutate its input (tested with a frozen input).
+
+### Decisions where the design was silent or differed
+
+- Design D7 says "the literal true; anything else is false". The task for this unit required anything unlisted to be an error rather than a silent false. Implemented as the task says: true and false are the only accepted forms, everything else (TRUE, 1, yes, padded, empty) is an error. Neither reading can turn the opt-in on by accident. Difference from D7 wording, safe direction, not a spec conflict.
+- Empty string is an error for every variable (not treated as unset). Consequence for U9: .env.example must use the default values, or leave lines commented out, instead of empty values, otherwise copying the sample verbatim fails validation. Only an absent variable (undefined) takes the default.
+- When ALLOW_NON_LOOPBACK is itself invalid, the host check treats the opt-in as off, so both variables are reported.
+- Host check is judged per variable (API_HOST and WEB_HOST each get their own issue).
+- Returned apiHost and webHost are normalised (lower-case, no brackets).
+- SQLITE_BUSY_TIMEOUT_MS has an upper bound of 2147483647 (the SQLite integer limit); the design only says positive integer.
+- DATA_DIR and SECRET_KEY_FILE: shape only (non-empty, no NUL byte).
+- Dependency: zod 4.6.7 added to apps/api (same pin as contracts); lockfile +3 lines. zod is used per field with fixed custom messages, and issues are aggregated by the module itself, because cross-field rules (host versus opt-in, origin default versus port) need partial results when other fields fail.
+- The schema imports only the LogLevel type from the shared kernel logger and node:net for address syntax checks (pure, no I/O). No NestJS import.
+
+### Spec traceability (U8)
+
+| Scenario | Test (env.schema.test.ts) |
+|---|---|
+| runtime-configuration: Valid configuration | describe defaults: all twelve filled; explicit values parse into typed fields |
+| runtime-configuration: Malformed port | describe ports: rejects abc and 16 other values naming API_PORT and WEB_PORT |
+| runtime-configuration: Default version | describe defaults: pinned constant and parsed default |
+| runtime-configuration: Malformed version | describe SHOPIFY_API_VERSION: rejects latest and others naming the variable |
+| runtime-configuration: Defaults (loopback, port) | describe defaults |
+| runtime-configuration: error never carries a value | describe aggregate failure: seeded value absent from message, stack, JSON (8 and 12 variables) |
+| runtime-configuration: Sample is complete, Real env ignored | U9 (task 9.2) |
+| runtime-configuration: abort at startup, exit path | U9 loader and U13 boot |
+| local-security-baseline: Default bind | describe defaults; loopback hosts accepted without opt-in |
+| local-security-baseline: Non-loopback without opt-in | describe loopback hosts: 15 hosts refused naming the variable and the opt-in |
+| local-security-baseline: Non-loopback with opt-in | describe loopback hosts: accepted once the opt-in is the literal true; ALLOW_NON_LOOPBACK near misses never open a bind |
+| local-security-baseline: allow-list shape (no wildcard, exact origins) | describe ALLOWED_ORIGINS |
+| local-security-baseline: preflight, origin guard scenarios, redaction | U12 and U13 (CORS and guard are runtime), U4 and U5 (redaction) |
+| bind actually listens on loopback, non_loopback_bind warn event | U13 |
+
+### Size
+
+Hand-written added lines, 760 against a 400 budget and a ~230 forecast: source 262, tests 495, manifest 3. By commit: core commit 400 (source 157, tests 240, manifest 3), host and origin commit 386 (source 131, tests 255). Not trimmed. Each commit is within budget; the split is the cheapest honest way to land it, otherwise a size exception is needed.
+
+| Evidence | Value |
+|---|---|
+| Focused test | `pnpm --filter @importer/api exec vitest run src/config`: 1 file, 211 tests passed |
+| Runtime harness | N/A: pure schema, no runtime boundary. Root `pnpm install --frozen-lockfile`, `pnpm check` (610 API, 42 contracts tests) and `pnpm build` exit 0 |
+| Rollback boundary | apps/api/src/config/env.schema*, the zod line in apps/api/package.json and its lockfile delta; the tasks.md checkboxes |
