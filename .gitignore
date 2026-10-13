@@ -6,3 +6,4 @@ data/
 .env.*
 *.key
 apps/api/src/generated/
+.atl/.skill-registry.cache.json
