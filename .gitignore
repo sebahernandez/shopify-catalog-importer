@@ -3,5 +3,6 @@ node_modules
 dist
 data/
 .env
+.env.*
 *.key
 apps/api/src/generated/

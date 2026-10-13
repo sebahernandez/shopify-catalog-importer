@@ -4,10 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "nest build",
+    "predev": "pnpm run db:generate",
     "dev": "nest start --watch",
+    "prebuild": "pnpm run db:generate",
+    "build": "nest build",
+    "pretypecheck": "pnpm run db:generate",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "pretest": "pnpm run db:generate",
+    "test": "vitest run",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy"
   },
   "dependencies": {
     "@importer/contracts": "workspace:*",
@@ -15,7 +21,9 @@
     "@nestjs/core": "12.1.3",
     "@nestjs/platform-express": "12.1.3",
     "@prisma/adapter-better-sqlite3": "7.10.0",
+    "@prisma/client": "7.10.0",
     "better-sqlite3": "12.11.1",
+    "prisma": "7.10.0",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
     "zod": "4.6.7"
