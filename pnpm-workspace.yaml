@@ -5,9 +5,13 @@ packages:
 # Make `pnpm install` fail when the Node version does not satisfy `engines`.
 engineStrict: true
 
-# Allow only the SQLite native driver to run its install script (prebuilt binary or node-gyp).
+# Install scripts: better-sqlite3 (prebuilt binary or node-gyp) and @prisma/engines (downloads the
+# schema engine binary used by the migrate commands). prisma only checks the Node version in its
+# preinstall hook, which the CLI repeats on every start, so it stays denied.
 allowBuilds:
   better-sqlite3: true
+  '@prisma/engines': true
+  prisma: false
 
 minimumReleaseAgeExclude:
   - '@typescript-eslint/eslint-plugin@8.71.2'
