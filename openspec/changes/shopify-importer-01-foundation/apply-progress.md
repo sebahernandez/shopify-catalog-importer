@@ -209,3 +209,102 @@ Missing key at construction: covered here (KEY_MISSING). Malformed key: covered 
 | Focused test | `pnpm --filter @importer/api exec vitest run src/shared-kernel/secret-box`: 1 file, 88 tests passed |
 | Runtime harness | N/A: crypto unit, no runtime boundary. Root `pnpm check` (318 API, 42 contracts tests) and `pnpm build` exit 0 |
 | Rollback boundary | shared-kernel/secret-box/**; the tasks.md checkboxes |
+
+## Batch 7: U7 Key file provider and bootstrap
+
+Branch `feat/foundation-u7-key-provider`. Tasks 7.1 to 7.5 complete (5/5 of Phase 7; 34 of 61 overall). Mode: Strict TDD.
+Commits: 5b6f84e (FileKeyProvider, tests, 7.1/7.2/7.5 checkboxes), 7bd529f (SecretKeyBootstrap, BootError, tests, 7.3/7.4 checkboxes). The two commits are separable along the contingency split named in tasks.md.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Refactor |
+|---|---|---|---|---|---|---|---|
+| 7.1/7.2 | apps/api/src/shared-kernel/secret-box/infrastructure/file-key-provider.int.test.ts | Integration (temp dir) | N/A (new) | Failed: Cannot find module './file-key-provider.js' | 63/63 passed | 3 umasks, exclusive create (existing file, second start, dangling symlink), 6 loose file modes, 5 loose dir modes, 24 malformed contents, symlink, directory in place of file, foreign owner, win32 branch | Reworded I/O error text; prettier; added a boundary fixture (4097 bytes) and an umask 0o477 test after two mutants survived |
+| 7.3/7.4 | apps/api/src/shared-kernel/secret-box/secret-key-bootstrap.test.ts | Unit (in-memory store, real provider in temp dir) | N/A (new) | Failed: Cannot find module '../boot-error.js' | 18/18 passed | 6 D4 rows, 5 wrong-row variants, 3 unusable files x 2 row states, store read failure, row write failure then recovery, no exit and no console | None needed |
+| 7.5 | N/A (verification) | N/A | N/A | N/A | git check-ignore matched the *.key rule, see below | N/A | N/A |
+
+7.5 output: `.gitignore:6:*.key` for a non-existent `apps/api/secret.key` and for a non-existent `keys/secret.key`; both exit 0. No key file was created.
+
+### Mutation checks (each restored and re-run green)
+
+| Mutation | Result |
+|---|---|
+| Provider: remove the group/other mode check | 13 tests failed |
+| Provider: exclusive create replaced by plain overwrite | 3 failed |
+| Provider: remove symlink check and O_NOFOLLOW | 1 failed |
+| Provider: remove directory permission check | 7 failed |
+| Provider: remove owner check | 1 failed |
+| Provider: remove file size limit | 1 failed (after adding the 4097-byte fixture; first survived) |
+| Provider: remove post-create mode verification | 1 failed (after adding the umask 0o477 test; first survived) |
+| Provider: accept non-canonical base64 | 2 failed |
+| Bootstrap: generate a key even when a row exists | 3 failed |
+| Bootstrap: overwrite the row on mismatch | 5 failed |
+| Bootstrap: skip the constant comparison | 6 failed |
+| Bootstrap: do not map KeyFileError to BootError | 4 failed |
+| Bootstrap: rethrow non-SecretBoxError from decrypt | SURVIVED (equivalent: no public input makes decrypt throw another type; defensive) |
+
+### Key file format
+
+Plain text, ASCII, one key per line: key id, a colon, then standard base64 with padding of exactly 32 bytes (44 characters). A key id is 1 to 32 characters of letters, digits, underscore, hyphen. Exactly one trailing LF is allowed and optional. Rejected: empty file, blank lines, CR or CRLF, BOM, NUL, leading or trailing whitespace, any trailing garbage, base64url, missing padding, non-canonical trailing bits, a length other than 32 bytes, a repeated key id, a file over 4096 bytes. The last line is the active key (the design says "highest id"; with append-only rotation these coincide, so the file order decides and no id arithmetic is needed). Generation writes one line, id k1.
+
+### Permission rules (POSIX)
+
+Enforced on load: the file and its directory must have no group or other bits (any mode with mode & 077 set is refused, including read-only group access); both must be owned by the current user; the file must be a regular file and not a symlink (lstat, then open with O_NOFOLLOW, then fstat on the descriptor, then read from the descriptor); a file larger than 4096 bytes is refused. The directory check runs even when the key file does not exist. Enforced on generate: directory created 0700 (recursive, parents too); file created with open flag wx and mode 0600, so an existing path of any kind, a dangling symlink included, is never opened; the resulting mode is verified through the descriptor and a file this call created is deleted again if it is not owner-only and owner-readable.
+Not enforced: ACLs and extended attributes, ancestors above the immediate directory, whether the directory is on a network or synced volume, hard links to the file, and on Windows everything mode-based (mode and owner checks are skipped with one injected warning naming the path; content validation, the symlink check and the exclusive create still apply, but Windows access control is not inspected or set, so no protection is claimed there).
+
+### Bootstrap decision table as implemented
+
+| Key file | Row for the active key | Result | Outcome or error |
+|---|---|---|---|
+| Absent | Absent | Generate k1, write the row | outcome generated (caller warns about backup) |
+| Present | Absent | Write the row only | outcome recorded |
+| Present | Present, opens to the constant | Nothing written | outcome verified |
+| Present | Present, does not open or wrong constant or not an envelope | Fail, row and file untouched | BootError KEY_MISMATCH |
+| Absent | Present (checked under id k1) | Fail, nothing created | BootError KEY_FILE_REQUIRED |
+| Unusable (malformed, wrong length, duplicate, loose, symlink, foreign owner) | Any | Fail, file untouched, store untouched | BootError KEY_FILE_INVALID (message names path and reason) |
+
+Row content: SecretBox encryption of a fixed public constant under the fixed context secret-key-check, nothing derived from the key outside the box. The bootstrap does not exit, log or call process.exit; store errors (database down) propagate unchanged and never lead to generation.
+
+### Error codes
+
+KeyFileError: KEY_FILE_PATH (relative path), KEY_FILE_EXISTS, KEY_FILE_UNSAFE, KEY_FILE_MALFORMED, KEY_FILE_IO. BootError (shared-kernel/boot-error.ts): KEY_FILE_INVALID, KEY_FILE_REQUIRED, KEY_MISMATCH. Later start-up steps add their own codes to BootErrorCode.
+
+### Decisions where the design was silent
+
+- Directory strictness: any group or other bit on the directory is refused, not only write bits. Consequence: a SECRET_KEY_FILE directly inside a 0755 directory is refused until the operator runs chmod 700 on it. The default location's directory is created 0700 so it is unaffected.
+- Symlinks refused for the file; the directory path is followed (a symlinked directory is checked at its target).
+- Owner must be the current user (POSIX). The uid source is injectable.
+- Trailing newline: exactly one LF optional; anything else after the key line is malformed.
+- Active key is the last line.
+- Path must be absolute (KEY_FILE_PATH); expanding the home directory and resolving relative paths stays with U9. The default path is the function defaultKeyFilePath(home) with the home directory as a parameter; only production wiring will call it without an argument. No test or check ran against the real home directory.
+- Warnings travel through an injected callback; the provider and the bootstrap never log.
+- BootError lives in shared-kernel/boot-error.ts (generic, for later steps) rather than inside the bootstrap file.
+- The key-check row is looked up under the active key id when a key file exists, and under k1 when it does not.
+- FIRST_KEY_ID is exported from the provider so the bootstrap and generate agree.
+- Read errors are reported as the system error code only (for example EACCES); the underlying error is never attached as a cause.
+
+### Spec traceability (secret-protection scenarios)
+
+| Scenario | Owner | Evidence |
+|---|---|---|
+| Round trip, non-deterministic output, hides plaintext, tampered, wrong key, malformed input | U6 | aes-gcm-secret-box.test.ts |
+| Missing key (construction fails naming the source) | U6 for the box (KEY_MISSING); U7 for the file path: row 5 and KEY_FILE_REQUIRED test | secret-key-bootstrap.test.ts row 5 |
+| Malformed key (wrong length, error without key value) | U6 for the box; U7 for the file: 24 malformed-content cases assert the message holds no key prefix | file-key-provider.int.test.ts |
+| Key file excluded by version control | U7 task 7.5 | git check-ignore output above |
+| Empty secret storage | U10 (baseline holds no credential) and U11 (only the key-check row exists) | not in U7 |
+| Real database-backed four states | U11 | not in U7 |
+| Boot wiring and exit code mapping | U13 | not in U7 |
+
+### Limits
+
+A 0600 file does not protect against root, backups that copy it, another process of the same user, a copied home directory or a synced folder. Between the directory check and the open there is a time-of-check to time-of-use window for the directory (the file itself is checked on the open descriptor). A second start that reads the file while the first is still writing it sees an incomplete file and fails closed (KEY_FILE_MALFORMED); it never overwrites. Generation draws the key with randomBytes(32); JavaScript strings holding the base64 text cannot be wiped, only the buffers are zero-filled. There is no rotation tooling and no re-encryption pass. With a rotated file (k1 and k2) only the active key's row is checked or written; a key file whose only id changed would record a new row without noticing the old data. The row write in the store is not atomic with the read (U11 must make it insert-only or conditional).
+
+### Size
+
+Hand-written added lines, 1,050 against a 400 budget and a ~340 forecast: provider commit 655 (source 282, tests 373), bootstrap commit 395 (BootError 16, source 88, tests 291). The provider alone is over budget; the split along the contingency line is already in two commits, but a further split of the provider (parsing and format tests versus permission and generation tests) is the only way to bring that PR under 400. Not trimmed.
+
+| Evidence | Value |
+|---|---|
+| Focused test | `pnpm --filter @importer/api exec vitest run src/shared-kernel/secret-box`: 3 files, 169 tests passed |
+| Runtime harness | Temp-dir key file: generated 0600 in a 0700 directory, loose modes rejected (all inside the tests). Root `pnpm install --frozen-lockfile`, `pnpm check` (399 API, 42 contracts tests) and `pnpm build` exit 0 |
+| Rollback boundary | shared-kernel/boot-error.ts, shared-kernel/secret-box/infrastructure/file-key-provider*, shared-kernel/secret-box/secret-key-bootstrap*; the tasks.md checkboxes |
