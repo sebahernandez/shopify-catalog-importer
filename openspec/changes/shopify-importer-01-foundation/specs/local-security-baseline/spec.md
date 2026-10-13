@@ -64,7 +64,7 @@ Every state-changing request (non-safe HTTP method) MUST be rejected with a 403 
 
 ### Requirement: Secret redaction in logs
 
-The logger MUST redact secret-shaped values from messages and structured fields before output. Redaction MUST cover values under known secret-bearing keys (for example token, key, secret, password, authorization) and the configured encryption key value.
+The logger MUST redact secret-shaped values from messages and structured fields before output. Redaction MUST cover values under known secret-bearing keys (for example token, secret, password, authorization, credential, signature, cookie, and secret-bearing key forms such as apiKey or secretKey) and the configured encryption key value.
 
 #### Scenario: Seeded secret in a field
 
