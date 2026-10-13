@@ -1,0 +1,94 @@
+change: shopify-importer-01-foundation
+artifact_store: openspec
+updated_at: "2026-10-13"
+
+session:
+  execution_mode: interactive
+  delivery_strategy: ask-on-risk
+  review_budget_lines: 400
+
+roadmap:
+  umbrella: shopify-catalog-importer-mvp
+  slice: S0
+  later_slices: [S1, S2, S3, S4, S5, S6, S7]
+
+phases:
+  explore: done
+  research: done
+  proposal: done
+  specs: done
+  design: done
+  tasks: done
+  apply: pending
+  verify: pending
+  archive: pending
+
+preproposal:
+  schema: gentle-ai.sdd-preproposal/v1
+  revision: 5
+  exploration:
+    outcome: done
+    reference: openspec/changes/shopify-importer-01-foundation/exploration.md
+    engram_reference: sdd/shopify-catalog-importer-mvp/explore
+  research:
+    requested: selected
+    selected_by: user
+    classes: [documentation, open-web]
+    questions:
+      - id: Q1
+        text: On Admin GraphQL API 2026-10, what is the exact barcode/barcodes input shape for product variants, and which breaking changes or deprecations between 2026-07 and 2026-10 affect productSet, stagedUploadsCreate, fileCreate, productReorderMedia, productVariantAppendMedia, inventorySetQuantities, inventoryActivate, locations, productByIdentifier and metafield definitions?
+      - id: Q2
+        text: Which access scopes are required on 2026-10 for locations, file status reads, inventory reads, the shop query, and creating a metafield definition with the unique-values capability?
+      - id: Q3
+        text: For stagedUploadsCreate with resource IMAGE, which httpMethod applies, how must the upload request be built from the returned parameters, and how long is the staged target valid?
+      - id: Q4
+        text: With productSet on 2026-10, what payload creates a simple product with a single default variant, and what happens when a supplied handle is already taken?
+      - id: Q5
+        text: What are the current stable versions and mutual compatibility constraints of Node.js LTS, pnpm, NestJS, Prisma with SQLite, Vite, React, Tailwind CSS, Vitest, Playwright, Sharp and SheetJS CE, as needed to scaffold the workspace?
+      - id: Q6
+        text: How does the Admin GraphQL API signal throttling (HTTP status and error code), and what is the current daily variant-creation limit?
+    admission: granted
+    outcome: done
+    scoped_to: [Q1 (barcode input shape only), Q5]
+    scope_basis: User decision on 2026-10-13 to limit research to what S0 needs; former Q2, Q3, Q4, Q6 deferred to later changes.
+    deferred_unsupported: [U1, U2, U3, U4, U5, U6, U7, U8]
+    evidence_references:
+      - openspec/changes/shopify-importer-01-foundation/research.md (revision 3)
+      - openspec/changes/shopify-importer-01-foundation/exploration.md (appendix, research revision 1)
+  product_decisions:
+    status: confirmed
+    items:
+      - id: D3
+        topic: Split the MVP into chained changes S0 to S7, starting with foundation
+        decision: approved
+        status: confirmed
+      - id: D2
+        topic: Pinned Admin API version
+        decision: "2026-10"
+        note: Overrides the exploration recommendation of 2026-07; variant barcodes must use the 2026-10 shape.
+        status: confirmed
+      - id: D5
+        topic: Documentation language
+        decision: Repository documentation (README, guides) in neutral Spanish; code, comments and SDD artifacts in English; UI in Spanish.
+        status: confirmed
+      - id: D8
+        topic: Prisma SQLite driver adapter
+        decision: Wire @prisma/adapter-better-sqlite3 explicitly, as instructed by the user; research revision 3 later confirmed Prisma 7 requires an adapter or an Accelerate URL.
+        status: confirmed
+    deferred_to_later_slices: [D1, D4, D6, D7]
+  proposal_ready: true
+  proposal_ready_basis: Research revision 3 returned done for the scoped request; product decisions D2, D3, D5 and D8 are confirmed by the user.
+
+delivery:
+  delivery_strategy: ask-on-risk
+  review_workload_forecast:
+    hand_written_lines: "~4000 (3300-4800)"
+    generated_lines: "~9000"
+    work_units: 17
+    budget_risk: High
+    chained_prs_recommended: true
+  decision: chained PRs, one per work unit
+  chain_strategy: feature-branch-chain
+  tracker_branch: develop
+  decision_basis: User stated on 2026-10-13 that work must always happen on a develop branch. Mapping develop to the tracker branch of feature-branch-chain was the orchestrator reading of that statement, confirmed by the user on 2026-10-13.
+  size_exception: none
