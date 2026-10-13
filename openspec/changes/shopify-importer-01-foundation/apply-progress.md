@@ -406,3 +406,99 @@ Hand-written added lines, 760 against a 400 budget and a ~230 forecast: source 2
 | Focused test | `pnpm --filter @importer/api exec vitest run src/config`: 1 file, 211 tests passed |
 | Runtime harness | N/A: pure schema, no runtime boundary. Root `pnpm install --frozen-lockfile`, `pnpm check` (610 API, 42 contracts tests) and `pnpm build` exit 0 |
 | Rollback boundary | apps/api/src/config/env.schema*, the zod line in apps/api/package.json and its lockfile delta; the tasks.md checkboxes |
+
+## Batch 9: U9 Loader, paths, env.example
+
+Branch `feat/foundation-u9-config-loader`. Tasks 9.1 to 9.4 complete (4/4 of Phase 9; 40 of 61 overall). Mode: Strict TDD.
+Commits (separable, each green on its own): d6935b5 (path resolution), 49d1f97 (loader and env file reading), third commit (ConfigModule, env.example, sample test, task checkboxes, this file; hash in the git log).
+
+### Task 9.1 finding (design item 6)
+
+Checked on the installed Node 24.21.0 by running it, not from memory.
+
+- `process.loadEnvFile(path)` exists but copies the file into `process.env` (global mutation) and throws on a missing file. The CLI flag `--env-file` is also global and cannot be injected. Both are unsuitable for a loader that must be testable and side-effect free.
+- `util.parseEnv(content)` exists, takes the file content as a string and returns a plain object. Verified: it does NOT touch `process.env` (a probe key stayed unset), it tolerates quotes, `export`, comments, CRLF, and it throws only for a non-string argument. It is the API used (`import { parseEnv } from 'node:util'`, aliased in the loader to avoid the schema function of the same name).
+- Stability: the installed Node does not ship its API documentation, so the badge was not read from the doc page. The installed CHANGELOG records, in 24.10.0, the commit "doc: mark .env files support as stable" (nodejs PR 59925); `util.parseEnv` is part of that feature. Treat it as stable from 24.10.0. Risk: the repository floor is `engines.node >=24`, so 24.0 to 24.9 still had it flagged as in development; the function itself behaved the same in the probe, and `.node-version` / the fnm install pin 24.21.0.
+- Fallback from the task (own file reader) was not needed for parsing; reading the file is a plain `readFileSync` in the loader because `parseEnv` takes content, not a path (also gives typed errors).
+- Parser behaviour that shaped the design: it is lenient. A line without an equals sign, or a line such as `API_PORT 3000`, is silently dropped, so a typo would silently fall back to the default. The loader therefore checks each line first (blank, comment, or `[export] NAME=value`) and fails with the line number. Side effect: multi-line quoted values are not supported (no variable needs one). Also, the parser returns lower-case keys after upper-case ones, so near-miss warnings are sorted to be deterministic.
+- Note for U10 (Prisma config): `prisma.config.ts` must NOT depend on the API's `loadConfig` being called first, and must not call `process.loadEnvFile`. Prisma commands (`db:generate`, `db:migrate`) run as separate processes outside the API boot, so the Prisma config file has to compute `DATA_DIR` itself. It should call `loadConfig()` (or a small subset) from `apps/api/src/config/load-config.ts`, which returns the same absolute `dataDir`, and the database URL is then `file:` plus the join of `dataDir` and `importer.db`. Because `loadConfig` does not mutate `process.env`, Prisma's own variable handling is unaffected. If the config file is loaded by Prisma's TypeScript loader without the `.js` extension mapping, import from the compiled or `.ts` path accordingly (verify in 10.1). `loadConfig()` validates all twelve variables, so a bad unrelated variable also fails `db:migrate`; this is intended (one source of truth). `findWorkspaceRoot` walks up from the module's own folder, so it does not depend on where Prisma is started.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Refactor |
+|---|---|---|---|---|---|---|---|
+| 9.2/9.3 paths | apps/api/src/config/paths.test.ts | Unit (temp dir only for the root search) | N/A (new) | Failed: Failed to resolve import './paths.js' | 32/32 passed first run | 5 relative, cwd independence, parent escape, 2 absolute, 4 shorthand, 4 not-leading, 6 tilde-name forms, 2 unusable homes, NUL, empty, bad root, 3 root-search cases, default start | Lint only: removed a needless async from one test |
+| 9.2/9.3 loader | apps/api/src/config/load-config.test.ts | Integration (temp dir env files, injected env, root and home) | 211 schema tests green | Failed: Cannot find module './load-config.js' | 32/32, one test-side slip fixed (parser key order), then 33/33 after the distance-two case | defaults, frozen, missing file, default .env, relative envFile, 2 parse cases, 4 precedence cases, no mutation, 5 path cases, 2 invalid-config cases, 5 malformed-file kinds plus line number, bad UTF-8, size edge both sides, directory, permission denied, near-miss warn and quiet and substitution and distance two | Types: file values typed as RawEnv; a Proxy type argument instead of an assertion |
+| 9.2/9.3 module | apps/api/src/config/config.module.test.ts | Integration (Nest application context) | N/A (new) | Failed: Cannot find module './config.module.js' | 3/3 passed after one fix (see Issues) | token resolves, explicit-@Inject consumer gets the same frozen object, failed config rejects with ConfigError naming only API_PORT | Typed the token lookup (lint) |
+| 9.2/9.4 sample | apps/api/src/config/env-example.test.ts | Integration (reads the committed sample, git check-ignore) | N/A (new) | Failed: ENOENT for the sample file | 9/9 passed | all 12 names present both ways, each once, active lines equal defaults, optional lines valid, no empty values, works as an env file with no warning, no secret or machine path, .env ignored, sample not ignored | None needed |
+
+### Mutation checks (each restored, re-run green)
+
+| Mutation | Result |
+|---|---|
+| Env file overrides the real environment (reverse precedence) | 3 failed |
+| Undefined environment entry overwrites a file value | 1 failed |
+| Relative paths against the working directory (paths.ts) | 12 failed |
+| Relative paths against the working directory (loader context) | 4 failed |
+| Home shorthand expanded anywhere in the string | 4 failed |
+| Another account's shorthand (tilde-name) expanded | 6 failed |
+| NUL check removed | 1 failed |
+| Env-file error echoes the offending line | 3 failed (5 malformed kinds each check the seed) |
+| Missing env file treated as an error | 8 failed |
+| Env file also copied into process.env | 1 failed |
+| Near-miss check flags anything (distance not enforced) | 3 failed |
+| Sample: variable dropped, extra variable added, empty value, default drifted, absolute path added | each failed 1 to 4 sample tests |
+| Module: export removed, config loaded with a different environment | 3 failed |
+
+### Decisions where the design was silent or differed
+
+- Sample file name: `env.example` with no leading dot, as decided earlier. design.md and the runtime-configuration spec still say the dotted name and were not edited. Reason: the user's permissions deny the Read, Write and Edit tools on dotted env files.
+- Sample content (deviation from task 9.4 and the spec wording "placeholder or empty value"): every variable carries its real default value, never an empty one, because the schema rejects empty strings. ALLOWED_ORIGINS is the one commented line, because its default is derived from WEB_PORT and an active copy would go stale when the port changes. Copying the file unchanged to the real env file validates (tested). No secret exists to placeholder: the key is a file, not a variable.
+- Precedence: real environment overrides the env file (the design is silent; this is the common convention). An environment entry that is undefined does not override; an empty string does override and then fails validation like any empty value.
+- Env file location: default is the file named .env in the workspace root; the loader takes `envFile`, `workspaceRoot`, `home`, `env` and `warn` as injected options. Production calls `loadConfig()` with none of them. The only read of the process environment is the `options.env ?? process.env` default in load-config.ts, inside the folder the lint rules allow.
+- Workspace root: nearest folder above the loader module holding the marker file pnpm-workspace.yaml (`findWorkspaceRoot`, start folder injectable). It works from source and from dist and never depends on the working directory. Not found gives a typed PathError.
+- Relative paths resolve against that root, never the current directory. Parent segments are allowed to leave the workspace (an operator may point the data folder elsewhere); the design does not forbid it. Result is normalised and absolute.
+- Home shorthand: only a leading tilde alone or followed by a separator. Any other leading tilde (the tilde-name form, or a name that merely starts with a tilde) is rejected with the variable named, and the message suggests a dot-slash prefix for a literal folder. Tilde elsewhere in the string is literal. A home directory that is empty or not absolute is an error only when the shorthand is used.
+- The loader creates no directory or file and never opens the key file. Creating DATA_DIR belongs to the persistence unit (U10); creating the key folder belongs to the key provider (U7).
+- Errors: schema failures surface as the existing ConfigError unchanged. Path failures are turned into ConfigError issues (variable plus fixed text, no value). Env-file failures are a new typed EnvFileError (codes ENV_FILE_PATH, ENV_FILE_UNREADABLE, ENV_FILE_MALFORMED) whose message holds the file path and a reason (an errno code, a line number, a size or encoding fact), never content, and no cause. The loader never exits and never logs; U13 maps these errors to a non-zero exit.
+- Env file limits: 64 KiB, valid UTF-8, no NUL, strict line grammar (see 9.1). A permission failure on the file is an error (not treated as absent); only ENOENT means absent.
+- Near-miss warnings (optional item): implemented. For names found in the env FILE only (not in the real environment, which holds hundreds of unrelated names), a name that is a case change or one edit away from a schema variable produces one fixed-text hint through the injected `warn`, naming the file, the wrong name and the likely name, never a value. Exact names, unrelated names and two-edit names are quiet. The known-name list is read from the schema itself by running it against a recording Proxy (`schemaVariableNames`), so it cannot drift. Cost: about 25 source lines and 40 test lines.
+- Return type: `AppConfig` is an alias of the schema's `EnvConfig`; the two path fields are absolute after loading. The object is frozen.
+- ConfigModule: `ConfigModule.forRoot(options?)` is a dynamic, non-global module. It loads once at module build and exports the result under the symbol token `APP_CONFIG`; consumers use `@Inject(APP_CONFIG)` explicitly. It is not yet imported by AppModule (U13 owns boot wiring). No @nestjs/testing was needed: the test uses `NestFactory.createApplicationContext`, as the U2 spike did. No new dependency, lockfile unchanged.
+- Existing code left alone: env.schema.ts, eslint.config.js, .gitignore, .prettierignore. No U9 test exposed a schema defect.
+
+### Issues found
+
+- Nest aborts the process on a failed initialisation: a factory that throws makes `NestFactory.create*` call `process.abort()` unless `abortOnError: false` is passed. The first run of the module failure test crashed the worker (and left two temp folders, removed by hand). The test passes `abortOnError: false`. For U13: call `loadConfig` BEFORE `NestFactory.create` (as the design's boot diagram does) and map errors there; do not rely on Nest to surface a configuration error, and set `abortOnError: false` for later failures so BootError can drive the exit code.
+- The ignore rule in .gitignore is the exact name `.env`. Names such as .env.local or .env.production are NOT ignored (verified with git check-ignore). The loader reads only the file named .env, so they are not loaded, but an operator who creates one would see it in git status. Suggested follow-up (not done, outside U9 scope): add a `.env.*` rule; the sample env.example has no leading dot and would be unaffected.
+- design.md still says `.env.example`; the spec says "environment sample". Both are unedited, as decided earlier.
+
+### Spec traceability (runtime-configuration)
+
+| Scenario | Owner | Evidence |
+|---|---|---|
+| Valid configuration | U8 schema, U9 loader | env.schema.test.ts defaults; load-config.test.ts "without a file" and "env file contents"; config.module.test.ts |
+| Malformed port (aborts, names the variable) | U8 for the rule; U9 for the loader path; U13 for the actual abort and exit code | env.schema.test.ts ports; load-config.test.ts "invalid configuration" (API_PORT from file and environment, value absent, no process.exit) |
+| Default version, Malformed version | U8 | env.schema.test.ts |
+| Defaults (loopback, port) | U8 | env.schema.test.ts; load-config.test.ts defaults |
+| Sample is complete | U9 | env-example.test.ts "lists every variable the schema reads" (both directions) |
+| Real env ignored | U9 (rule from U1) | env-example.test.ts "ignores the real env file" (git check-ignore on the name; also run by hand, see below) |
+| Secret-free sample (requirement text) | U9 | env-example.test.ts "holds no secret and no machine-specific path or account" |
+| Error never carries a secret value | U8 and U9 | load-config.test.ts seeded values from file and from environment; EnvFileError tests assert file content absent |
+| Startup abort before accepting requests (process exit) | U13 | not in U9: the loader only throws |
+
+git check-ignore, run against names that do not exist on disk (nothing was created): `git check-ignore -v .env` prints `.gitignore:5:.env` and exits 0; `git check-ignore -v env.example` prints nothing and exits 1 (the sample is tracked); `git check-ignore -v .env.local` prints nothing and exits 1.
+
+### Limits
+
+Reading a path is not creating it: a configured DATA_DIR or SECRET_KEY_FILE that does not exist is accepted here; the persistence unit and the key provider check them when they use them. The permission-denied test is skipped when running as root or on Windows. Symlinks in the env file path are followed (the file is the operator's own configuration, not a secret store; the key file has stricter rules in U7). A real environment variable cannot be unset by the file. The line grammar rejects names with dots or dashes in the file even though the platform parser would accept them.
+
+### Size
+
+Hand-written added lines, 1,008 in total against a 400 budget and a ~185 forecast: source 288 (paths 90, loader 177, module 21), tests 683 (paths 158, loader 337, module 86, sample 102), sample file 37. By commit: paths commit 248 (source 90, tests 158), loader commit 514 (source 177, tests 337), module and sample commit 246 plus tasks and progress notes. Not trimmed. Only the third commit is under 400 on its own; the loader commit is over mostly because of the env-file error matrix and precedence tests. A further split of the loader commit is possible along near-miss warnings (about 35 source plus 50 test lines) and the env-file problem matrix (about 70 test lines).
+
+| Evidence | Value |
+|---|---|
+| Focused test | `pnpm --filter @importer/api exec vitest run src/config`: 5 files, 288 tests passed |
+| Runtime harness | `loadConfig` against env files written by the tests into fresh temp directories (default .env name, a custom name, missing, directory, unreadable, malformed), and the sample used as an env file. Root `pnpm install --frozen-lockfile`, `pnpm check` (687 API, 42 contracts tests, 2 skipped) and `pnpm build` exit 0 |
+| Rollback boundary | apps/api/src/config/paths*, load-config*, config.module*, env-example.test.ts, and env.example at the repository root; the tasks.md checkboxes |
