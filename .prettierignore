@@ -1,0 +1,8 @@
+node_modules
+dist
+data
+apps/api/src/generated
+pnpm-lock.yaml
+openspec
+.atl
+shopify-catalog-importer-prompt.md
