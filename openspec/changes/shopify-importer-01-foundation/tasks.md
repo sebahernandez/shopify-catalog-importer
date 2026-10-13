@@ -172,10 +172,10 @@ Satisfies: runtime-configuration (valid configuration, sample complete, real env
 
 Satisfies: persistence-baseline (local access, unwritable path, baseline, re-apply, readiness), secret-protection (empty secret storage).
 
-- [ ] 10.1 Verify scaffold items 3, 4, 5 first. Add `prisma`, `@prisma/client`; create `apps/api/prisma/schema.prisma` (`prisma-client` generator, explicit `output`, `AppSetting`) and `apps/api/prisma.config.ts`; run `db:generate`; confirm the generated client compiles under the strict base flags (fallback: relax flags for `src/generated/` only), pragmas or busy timeout via adapter options or raw statements, a single connection, `prisma generate` and `migrate deploy` need no implicit generation.
-- [ ] 10.2 Generate the baseline migration `apps/api/prisma/migrations/<timestamp>_baseline/migration.sql` and `migration_lock.toml` (generated; do not hand-edit); add `db:generate` and `db:migrate` root scripts.
-- [ ] 10.3 RED: create `apps/api/src/persistence/prisma.service.int.test.ts`: apply the committed SQL to an empty temp file, apply again (no change, exit 0), read and write `app_setting`, `journal_mode` is `wal`, `busy_timeout` matches config, boot creates the database file when absent, unwritable `DATA_DIR` names `DATA_DIR`, missing `app_setting` aborts with the `db:migrate` instruction, `isReachable()` is true, false after the file is removed (no throw), a migrated database holds zero rows.
-- [ ] 10.4 GREEN: create `apps/api/src/persistence/prisma.service.ts`, `persistence.module.ts`.
+- [x] 10.1 Verify scaffold items 3, 4, 5 first. Add `prisma`, `@prisma/client`; create `apps/api/prisma/schema.prisma` (`prisma-client` generator, explicit `output`, `AppSetting`) and `apps/api/prisma.config.ts`; run `db:generate`; confirm the generated client compiles under the strict base flags (fallback: relax flags for `src/generated/` only), pragmas or busy timeout via adapter options or raw statements, a single connection, `prisma generate` and `migrate deploy` need no implicit generation.
+- [x] 10.2 Generate the baseline migration `apps/api/prisma/migrations/<timestamp>_baseline/migration.sql` and `migration_lock.toml` (generated; do not hand-edit); add `db:generate` and `db:migrate` root scripts.
+- [x] 10.3 RED: create `apps/api/src/persistence/prisma.service.int.test.ts`: apply the committed SQL to an empty temp file, apply again (no change, exit 0), read and write `app_setting`, `journal_mode` is `wal`, `busy_timeout` matches config, boot creates the database file when absent, unwritable `DATA_DIR` names `DATA_DIR`, missing `app_setting` aborts with the `db:migrate` instruction, `isReachable()` is true, false after the file is removed (no throw), a migrated database holds zero rows.
+- [x] 10.4 GREEN: create `apps/api/src/persistence/prisma.service.ts`, `persistence.module.ts`.
 
 ## Phase 11: U11 Key-check store
 
