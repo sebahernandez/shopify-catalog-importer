@@ -80,3 +80,37 @@ Commits: f613b83 (Money value object plus tests), cbf35e8 (MoneyString, cross-ch
 | Focused test | `pnpm --filter @importer/api exec vitest run src/shared-kernel/money`: 2 files passed, 122 tests passed |
 | Runtime harness | N/A: pure value object, no runtime boundary. Root `pnpm check` (126 API, 42 contracts tests) and `pnpm build` exit 0 |
 | Rollback boundary | shared-kernel/money/**, packages/contracts/src/money*, the index.ts export line, the api dependency line and its lockfile delta |
+
+## Batch 4: U4 redact() and spec alignment
+
+Branch `feat/foundation-u4-redact`. Tasks 4.1 to 4.3 complete (3/3 of Phase 4; 23 of 61 overall). Mode: Strict TDD.
+Commits: 067e614 (spec wording), 1b68255 (redact() plus tests).
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Refactor |
+|---|---|---|---|---|---|---|---|
+| 4.1 | N/A (spec wording only) | N/A | N/A | N/A | Re-read: no scenario uses a bare key name | N/A | N/A |
+| 4.2/4.3 | apps/api/src/shared-kernel/logging/redact.test.ts | Unit | N/A (new) | Failed: Cannot find module './redact.js' | 72/72 passed | 16 plus 4 secret key names, 7 preserved names, 3 token prefixes, 8 adversarial inputs, all spec scenarios | Dropped an untested speculative stem; prettier and a Map type annotation only |
+
+Mutation check: removing the longest-first sort failed the overlap test; raising the depth cap failed the deep-structure test.
+
+### Decisions where the design was silent or ambiguous
+
+- Bare `key` is not secret (also protects the `app_setting.key` column). Secret key forms: a name ending in api, private, encryption, access, signing, master or auth plus `key`, after removing `-`, `_` and spaces.
+- Secret-named keys: the whole value is replaced, whatever its type, and is never read.
+- Error: output is a plain object of name plus all own property names (stack, message, cause, extra fields), each redacted by the same rules. Date: ISO string. Map: array of entries. Set: array. Buffer, typed arrays, ArrayBuffer: a byte-count marker, never content. Class instances: own enumerable properties. toJSON is honoured and its result is redacted. Functions: [Function]. Symbols: redacted description.
+- Bounds: depth 12, 10,000 visited nodes and entries; beyond that [Truncated]. Cycle: [Circular] (ancestor path only, so shared references are not flagged).
+- Never throws: an unreadable node becomes [Unredactable] (leak-safe) instead of failing the log call.
+- API: redact, redactString (for the logger message path), registerSecret (returns false below 8 characters), isSecretKeyName, exported constants, and a clearRegisteredSecretsForTests seam (registry is process-wide).
+
+### What redact() does not catch
+
+Secrets in free text that match no pattern and are not registered; secrets in object keys or Map keys; symbol-keyed properties; key=value pairs in plain text outside URLs; non-Shopify vendor token formats; secrets split across fields or encoded (base64, URL-encoded) unless the encoded form is registered; data past the depth or node caps (dropped, not leaked). Key-name matching over-redacts names containing token, secret and similar (for example max_tokens).
+
+| Evidence | Value |
+|---|---|
+| Focused test | `pnpm --filter @importer/api exec vitest run src/shared-kernel/logging/redact`: 1 file, 72 tests passed |
+| Runtime harness | N/A: pure function, no runtime boundary. Root `pnpm check` (198 API, 42 contracts tests) exit 0 |
+| Rollback boundary | shared-kernel/logging/redact*; the spec wording edit is a separate commit |
+| Size | 574 hand-written added lines (source 212, tests 362) against a 400 budget; not trimmed |
