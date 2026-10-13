@@ -1,6 +1,6 @@
 # Apply Progress: shopify-importer-01-foundation
 
-Mode: Standard (strict_tdd false; U1 followed RED then GREEN where tasks.md orders it).
+Mode: U1 and U2 Standard (strict_tdd was false); U3 onward Strict TDD (strict_tdd true).
 
 ## Batch 1: U1 Workspace tooling, test runner, contracts base
 
@@ -53,3 +53,30 @@ Notes for later units:
 | Focused test | `pnpm --filter @importer/api test`: 2 files passed, 4 tests passed |
 | Runtime harness | `nest build` then plain `node dist/main.js` boot, and `nest start --watch` edit-restart, both on an ephemeral loopback port, processes stopped |
 | Rollback boundary | `apps/api/**` plus the `allowBuilds` lines in `pnpm-workspace.yaml` and the lockfile delta |
+
+## Batch 3: U3 Money
+
+Branch `feat/foundation-u3-money`. Tasks 3.1 to 3.4 complete (4/4 of Phase 3; 20 of 61 overall). Mode: Strict TDD.
+Commits: f613b83 (Money value object plus tests), cbf35e8 (MoneyString, cross-check test, contracts dependency).
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Refactor |
+|---|---|---|---|---|---|---|---|
+| 3.1/3.2 | apps/api/src/shared-kernel/money/money.test.ts | Unit | N/A (new) | Failed: Cannot find module './money.js' | 95/95 passed | Tables: 14 canonical, 1 comma set of 5, 23 malformed, 6 non-string, add, compare, toFixed | Lint autofix only (removed one redundant assertion); tests stayed green |
+| 3.3 | packages/contracts/src/money.test.ts | Unit | 14 existing contracts tests green | Failed: Cannot find module './money.js' | 28/28 passed | 9 accepted, 15 rejected, 4 non-string | None needed |
+| 3.4 | apps/api/src/shared-kernel/money/money-contract.int.test.ts | Integration | N/A (new) | Failed: Cannot find package '@importer/contracts' | 122/122 passed after adding workspace:* dependency | 13 samples x 2 checks plus a sum | None needed |
+
+### Decisions and deviations
+
+- `MoneyError` carries `AMBIGUOUS_SEPARATOR` and `INVALID_FORMAT` as specified. Two extra codes cover `toFixed` misuse, which tasks.md leaves unnamed: `SCALE_EXCEEDED` and `INVALID_SCALE`.
+- A comma input is ambiguous only when the string is made of digits, `.`, `,` and an optional leading `-`; other comma-bearing garbage (for example `a,b`) is INVALID_FORMAT.
+- `MoneyString` regex excludes negative zero (`-0`), which the D5 regex literal would accept but the D5 prose forbids. Money never emits `-0`.
+- `apps/api` now depends on `@importer/contracts` via `workspace:*` (lockfile +3 lines). `money.ts` itself imports nothing.
+- Hand-written size: 503 added lines (tests 352, source 151) against a 400 budget and a ~300 forecast. Not trimmed; reported to the orchestrator.
+
+| Evidence | Value |
+|---|---|
+| Focused test | `pnpm --filter @importer/api exec vitest run src/shared-kernel/money`: 2 files passed, 122 tests passed |
+| Runtime harness | N/A: pure value object, no runtime boundary. Root `pnpm check` (126 API, 42 contracts tests) and `pnpm build` exit 0 |
+| Rollback boundary | shared-kernel/money/**, packages/contracts/src/money*, the index.ts export line, the api dependency line and its lockfile delta |
