@@ -1019,3 +1019,143 @@ Hand-written lines on the branch, excluding openspec: 679 added and 6 removed (s
 | Full gate | `pnpm check` exit 0 (3,005 API tests); `pnpm build` exit 0 |
 | Runtime harness | built program run described above |
 | Rollback boundary | apps/api/src/health/**, the health import in app.module.ts (and the shared persistence constant), the updated no-ship wiring test; the tasks.md checkboxes and this batch |
+
+## Batch 15: U15 Web scaffold
+
+Branch `feat/foundation-u15-web-scaffold`. Tasks 15.1 to 15.3 complete (3/3 of Phase 15; 58 of 65 overall as native SDD status counts). Mode: Strict TDD.
+Commits (separable, each leaves `pnpm check` and `pnpm build` green): 81883ee (package, tsconfig, dev-server configuration function, tests, dependencies), 6bb4007 (placeholder shell, SSR, index and bundle tests, eslint block for web tests), 3034e5a (dev-proxy header test), plus a docs commit for this file and tasks.md.
+
+### Task 15.1: versions and verification
+
+Re-resolved from the registry on 2026-10-13. No drift from research claim C5.2. All exact pins, no range, no tag.
+
+| Package | Version | Direct | Engines / peers checked |
+|---|---|---|---|
+| react, react-dom | 19.3.0 | yes (dependencies) | react-dom peer react ^19.3.0 |
+| vite | 8.3.4 | yes (dev) | node ^20.19.0 or >=22.12.0; already in the lockfile through vitest |
+| @vitejs/plugin-react | 6.1.2 | yes (dev) | node ^20.19.0 or >=22.12.0; peer vite ^8.0.0; three optional peers (oxc-transform-react, @rolldown/plugin-babel, babel-plugin-react-compiler) not installed |
+| tailwindcss, @tailwindcss/vite | 4.3.3 | yes (dev) | plugin peer vite ^5.2 or ^6 or ^7 or ^8; oxide binaries need node >= 20 |
+| @types/react, @types/react-dom | 19.3.0 | yes (dev) | dom types peer @types/react ^19.3.0; both carry the ts6.0 dist-tag |
+| vitest | 5.0.4 | yes (dev, same as the other packages) | peer vite ^6.4 or ^7 or ^8 |
+| @importer/contracts | workspace:* | yes | not imported yet |
+
+Notable transitive: rolldown 1.2.13 (already present), @tailwindcss/node and @tailwindcss/oxide 4.3.3 with its per-platform optional packages, two @jridgewell packages. The lockfile gained 405 lines and lost 11 (react and react-dom were already present as optional peers of Prisma, so the lockfile delta is far below the forecast of about 2,500). `pnpm install --frozen-lockfile` is stable (second run: "Lockfile is up to date", exit 0). The lockfile holds no tarball or registry URL, so only the default registry is used.
+
+allowBuilds: no change. No new dependency has an install script that pnpm blocked (the install printed no ignored-builds warning); Tailwind oxide and lightningcss ship their native binaries as per-platform optional packages, so nothing is downloaded or compiled by a script.
+
+Peer and engine conflicts: none. No override, no forced install.
+
+Proxy header verification (scaffold items 9 and 12): done by driving the real Vite 8 dev server on an ephemeral loopback port against a stub API (dev-proxy.int.test.ts). With changeOrigin false (Vite's default, now explicit) the stub receives Host exactly as the client sent it, Origin exactly as sent (present only when sent), Sec-Fetch-Site exactly as sent (absent when not sent), the same method, path and query, and no forwarding header (no x-forwarded-*, forwarded or via). The API guard allows, by default, Host 127.0.0.1:3000, 127.0.0.1:5173 and localhost:5173 and, for writes, the Origin of the web server, which is what a browser on the shell sends, so the guard judges the browser's own values. Fallback of the task (changeOrigin false and explicit headers) was NOT needed: the defaults already behave as the guard expects. With changeOrigin true the forwarded Host becomes the API authority, which would also be on the list in a default setup but would hide the browser's real Host from the guard; the mutation check proves the test catches it.
+
+### Server and proxy configuration as implemented (vite.config.ts)
+
+Pure function `resolveDevServer(env)` returns Vite server options; the default export calls it with `process.env` inside `defineConfig(() => ...)`, so importing the file reads no environment. `process.env` is confined to that one line of vite.config.ts, the only web file the lint rule allows. Defaults live in one commented constant that mirrors the API schema and says they must stay in sync.
+
+| Input (env) | Result |
+|---|---|
+| none | host 127.0.0.1, port 5173, strictPort true, open false, proxy target http://127.0.0.1:3000 |
+| WEB_PORT, API_PORT | plain digits 1 to 65535, no sign, no leading zero, no padding, no float or hex; anything else (empty included) is an error with a fixed message naming the variable |
+| WEB_HOST, API_HOST | loopback = IPv4 in 127.0.0.0/8, ::1 (also in brackets, returned bare), localhost in any letter case; anything else needs ALLOW_NON_LOOPBACK to be exactly true, otherwise an error naming the variable and the opt-in; with the opt-in a syntactically invalid host (empty, with port, scheme, path, space, numeric last label) is still an error |
+| ALLOW_NON_LOOPBACK | undefined or false: off; exactly true: on; anything else (TRUE, 1, yes, padded, empty) is an error naming the variable, even with loopback hosts |
+| never set | allowedHosts (Vite's host check stays on), cors (Vite's default stays, which only allows localhost origins), open true, define, envPrefix |
+
+Proxy: two entries with regular-expression keys, `^/api(?:[/?]|$)` and `^/health(?:[/?]|$)`, so only the prefix itself and what is below it match (a look-alike such as the paths apix or healthz is not forwarded). Target is built from API_HOST and API_PORT only (IPv6 bracketed), changeOrigin false, no rewrite, no ws. Errors are WebConfigError with fixed text; no value is ever echoed (tested with a seeded value per variable and exact-message checks for ports).
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Refactor |
+|---|---|---|---|---|---|---|---|
+| 15.2/15.3 config | apps/web/src/vite-config.test.ts | Unit | invariants test: 3 passed, 0 skipped after the manifest existed | Failed: Cannot find module '../vite.config' | 59/59 (one test-side slip first: value-echo checks on short ports matched digits in the fixed text and the stack; replaced by exact-message checks) | defaults, custom port, 3 good and 14 bad ports on both variables, 7 loopback forms, 11 outside hosts on both variables, 8 opt-in near misses, 6 malformed hosts, proxy matching 7 yes and 8 no, IPv6 target, purity, seeded-value hygiene, composed config has no define or envPrefix | Prettier only |
+| 15.2/15.3 SSR and index | apps/web/src/app/App.test.ts, apps/web/src/index-html.test.ts | Unit (renderToString in the Node environment) | N/A (new) | Failed: Cannot find module './App' and ENOENT for index.html | 4 + 3 passed | one main, one h1, no other heading, Spanish line, no undefined or null or [object, no script/link/img/a, deterministic output; lang, title, viewport, root, one module script, no inline script, style, handler or URL | None needed |
+| 15.2/15.3 bundle | apps/web/src/bundle.int.test.ts | Integration (Vite build() into a temp directory) | N/A (new) | Failed: Build failed, UNRESOLVED_ENTRY index.html | 6/6 (one test-side slip first, see Issues) | HTML, JS and CSS present and containing the shell text; no @importer/api or apps/api; no seeded value, name or process.env; no source map, sourceMappingURL or local path; URLs per file type against an allow-list; built page lang, title, one same-origin script, no inline script | Prettier only |
+| 15.1 proxy | apps/web/src/dev-proxy.int.test.ts | Integration (real Vite dev server, stub API, loopback port 0) | 72 web tests green | See note | 19/19 (helper bug fixed first: a body on DELETE and OPTIONS is a malformed request in Node; OPTIONS is answered by Vite itself, test rewritten to say so) | health with query, write with Origin and Sec-Fetch-Site, foreign Origin, cross-site and absent headers, PUT PATCH DELETE, preflight, 9 not-forwarded paths, target never from request, foreign Host refused, cleanup | Prettier only |
+
+RED note for the proxy test: the proxy configuration already existed from the first commit (it is needed by the configuration tests), so this test could not fail on missing code. Its RED is demonstrated by the mutation checks below: each wrong behaviour made it fail for the intended reason.
+
+### Mutation checks (each restored, suite re-run green: web 91/91)
+
+| Mutation | Result |
+|---|---|
+| strictPort false | 3 failed |
+| allowedHosts true | 1 failed (config) and 1 failed (proxy, foreign Host got through) |
+| server.cors true | 1 failed |
+| open true | 2 failed |
+| Any string accepted as the opt-in | 8 failed |
+| Non-loopback accepted without the opt-in | 21 failed |
+| changeOrigin true (forwarded Host differs) | 1 failed (config) and 2 failed (proxy) |
+| Forward every path (key ^/) | 1 failed (config), 9 failed (proxy) |
+| Loose prefix match (look-alike paths forwarded) | 1 failed (config), 2 failed (proxy) |
+| Leading-zero port accepted | 2 failed |
+| Any IPv6 treated as loopback; 127 prefix check removed | 4 and 7 failed |
+| Proxy target built from the web host and port | 8 failed |
+| Target taken from a request header (configure wrapper) | 1 failed (decoy server test). First attempt survived because the wrapper passed an extra undefined argument that http-proxy-3 reads as the options slot, so the mutation was a no-op; rebuilt and killed |
+| Strip the api prefix (rewrite) | 3 failed |
+| xfwd true | 1 failed |
+| Origin rewritten to the target | 4 failed |
+| Sec-Fetch-Site removed; Sec-Fetch-Site invented; Origin invented | 2, 1 and 2 failed |
+| define injecting the unprefixed secret (App reads it) | 1 failed (bundle) |
+| define in the config | 1 failed (config) |
+| envPrefix set to empty | 1 failed |
+| Seeded variable renamed with the VITE_ prefix and read by App through import.meta.env | 1 failed (bundle) |
+| App renders the text @importer/api | 1 failed (bundle). First attempts with an unused exported constant survived: unused exports are tree-shaken |
+| App reads process.env at render | SURVIVED, equivalent: Vite rewrites process.env to an empty object in client builds (verified: the output holds an empty object indexed by HOME). The scan still guards the literal text, and a mutation that renders the text process.env failed 1 |
+| Source maps enabled in the build | 2 failed |
+| External stylesheet URL added to index.html | 1 failed (index test) and 1 failed (bundle) |
+| lang removed from index.html | 1 failed and 1 failed |
+| Inline script added; viewport removed | 1 failed each |
+| External URL added to the CSS | 1 failed |
+| App renders undefined; second h1; no main landmark | 2, 1, 1 failed |
+| @importer/api added to the web manifest | both invariants cases failed (2), restored (3 passed) |
+
+### Decisions where the design or the brief was silent
+
+- Pure function lives in vite.config.ts and is exported (as the brief offered); tests live under src and import it with a relative path. `process.env` appears once, in the default export. A separate vitest.config.ts keeps the tests from loading the plugin setup.
+- The build script is added with the shell (second commit), not the first, because `pnpm -r build` would otherwise fail on a package with no index.html.
+- tsconfig: `module` ESNext with Bundler resolution, DOM libs, jsx react-jsx, `types` node and vite/client (TypeScript 6 loads no @types implicitly; vite/client is what declares the stylesheet import). No strict flag is changed.
+- Proxy keys are anchored regular expressions rather than the bare prefix strings, so look-alike paths do not reach the API.
+- Vite's default CORS (localhost origins only) is left as is; a preflight to a proxied path is answered by Vite and never reaches the API. Same-origin requests from the shell never preflight.
+- Hostname syntax for WEB_HOST and API_HOST is checked with a short strict rule (labels of letters, digits and hyphens, last label starts with a letter) and node:net for IPv6. It is a simpler cousin of the API schema, not a copy, and the loopback decision is the same (127.0.0.0/8, ::1, localhost).
+- Error type WebConfigError, fixed text, first problem only (the API aggregates all issues; one is enough for a dev-server start).
+- Web tests may import Node built-ins (see the eslint change below).
+- The shell text is plain in App.tsx; U16 moves it into the string catalog.
+
+### eslint.config.js change (one block added, nothing loosened)
+
+`pnpm lint` failed without it: web tests need Node built-ins (temp directory, http, os) and the web block bans every Node built-in for apps/web ts and tsx files. Lint output before the change: 5 errors, all no-restricted-imports on node:fs, node:fs/promises, node:os, node:path and node:url in bundle.int.test.ts and index-html.test.ts. Added after the web block:
+
+```
+{
+  files: ['apps/web/**/*.test.{ts,tsx}'],
+  rules: { 'no-restricted-imports': ['error', { patterns: [API_PACKAGE, { group: ['**/apps/api/**'], message: 'No API code.' }] }] },
+},
+```
+
+Flat config replaces rule options for matching files, so the API import bans are repeated; only the built-in bans are lifted, and only for test files (which are never part of the bundle). Verified with probe files (since removed): a test file importing the API package is rejected and node:fs is allowed; a non-test file importing either is rejected. The dist folder was already ignored; no other change was needed.
+
+### Issues found
+
+- Bundle test, first full run: the build was a development build (development React, source file paths in the output) because Vitest sets NODE_ENV to test and Vite honours an existing NODE_ENV. The test now stubs NODE_ENV to production. Consequence outside tests: an operator who exports NODE_ENV=development gets a development bundle from `pnpm build` (known Vite behaviour); not changed.
+- The built CSS contains one URL, the Tailwind licence banner comment (https://tailwindcss.com); the JS holds XML namespace strings and the React error-decoder link. All are text, not requests, and are the only allow-list entries.
+- The web dev server reads only the real environment (process.env). A WEB_PORT, WEB_HOST, API_HOST or API_PORT written in the root env file is seen by the API but NOT by Vite, so the two can disagree. Not fixed in this unit (the brief confines the read to process.env). U17 must document it, or a later unit can read the env file in vite.config.ts. Mismatched ports make the API's derived Host and Origin lists reject the web shell.
+- Vite's `vite preview` inherits the same host and proxy; it was not run.
+
+### Spec traceability (U15)
+
+| Scenario | Test |
+|---|---|
+| health-check, Web shell boot: Shell builds and renders | bundle.int.test.ts "emits an HTML page, JavaScript and CSS that contain the shell" and the build itself in beforeAll; App.test.ts (server render, no throw, main, h1, no placeholder text); index-html.test.ts; `pnpm build` exit 0. Loaded in a browser: not run (no browser tool; U16 and the manual check own it) |
+| health-check, Web shell boot: Bundle free of server code | bundle.int.test.ts "contains no server-side package name or path", "contains neither the seeded secret nor any environment access", "ships no source map and no path of this machine" |
+| workspace-tooling: web does not depend on the API; web depends on contracts only | workspace-invariants.int.test.ts, two cases, now running (3 passed, 0 skipped); mutation proof above; lint ban on API imports in web code and tests |
+| local-security-baseline: loopback bind of the web server | vite-config.test.ts describe "loopback rule" (host decisions, opt-in near misses) and "safety properties"; dev-proxy.int.test.ts "binds the loopback address on a port of its own" and "keeps the dev server host check on" |
+| Proxy leaves the guard's headers alone (task 15.1) | dev-proxy.int.test.ts |
+
+### Size
+
+Hand-written added lines, 868 against a 400 budget and a ~175 forecast (5.0 times): source and config 185 (vite.config.ts 91, package.json 26, tsconfig 12, index.html 12, main 13, App 10, vitest config 9, styles 1, eslint 11), tests 683 (vite-config.test 248, dev-proxy 256, bundle 119, index-html 31, App 29). By commit: 385, 227, 256. Each is within budget on its own; the split is the slicing. Not trimmed. Lockfile 405 added and 11 removed (generated).
+
+| Evidence | Value |
+|---|---|
+| Focused test | `pnpm --filter @importer/web test`: 5 files, 91 tests passed; contracts invariants 3 passed, 0 skipped |
+| Full gate | `pnpm install --frozen-lockfile`, `pnpm check` (44 contracts, 91 web, 3,005 API tests) and `pnpm build` all exit 0 |
+| Runtime harness | Real Vite dev server on loopback port 0 against a stub API, and Vite build() into a temp directory, both inside the tests; closed and removed afterwards |
+| Rollback boundary | apps/web/**, the eslint block for web tests, the lockfile delta; the tasks.md checkboxes and this batch |
