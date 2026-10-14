@@ -212,9 +212,9 @@ Satisfies: rules (SKU policy, Barcode and numeric identifier cells: sku part).
 
 Satisfies: rules (Variant structure and options).
 
-- [ ] 9.1 RED: create `domain/rules/variantes-options-rules.test.ts`: single row with empty options valid, two rows without options `OPTIONS_INCONSISTENT`, row 2 `Talla` versus row 3 `Color` flags row 3, names compared case-insensitively and position-wise, repeated `Talla`=`M` flags the second row `OPTION_COMBINATION_DUPLICATE`, name without value or value without name `OPTION_INCOMPLETE`, more than 250 variants `VARIANT_COUNT_HIGH`, value over 255 characters `OPTION_VALUE_TOO_LONG` warning.
-- [ ] 9.2 GREEN: create `domain/rules/variantes-options-rules.ts`; extend `domain/variant-row.ts` with option fields; append codes and Spanish entries.
-- [ ] 9.3 Run the focused test command and `pnpm check`; record lines.
+- [x] 9.1 RED: create `domain/rules/variantes-options-rules.test.ts`: single row with empty options valid, two rows without options `OPTIONS_INCONSISTENT`, row 2 `Talla` versus row 3 `Color` flags row 3, names compared case-insensitively and position-wise, repeated `Talla`=`M` flags the second row `OPTION_COMBINATION_DUPLICATE`, name without value or value without name `OPTION_INCOMPLETE`, more than 250 variants `VARIANT_COUNT_HIGH`, value over 255 characters `OPTION_VALUE_TOO_LONG` warning.
+- [x] 9.2 GREEN: create `domain/rules/variantes-options-rules.ts`; extend `domain/variant-row.ts` with option fields; append codes and Spanish entries.
+- [x] 9.3 Run the focused test command and `pnpm check`; record lines.
 
 ## Phase 10: U7 Variantes values
 
