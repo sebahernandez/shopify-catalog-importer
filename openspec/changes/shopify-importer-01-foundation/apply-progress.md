@@ -1306,3 +1306,88 @@ Hand-written lines on the branch excluding openspec: 786 added and 11 removed (7
 | Full gate | `pnpm install --frozen-lockfile`, `pnpm check` (44 contracts, 193 web, 3,005 API tests) and `pnpm build` all exit 0 |
 | Runtime harness | Built API behind the real Vite dev server on loopback, results above; no real browser |
 | Rollback boundary | apps/web/src health files (api, i18n, health-state, ui, app hook and container, the new tests), the App.tsx and test updates, the bundle test extension; the tasks.md checkboxes and this batch |
+
+## Batch 17: U17 Documentation and final gate
+
+Branch `feat/foundation-u17-docs-final-gate`. Tasks 17.1 to 17.4 complete (4/4 of Phase 17; 65 of 65 overall). Mode: Strict TDD for code (no code or script was changed in this unit; documentation and verification only). Commits: f0b77dc (README), plus a docs commit for this file and tasks.md.
+
+### 17.1 README
+
+Written in neutral Spanish, 215 lines, checked by `pnpm format:check` (exit 0). Sections: state (S0, no import, no Excel, no Shopify), requirements, quick start, first run, the twelve variables with precedence and the Vite gap, the key (location, format, permissions, backup, loss warning, refusal to regenerate), local security (loopback, opt-in, Host and Origin table, missing-Origin decision D7, Internet warning), development commands, layout, exit codes, known limitations, what was and was not verified. The sample file is named env.example (no leading dot) and the README says to copy it to a file named .env. The local requirements file is not mentioned.
+
+### 17.2 Clean-checkout verification
+
+Clone: `git clone --no-hardlinks --branch feat/foundation-u17-docs-final-gate --single-branch` of the local repository into the scratch directory, at commit f0b77dc. All runtime steps ran in the clone. Isolation: (a) SECRET_KEY_FILE pointing inside the scratch directory for the dev run; plus the default-location check under a temporary HOME. The real home key folder was never created.
+
+| Step (README order) | Command, through Node 24 | Result |
+|---|---|---|
+| Install | `pnpm install --frozen-lockfile` | exit 0, "Done in 1s using pnpm v12.11.2" (warm store; resolved 475, reused 475) |
+| Env file | `cp env.example .env` (clone only) | ok |
+| Migrate | `pnpm db:migrate` | exit 0, "Applying migration `20261013180211_baseline`", "All migrations have been successfully applied."; data folder 700, importer.db 600 |
+| Run | `pnpm dev` from a detached spawn, ports polled | API 3000 and Vite 5173 up |
+| Health | `curl --fail -sS -i` on the loopback API port, health route | `HTTP/1.1 200 OK`, body `{"status":"ok","database":"up","shopifyApiVersion":"2026-10"}` |
+| Health via web proxy | GET on the web port, health route | 200, same body |
+| Page | GET on the web root | 200 text/html, root element present, module script present (the dev HTML has 3 module scripts: Vite client, React refresh preamble, app entry), main module 200 |
+| Stop | SIGTERM to the process group | group gone after 5 seconds; no process of the clone; no listener on 3000 or 5173 |
+
+Failed attempts: none in the README path. One harness slip only: my gate script in 17.3 had a shell word-splitting bug on the install step (exit 1, "Command install --frozen-lockfile not found"); fixed in the script and re-run, exit 0. The README needed no change.
+
+Dev run facts: key directory mode 700, key file mode 600, one key_file_generated warning on the first start and none on the second start, the key text absent from the log.
+
+Default-location check (built entry, empty environment, HOME in a temporary scratch folder, explicit DATA_DIR migrated first by `DATA_DIR=... pnpm db:migrate`, port 3000): curl 200; SIGTERM exit 0; hidden application folder under the temporary HOME mode 700, secret.key mode 600; backup warning logged; key text in neither stdout nor stderr; stderr 0 bytes. A bad port printed one line and exit 1: "Startup failed: ConfigError INVALID_CONFIG: Invalid configuration: - API_PORT: must be an integer from 1 to 65535 written as plain digits".
+
+Not verified: a real browser (no browser tool); only HTML and module requests were checked.
+
+### 17.3 Final gate (Node 24.21.0, pnpm 12.11.2)
+
+| Command | Real repository | Clean clone |
+|---|---|---|
+| `pnpm install --frozen-lockfile` | exit 0 | exit 0 |
+| `pnpm typecheck` | exit 0 | exit 0 |
+| `pnpm lint` | exit 0 | exit 0 |
+| `pnpm format:check` | exit 0 | exit 0 |
+| `pnpm test` | exit 0 | exit 0 |
+| `pnpm build` | exit 0 | exit 0 |
+
+Tests (same in both): contracts 4 files 44 passed; web 13 files 193 passed; api 33 files 3005 passed; none skipped. Lockfile diff stat empty in both; git status short empty in the real repository before this unit's docs edits and in the clone after the gate.
+
+### 17.4 Shopify contact and success criteria
+
+Search of apps and packages (excluding dependencies, build output, generated client): the Shopify host and token terms (myshopify, shopify.com, admin/api, graphql, access_token, X-Shopify) have two hits: a doc comment on the pinned version constant in env.schema.ts, and the string access_token in redact.test.ts as a redaction key-name sample. No HTTP client library, no https, no XMLHttpRequest. Network use: node:http servers and clients in tests bound to loopback (local-security, cors-middleware, health, main, dev-proxy suites); an ESM boot test fetching its own loopback server; the web client fetching the relative health route. URL literals in source are loopback forms only. No dependency has Shopify in its name. Conclusion: nothing in S0 contacts Shopify.
+
+| # | Criterion | Verdict | Evidence |
+|---|---|---|---|
+| 1 | Frozen install on Node 24 | Met | 17.3: exit 0 in repo and clone |
+| 2 | Typecheck, lint, test, build exit 0 | Met | 17.3: all exit 0 (format:check too) |
+| 3 | Baseline migration on empty SQLite | Met | 17.2 db:migrate output; baseline-migration.int.test.ts |
+| 4 | Loopback only; health 200 | Met | 17.2 curl 200; main.int.test.ts really-bound-address tests; non-loopback refused without opt-in |
+| 5 | Foreign Origin write rejected (test) | Met | local-security.int.test.ts and main.int.test.ts (403, handler not run) |
+| 6 | Logger redacts seeded secret (test) | Met | redact.test.ts, redacting-logger.test.ts, main.int.test.ts key never in output |
+| 7 | SecretBox round trip, rejects tampering | Met | aes-gcm-secret-box.test.ts |
+| 8 | Money canonical strings, no float | Met | money.test.ts, money-contract.int.test.ts, contracts money.test.ts |
+| 9 | Web declares no dependency on the API | Met | apps/web/package.json (contracts only); workspace-invariants.int.test.ts running, 0 skipped |
+| 10 | App boots by following the README | Met, with a stated limit | 17.2 clean-clone run; no real browser check |
+
+### Spec wording alignment
+
+Searches over all seven spec files for the dotted sample name, the secrets folder in paths, and the bare word key as a secret-bearing field: zero occurrences (the redaction wording was already aligned by commit 067e614 in U4, and the specs say environment sample and key file generically). No spec edit was made.
+
+True deviations (requirement text not edited, for verification):
+- secret-protection, External key (supplied by environment variable or key file; a missing key MUST fail startup): implemented as a key file only (SECRET_KEY_FILE names the file; no variable carries the key), and at boot an absent file with no stored check generates a key (design D4). The box itself fails with KEY_MISSING; the absent-file-with-stored-check case aborts with KEY_FILE_REQUIRED.
+- runtime-configuration, Secret-free environment sample (placeholder or empty value): the sample carries the real defaults, because an empty value is a configuration error; ALLOWED_ORIGINS is the one commented line.
+- Not a deviation to the requirement but noted: design D7 says anything other than the literal true is false; the implementation rejects it as an error (safe direction, recorded in Batch 8).
+
+Stale names (design.md and proposal.md untouched): design.md lines 116, 195, 279 and 328 say the dotted sample name; line 208 says a secrets source folder; proposal.md lines 29 and 73 say the dotted sample name.
+
+### Decisions where the design was silent
+
+- The README says to run the API with the dev script; there is no start script. The compiled entry is documented as the way to run built output.
+- The README states the missing-Origin rule with the exact Sec-Fetch-Site values the guard accepts (absent, same-origin, none).
+- No code, script or spec was changed, so no TDD cycle applies to this unit.
+
+| Evidence | Value |
+|---|---|
+| Focused test | `pnpm test`: contracts 44, web 193, api 3005 passed, exit 0 |
+| Runtime harness | Clean clone boot path and default-key-location check above, processes stopped and scratch removed |
+| Rollback boundary | README.md; the tasks.md checkboxes and this batch |
+| Size | README 215 added lines (it replaced a 13-line stub); this batch about 90 lines of records |
