@@ -67,4 +67,22 @@ describe('packageParts', () => {
     expect(part('docProps/core.xml')).toContain('2000-01-01T00:00:00Z');
     expect(writePackage([variants]).equals(writePackage([variants]))).toBe(true);
   });
+
+  it('writes raw typed cells, skips sparse rows and flags hidden sheet, row and column', () => {
+    const typed: SheetDefinition = {
+      name: 'Oculta',
+      rows: [['a', { t: 'e', xml: '<v>#DIV/0!</v>' }], undefined, [{ xml: '<v>7</v>' }]],
+      hidden: true,
+      hiddenRows: [2],
+      hiddenColumns: [1],
+    };
+    const parts = packageParts([typed]);
+    const text = (name: string) => parts.find((p) => p.name === name)?.data.toString('utf8') ?? '';
+    expect(text('xl/workbook.xml')).toContain('state="hidden"');
+    const sheet = text('xl/worksheets/sheet1.xml');
+    expect(sheet).toContain('<c r="B1" t="e"><v>#DIV/0!</v></c>');
+    expect(sheet).not.toContain('<row r="2"');
+    expect(sheet).toContain('<row r="3" hidden="1"><c r="A3"><v>7</v></c></row>');
+    expect(sheet).toContain('<col min="2" max="2" width="9" hidden="1"/>');
+  });
 });
