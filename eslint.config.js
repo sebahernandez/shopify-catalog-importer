@@ -42,6 +42,7 @@ export default defineConfig(
     'apps/api/src/generated/**',
     'openspec/**',
     '.atl/**',
+    'vendor/**',
   ]),
 
   js.configs.recommended,

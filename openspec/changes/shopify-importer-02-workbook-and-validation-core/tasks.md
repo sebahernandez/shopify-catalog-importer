@@ -160,18 +160,18 @@ Exit criteria (all required before U4 starts):
 - Cap feedback: if peak heap at the 150 MB cap is above 1.5 GB, lower the uncompressed cap to the measured safe value.
 - Outcome recorded in `spike-findings.md`, in Engram, and as a dated line under D4.
 
-- [ ] 5.1 Verify VS3 in a scratch directory outside the repository: pnpm 12 `file:` tarball integrity recorded in the lockfile, `minimumReleaseAge` and `allowBuilds` behaviour for `modern-xlsx`, WASM initialization under Vitest. Record results.
-- [ ] 5.2 Obtain the SheetJS 0.20.3 tarball into a new empty scratch directory, compute its SHA-256, then create `vendor/sheetjs/xlsx-0.20.3.tgz`, `vendor/sheetjs/xlsx-0.20.3.tgz.sha256` and the license file. Never reference a CDN URL as a dependency.
-- [ ] 5.3 Add `xlsx` as `file:../../vendor/sheetjs/xlsx-0.20.3.tgz` in `apps/api/package.json`, run `pnpm install`, confirm the tarball integrity appears in `pnpm-lock.yaml`.
-- [ ] 5.4 RED then GREEN: create `apps/api/src/catalog-workbook/infrastructure/spike/sheetjs-probe.int.test.ts` covering E1 to E8 against raw library output; record pass or fail per criterion.
-- [ ] 5.5 If SheetJS fails any must-pass criterion: remove it (dependency and tarball), add `modern-xlsx` at an exact registry version, create `infrastructure/spike/modern-xlsx-probe.int.test.ts` for E1 to E8.
-- [ ] 5.6 If both fail: record fallback B and its version choice for `fast-xml-parser`; no dependency is added in this unit.
-- [ ] 5.7 Measure E8 at the cap size; if the peak heap exceeds 1.5 GB lower `maxUncompressedBytes` in `domain/workbook-limits.ts` and update its test.
-- [ ] 5.8 If SheetJS won: RED then GREEN an int test `infrastructure/spike/vendor-integrity.int.test.ts` recomputing the tarball SHA-256 against the recorded file; add `vendor/**` to the ignore lists in `eslint.config.js` and `.prettierignore`.
-- [ ] 5.9 Write `openspec/changes/shopify-importer-02-workbook-and-validation-core/spike-findings.md`: candidate by criterion matrix, evidence test names, measurements, chosen version and hash, and the cap decision.
-- [ ] 5.10 Save the same findings to Engram under topic key `sdd/shopify-importer-02-workbook-and-validation-core/spike-findings`.
-- [ ] 5.11 Add a dated outcome line to decision D4 in `openspec/changes/shopify-importer-02-workbook-and-validation-core/design.md`.
-- [ ] 5.12 Delete probes and dependencies of every losing candidate; keep only the winner's probe (reused by U4). Run `pnpm check`. STOP: U4 does not start until CP1 is acknowledged.
+- [x] 5.1 Verify VS3 in a scratch directory outside the repository: pnpm 12 `file:` tarball integrity recorded in the lockfile, `minimumReleaseAge` and `allowBuilds` behaviour for `modern-xlsx`, WASM initialization under Vitest. Record results.
+- [x] 5.2 Obtain the SheetJS 0.20.3 tarball into a new empty scratch directory, compute its SHA-256, then create `vendor/sheetjs/xlsx-0.20.3.tgz`, `vendor/sheetjs/xlsx-0.20.3.tgz.sha256` and the license file. Never reference a CDN URL as a dependency.
+- [x] 5.3 Add `xlsx` as `file:../../vendor/sheetjs/xlsx-0.20.3.tgz` in `apps/api/package.json`, run `pnpm install`, confirm the tarball integrity appears in `pnpm-lock.yaml`.
+- [x] 5.4 RED then GREEN: create `apps/api/src/catalog-workbook/infrastructure/spike/sheetjs-probe.int.test.ts` covering E1 to E8 against raw library output; record pass or fail per criterion.
+- [x] 5.5 If SheetJS fails any must-pass criterion: remove it (dependency and tarball), add `modern-xlsx` at an exact registry version, create `infrastructure/spike/modern-xlsx-probe.int.test.ts` for E1 to E8.
+- [x] 5.6 If both fail: record fallback B and its version choice for `fast-xml-parser`; no dependency is added in this unit.
+- [x] 5.7 Measure E8 at the cap size; if the peak heap exceeds 1.5 GB lower `maxUncompressedBytes` in `domain/workbook-limits.ts` and update its test.
+- [x] 5.8 If SheetJS won: RED then GREEN an int test `infrastructure/spike/vendor-integrity.int.test.ts` recomputing the tarball SHA-256 against the recorded file; add `vendor/**` to the ignore lists in `eslint.config.js` and `.prettierignore`.
+- [x] 5.9 Write `openspec/changes/shopify-importer-02-workbook-and-validation-core/spike-findings.md`: candidate by criterion matrix, evidence test names, measurements, chosen version and hash, and the cap decision.
+- [x] 5.10 Save the same findings to Engram under topic key `sdd/shopify-importer-02-workbook-and-validation-core/spike-findings`.
+- [x] 5.11 Add a dated outcome line to decision D4 in `openspec/changes/shopify-importer-02-workbook-and-validation-core/design.md`.
+- [x] 5.12 Delete probes and dependencies of every losing candidate; keep only the winner's probe (reused by U4). Run `pnpm check`. STOP: U4 does not start until CP1 is acknowledged.
 
 ## Phase 6: U4 Reader adapter
 
