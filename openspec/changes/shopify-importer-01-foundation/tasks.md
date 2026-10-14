@@ -230,10 +230,10 @@ Satisfies: health-check (shell renders, health obtained via contracts types), la
 
 Satisfies: workspace-tooling (README boot path, key loss documented), local-security-baseline (documented missing-origin decision).
 
-- [ ] 17.1 Complete `README.md` in neutral Spanish: prerequisites (Node 24, pnpm, native SQLite build), install, `pnpm db:generate`, `pnpm db:migrate`, run, test, the /health route check, key file location and backup, and an explicit statement that losing the key makes encrypted secrets unrecoverable; document the no-`Origin` write behaviour.
-- [ ] 17.2 Verify the README boot path on a clean checkout: frozen install, migrate, start, a failing-on-error curl request to the health route; record the exact output.
-- [ ] 17.3 Run `pnpm install --frozen-lockfile`, `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test`, `pnpm build`; confirm all exit 0 and the lockfile is unchanged.
-- [ ] 17.4 Confirm no task contacted Shopify and the success criteria in `proposal.md` are met.
+- [x] 17.1 Complete `README.md` in neutral Spanish: prerequisites (Node 24, pnpm, native SQLite build), install, `pnpm db:generate`, `pnpm db:migrate`, run, test, the /health route check, key file location and backup, and an explicit statement that losing the key makes encrypted secrets unrecoverable; document the no-`Origin` write behaviour.
+- [x] 17.2 Verify the README boot path on a clean checkout: frozen install, migrate, start, a failing-on-error curl request to the health route; record the exact output. Result: boot path verified in a scratch clone, details in apply-progress Batch 17.
+- [x] 17.3 Run `pnpm install --frozen-lockfile`, `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test`, `pnpm build`; confirm all exit 0 and the lockfile is unchanged.
+- [x] 17.4 Confirm no task contacted Shopify and the success criteria in `proposal.md` are met.
 
 ## Traceability
 
