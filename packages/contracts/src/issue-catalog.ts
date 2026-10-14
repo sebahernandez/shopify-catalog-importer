@@ -39,6 +39,11 @@ export const ISSUE_CODES = z.enum([
   'SKU_DUPLICATE_ACROSS_PRODUCTS',
   'NUMERIC_IDENTIFIER_CELL',
   'NUMERIC_IDENTIFIER_UNSAFE',
+  'OPTIONS_INCONSISTENT',
+  'OPTION_COMBINATION_DUPLICATE',
+  'OPTION_INCOMPLETE',
+  'VARIANT_COUNT_HIGH',
+  'OPTION_VALUE_TOO_LONG',
 ]);
 
 export type IssueCode = z.infer<typeof ISSUE_CODES>;
@@ -79,6 +84,11 @@ export const ISSUE_PARAM_KEYS: Readonly<Record<IssueCode, readonly string[]>> = 
   SKU_DUPLICATE_ACROSS_PRODUCTS: ['firstRow'],
   NUMERIC_IDENTIFIER_CELL: [],
   NUMERIC_IDENTIFIER_UNSAFE: [],
+  OPTIONS_INCONSISTENT: [],
+  OPTION_COMBINATION_DUPLICATE: ['firstRow'],
+  OPTION_INCOMPLETE: [],
+  VARIANT_COUNT_HIGH: ['count'],
+  OPTION_VALUE_TOO_LONG: [],
 };
 
 interface IssueTemplate {
@@ -230,6 +240,28 @@ export const ISSUE_MESSAGES_ES: Readonly<Record<IssueCode, IssueTemplate>> = {
   NUMERIC_IDENTIFIER_UNSAFE: {
     message: 'La celda numérica tiene 16 o más dígitos o está en notación científica.',
     suggestedAction: 'Da formato de texto a la columna y vuelve a escribir el código completo.',
+  },
+  OPTIONS_INCONSISTENT: {
+    message:
+      'Las opciones de esta variante no coinciden con las de las demás variantes del producto.',
+    suggestedAction:
+      'Usa los mismos nombres de opción en las mismas posiciones en todas las variantes del producto.',
+  },
+  OPTION_COMBINATION_DUPLICATE: {
+    message: 'Esta combinación de valores de opción ya se usó en la fila {firstRow}.',
+    suggestedAction: 'Cambia algún valor para que cada variante tenga una combinación distinta.',
+  },
+  OPTION_INCOMPLETE: {
+    message: 'Una opción tiene nombre sin valor, o valor sin nombre.',
+    suggestedAction: 'Completa el nombre y el valor de la opción, o deja ambos vacíos.',
+  },
+  VARIANT_COUNT_HIGH: {
+    message: 'El producto tiene {count} variantes, más de las 250 recomendadas.',
+    suggestedAction: 'Revisa si conviene dividir el producto en varios.',
+  },
+  OPTION_VALUE_TOO_LONG: {
+    message: 'El valor de la opción supera los 255 caracteres.',
+    suggestedAction: 'Acorta el valor de la opción.',
   },
 };
 

@@ -377,3 +377,26 @@ Rules 69, test 102, variant-row 7: 178 lines after Prettier, plus about 30 in th
 - The numeric-cell policy comes from parseCode; the rule maps its reason and warning strings to catalog codes. Cell-kind reasons are ignored because readRows already reported those cells and marked them untrusted.
 - Rows with an empty or untrusted product_key still get the missing and numeric checks but skip duplicate checks; the empty key itself is PRODUCT_KEY_UNKNOWN in the cross-sheet rule (U8), so nothing is reported here.
 - Duplicate-across-products points at the first row that used the sku in any product.
+
+## U6b Variantes options and combinations: complete (9.1 to 9.3)
+
+Branch: feat/workbook-u6b-variantes-options (from develop at 905a593). Strict TDD, Node 24.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 9.1 variantes-options-rules test | Test file failed to import the missing module | 10 pass after 9.2 | Written first, 10 cases. |
+| 9.3 | n/a | pnpm check exit 0 (api 60 files, 3224 tests), contracts 7 files, 155 tests, web 193 | |
+
+### Measured size
+
+Rules 145, test 137, variant-row 14: 296 lines after Prettier, plus 32 in the contracts catalog. Nothing was trimmed.
+
+### Decisions
+
+- New catalog codes: OPTIONS_INCONSISTENT, OPTION_INCOMPLETE and OPTION_VALUE_TOO_LONG (no params), OPTION_COMBINATION_DUPLICATE (param firstRow), VARIANT_COUNT_HIGH (param count). Severities: the first, second and third are error, error, warning; VARIANT_COUNT_HIGH is a warning.
+- variantesOptionsRules(rows, variants, sink) returns the identity VariantRow records extended with optional opcion1_nombre to opcion3_valor (trimmed; set only for a complete, trusted pair).
+- Rows are grouped by the trimmed productKey of the identity output; rows without one are skipped (U8 reports PRODUCT_KEY_UNKNOWN). A row with any untrusted option cell, or an incomplete pair, is left out of the consistency and duplicate checks to avoid cascades.
+- OPTIONS_INCONSISTENT compares names (matchKey, by position) with the first judged row of the product and flags each differing row; when that first row has no names and the product has two or more rows, only the second row is flagged. OPTION_COMBINATION_DUPLICATE compares matchKey values and points at the first row.
+- VARIANT_COUNT_HIGH is reported once per product at the 251st row (field null) with the total count. The 250 and 255 limits are constants in the rule, not yet configurable.
