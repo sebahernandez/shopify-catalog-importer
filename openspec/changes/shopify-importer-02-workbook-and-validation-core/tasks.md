@@ -143,10 +143,10 @@ Satisfies: workbook-file-safety (Preflight before parsing, Archive caps, Ambiguo
 
 ### U3b2 (branch `feat/workbook-u3b2-zip-content-checks`, depends on U3b1)
 
-- [ ] 4.7 RED (step 7): create `infrastructure/zip/content-scan.int.test.ts`: missing `[Content_Types].xml` or workbook part `FILE_NOT_XLSX`; `xl/vbaProject.bin`, macro content type and macrosheets `MACROS_NOT_ALLOWED` (renamed `catalogo.xlsx` still rejected); `xl/externalLinks/` and external relationship targets `EXTERNAL_LINKS_NOT_ALLOWED`; embeddings and ActiveX `EMBEDDED_CONTENT_NOT_ALLOWED`; sheet hyperlinks allowed; formula parts listed for plain, shared, array, dynamic and text-result formulas; several content findings returned together; a clean package yields no finding.
-- [ ] 4.8 GREEN: create `infrastructure/zip/content-scan.ts` and `infrastructure/zip/zip-archive-inspector.ts` implementing the port (archive checks from U3b1 plus the content scan) with `formulaParts`.
-- [ ] 4.9 Add the spy case: a crafted rejected archive never reaches a fake reader at the inspector level (the use-case level proof is in 11.9).
-- [ ] 4.11 U3b2 gate: run the focused test command (the whole zip folder) and `pnpm check`; measure hand-written lines (budget 400, planned ~200) and record them. Report any overrun, never trim.
+- [x] 4.7 RED (step 7): create `infrastructure/zip/content-scan.int.test.ts`: missing `[Content_Types].xml` or workbook part `FILE_NOT_XLSX`; `xl/vbaProject.bin`, macro content type and macrosheets `MACROS_NOT_ALLOWED` (renamed `catalogo.xlsx` still rejected); `xl/externalLinks/` and external relationship targets `EXTERNAL_LINKS_NOT_ALLOWED`; embeddings and ActiveX `EMBEDDED_CONTENT_NOT_ALLOWED`; sheet hyperlinks allowed; formula parts listed for plain, shared, array, dynamic and text-result formulas; several content findings returned together; a clean package yields no finding.
+- [x] 4.8 GREEN: create `infrastructure/zip/content-scan.ts` and `infrastructure/zip/zip-archive-inspector.ts` implementing the port (archive checks from U3b1 plus the content scan) with `formulaParts`.
+- [x] 4.9 Add the spy case: a crafted rejected archive never reaches a fake reader at the inspector level (the use-case level proof is in 11.9).
+- [x] 4.11 U3b2 gate: run the focused test command (the whole zip folder) and `pnpm check`; measure hand-written lines (budget 400, planned ~200) and record them. Report any overrun, never trim.
 
 ## Phase 5: U3c Library spike
 
