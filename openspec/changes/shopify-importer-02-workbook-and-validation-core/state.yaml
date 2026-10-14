@@ -1,0 +1,62 @@
+change: shopify-importer-02-workbook-and-validation-core
+artifact_store: openspec
+updated_at: "2026-10-14"
+
+session:
+  execution_mode: interactive
+  delivery_strategy: ask-on-risk
+  chain_strategy: feature-branch-chain
+  review_budget_lines: 400
+
+roadmap:
+  umbrella: shopify-catalog-importer-mvp
+  slice: S1
+  depends_on: [shopify-importer-01-foundation]
+  later_slices: [S2, S3, S4, S5, S6, S7]
+
+phases:
+  explore: done
+  research: done
+  proposal: pending
+  specs: pending
+  design: pending
+  tasks: pending
+  apply: pending
+  verify: pending
+  archive: pending
+
+preproposal:
+  schema: gentle-ai.sdd-preproposal/v1
+  revision: 3
+  exploration:
+    outcome: done
+    reference: openspec/changes/shopify-importer-02-workbook-and-validation-core/exploration.md
+    engram_reference: sdd/shopify-importer-02-workbook-and-validation-core/explore
+  research:
+    requested: selected
+    selected_by: user
+    classes: [documentation, open-web]
+    outcome: done
+    reference: openspec/changes/shopify-importer-02-workbook-and-validation-core/research.md
+    questions: [Q1, Q2, Q3, Q4]
+    note: Rescoped at revision 2 by user decision on 2026-10-14; deferred items are work for the U3 spike (see research.md).
+  product_decisions:
+    confirmed_by: user
+    confirmed_at: "2026-10-14"
+    answer: all proposed defaults accepted (decisions 1a, 2a, 3a, 4a, 5a, 6a, 7a, 8a, 9a, 10a, 11a)
+    decisions:
+      - "1a: typical catalog hundreds to low thousands; synchronous validation"
+      - "2a: SKU optional; blank warns; duplicate in the same product blocks; across products warns"
+      - "3a: one stock location per variant row"
+      - "4a: template ships two EJEMPLO- products with a non-blocking warning plus an instructions sheet"
+      - "5a: image orden required positive integer; lowest is the cover; blank blocks"
+      - "6a: gestionar_inventario accepts true/false, verdadero/falso, si/sí/no, 1/0 and native booleans; blank blocks when stock is present, otherwise false"
+      - "7a: sheet names and headers matched trimmed, case-folded and accent-insensitive (accepts Imágenes)"
+      - "8a: S1 owns the pure image path syntax check reused by S3"
+      - "9a: message codes and params in contracts with a shared Spanish catalog"
+      - "10a: at most 4 decimals, magnitude below 1e12, zero price warns, negative blocks (store currency scale is tier B)"
+      - "11a: numeric cell in sku or codigo_barras warns up to 15 digits; blocks from 16 digits or exponent form"
+      - "library choice is settled by the U3 spike among SheetJS CE 0.20.3, modern-xlsx and an own reader"
+    status: confirmed
+    pending: []
+  proposal_ready: true
