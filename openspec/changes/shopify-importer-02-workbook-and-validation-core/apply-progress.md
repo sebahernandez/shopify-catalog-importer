@@ -211,3 +211,28 @@ Files (lines, blank lines and comments included): port 38, central-directory 140
 - `preflightArchive(zip: Buffer, limits)` is the internal entry point for U3b2's inspector class.
 - When the bound is crossed the observed size is reported as bound plus 1 (a lower bound); the report never needs the true size.
 - Ratio rule is per entry above 1 MiB, as in the design.
+
+## U3b2 ZIP content checks: complete (4.7 to 4.9, 4.11)
+
+Branch: feat/workbook-u3b2-zip-content-checks. Strict TDD, Node 24. Design preflight step 7 and the ArchiveInspector implementation are delivered.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 4.7 content cases | Cannot find module `zip-archive-inspector.js` (the new test file failed to load) | 15 tests pass | Required parts, macros, links, embedded content, hyperlinks allowed, formula parts, combined findings, clean package. |
+| 4.8 implementation | n/a | Same 15 tests pass | `content-scan.ts` and `zip-archive-inspector.ts`. |
+| 4.9 spy case | Part of the same RED file | Passes | A rejected crafted archive (lying sizes) returns not ok and a fake reader is never called. |
+| 4.11 gate | n/a | `pnpm check` exit 0 | contracts 119, web 193, api 3,154 (up 15). Whole zip folder: 2 files, 35 tests passed. |
+
+### Measured size
+
+Lines, blank lines and comments included: content-scan 53, zip-archive-inspector 19, content-scan.int.test 147. Total 219 against the 400 budget (planned about 200). No U3b1 file was touched.
+
+### Decisions for later units
+
+- Content findings use existing codes only, with empty params, one finding per code, in the order macros, external links, embedded content. Missing `[Content_Types].xml` or `xl/workbook.xml` gives a single FILE_NOT_XLSX.
+- Part names are matched case-insensitively. Macro content types are detected by the substrings macroEnabled, vbaProject and macrosheet in the content types part.
+- `formulaParts` lists worksheet parts directly under xl/worksheets whose XML has an f element (prefix tolerant). It is only filled when there are no content findings.
+- `ZipArchiveInspector` is not wired into any Nest module; U9 and U10 do that.
+- The builder's extra parts are not registered in content types; macro content types are tested by replacing the content types part.
