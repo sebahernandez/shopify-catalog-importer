@@ -33,6 +33,13 @@ describe('the test-only write route does not ship', () => {
     expect(build.exclude).toContain('src/**/*.test.ts');
   });
 
+  it('keeps every test-support folder out of the build', () => {
+    const build = JSON.parse(readFileSync(join(API_ROOT, 'tsconfig.build.json'), 'utf8')) as {
+      exclude: string[];
+    };
+    expect(build.exclude).toContain('src/**/test-support/**');
+  });
+
   it('keeps the test controller and its route out of every production source', () => {
     const offenders = production
       .filter((file) => /guarded-test|TestController/.test(readFileSync(file, 'utf8')))
