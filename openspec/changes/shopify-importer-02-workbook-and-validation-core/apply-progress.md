@@ -445,3 +445,26 @@ Barcode rule 36, barcode test 74, inventory rule 60, inventory test 123, variant
 - Codes used: BARCODE_MULTIPLE, NUMERIC_IDENTIFIER_UNSAFE (errors), NUMERIC_IDENTIFIER_CELL (warning), BOOLEAN_INVALID, STOCK_INVALID, INVENTORY_FLAG_REQUIRED (field gestionar_inventario), REQUIRED_FIELD_MISSING (field ubicacion, param field).
 - Stock is an integer up to 2147483647. An empty flag with valid stock is INVENTORY_FLAG_REQUIRED and manageInventory stays undefined; an empty flag with empty stock is false. Untrusted or invalid stock never triggers a flag or managed-stock cascade; an untrusted flag skips every dependent check.
 - A flag of false with stock present is accepted silently. Location is trimmed; an untrusted ubicacion is not reported as missing.
+
+## U8a Imagenes rules and cross-sheet rules: complete (11.1 to 11.4)
+
+Branch: feat/workbook-u8a-images-rules (from develop at 825b0af). Strict TDD, Node 24. U8b (11.5 to 11.8) and U8c (11.9 to 11.11) are not started.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 11.1 imagenes test | Test file failed to import the missing module | 16 pass after 11.2 | Written first, with image-row.ts and the catalog codes. |
+| 11.3 cross-sheet test | Test file failed to import the missing module | 7 pass after 11.4 | Written first. |
+
+### Measured size
+
+image-row 13, imagenes rule 111, imagenes test 148, cross-sheet rule 39, cross-sheet test 90: 401 lines hand-written, excluding the catalog records. Nothing was trimmed.
+
+### Decisions
+
+- New catalog codes: IMAGE_ORDER_INVALID, IMAGE_ORDER_DUPLICATE (firstRow), IMAGE_PATH_INVALID (reason), ALT_TOO_LONG (warning), IMAGE_COUNT_HIGH (warning, count), VARIANT_SKU_UNKNOWN, VARIANT_SKU_AMBIGUOUS, PRODUCT_KEY_UNKNOWN, PRODUCT_WITHOUT_VARIANTS.
+- imagenesRules(rows, variants, sink) returns ImageRow[] (sourceRow, productKey, path normalized, order, alt, variantSku set only for a unique match). Rows without product_key skip the sku, duplicate and count checks and are left to the cross-sheet rule. Untrusted fields are skipped silently.
+- IMAGE_COUNT_HIGH is reported once per product at the first row over 250, field null. IMAGE_ORDER_DUPLICATE is on the later row with the first row as param. Cover selection is left to the draft (U8b).
+- crossSheetRules(products, variants, images, sink) returns nothing and reports PRODUCT_KEY_UNKNOWN on field product_key for an empty, untrusted or unknown key (an untrusted key is indistinguishable from an empty one in the typed rows). PRODUCT_WITHOUT_VARIANTS is once per key, on the first Productos row; a Productos row without key is skipped. Images do not count as variants.
+- Pending: U8b and U8c.

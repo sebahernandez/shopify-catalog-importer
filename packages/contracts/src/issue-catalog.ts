@@ -55,6 +55,15 @@ export const ISSUE_CODES = z.enum([
   'BOOLEAN_INVALID',
   'STOCK_INVALID',
   'INVENTORY_FLAG_REQUIRED',
+  'IMAGE_ORDER_INVALID',
+  'IMAGE_ORDER_DUPLICATE',
+  'IMAGE_PATH_INVALID',
+  'ALT_TOO_LONG',
+  'IMAGE_COUNT_HIGH',
+  'VARIANT_SKU_UNKNOWN',
+  'VARIANT_SKU_AMBIGUOUS',
+  'PRODUCT_KEY_UNKNOWN',
+  'PRODUCT_WITHOUT_VARIANTS',
 ]);
 
 export type IssueCode = z.infer<typeof ISSUE_CODES>;
@@ -111,6 +120,15 @@ export const ISSUE_PARAM_KEYS: Readonly<Record<IssueCode, readonly string[]>> = 
   BOOLEAN_INVALID: [],
   STOCK_INVALID: [],
   INVENTORY_FLAG_REQUIRED: [],
+  IMAGE_ORDER_INVALID: [],
+  IMAGE_ORDER_DUPLICATE: ['firstRow'],
+  IMAGE_PATH_INVALID: ['reason'],
+  ALT_TOO_LONG: [],
+  IMAGE_COUNT_HIGH: ['count'],
+  VARIANT_SKU_UNKNOWN: [],
+  VARIANT_SKU_AMBIGUOUS: [],
+  PRODUCT_KEY_UNKNOWN: [],
+  PRODUCT_WITHOUT_VARIANTS: [],
 };
 
 interface IssueTemplate {
@@ -333,6 +351,43 @@ export const ISSUE_MESSAGES_ES: Readonly<Record<IssueCode, IssueTemplate>> = {
     message: 'Hay stock, pero la columna gestionar_inventario está vacía.',
     suggestedAction:
       'Indica en gestionar_inventario si se gestiona el inventario de esta variante.',
+  },
+  IMAGE_ORDER_INVALID: {
+    message: 'El orden de la imagen debe ser un número entero mayor que cero.',
+    suggestedAction: 'Escribe un orden entero como 1, 2 o 3 sin decimales ni texto.',
+  },
+  IMAGE_ORDER_DUPLICATE: {
+    message: 'El orden de la imagen ya se usó en la fila {firstRow} para el mismo producto.',
+    suggestedAction: 'Usa un orden distinto para cada imagen del producto.',
+  },
+  IMAGE_PATH_INVALID: {
+    message: 'La ruta de la imagen no es válida ({reason}).',
+    suggestedAction:
+      'Escribe una ruta relativa con el nombre del archivo, por ejemplo fotos/camisa.jpg.',
+  },
+  ALT_TOO_LONG: {
+    message: 'El texto alternativo supera los 512 caracteres.',
+    suggestedAction: 'Acorta el texto alternativo de la imagen.',
+  },
+  IMAGE_COUNT_HIGH: {
+    message: 'El producto tiene {count} imágenes, más de las 250 recomendadas.',
+    suggestedAction: 'Revisa si todas las imágenes son necesarias.',
+  },
+  VARIANT_SKU_UNKNOWN: {
+    message: 'El variant_sku no coincide con ningún sku de las variantes del producto.',
+    suggestedAction: 'Usa el sku de una variante del mismo producto o deja la celda vacía.',
+  },
+  VARIANT_SKU_AMBIGUOUS: {
+    message: 'El variant_sku coincide con más de una variante del producto.',
+    suggestedAction: 'Haz que cada sku sea único dentro del producto.',
+  },
+  PRODUCT_KEY_UNKNOWN: {
+    message: 'El product_key está vacío o no existe en la hoja Productos.',
+    suggestedAction: 'Usa un product_key que exista en la hoja Productos.',
+  },
+  PRODUCT_WITHOUT_VARIANTS: {
+    message: 'El producto no tiene ninguna fila en la hoja Variantes.',
+    suggestedAction: 'Agrega al menos una variante con el mismo product_key.',
   },
 };
 
