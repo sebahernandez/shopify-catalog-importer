@@ -354,3 +354,26 @@ Rules 82 and test 101, product-row 9: 192 lines after Prettier, plus 38 in the c
 - New catalog codes: REQUIRED_FIELD_MISSING (param field, reusable by later rules), PRODUCT_KEY_DUPLICATE and HANDLE_DUPLICATE (param firstRow), HANDLE_INVALID_FORMAT, EXAMPLE_PRODUCT, TAG_LIMIT_EXCEEDED (no params, the limits are in the message). The spec leaves the names unspecified; these are chosen here.
 - productosRules(rows, sink) returns ProductRow records (sourceRow, productKey, handle, title, tags). A field is undefined when empty, untrusted or invalid; an invalid-format handle is undefined and is not checked for duplicates.
 - Fields in the untrusted set are not read and not reported as missing. product_key duplicates compare the trimmed text exactly; handles compare case-insensitively. The tag warning comes from the existing tags parser.
+
+## U6a Variantes identity and SKU rules: complete (8.1 to 8.3)
+
+Branch: feat/workbook-u6a-variantes-identity (from develop at 8bd49c5). Strict TDD, Node 24.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 8.1 variantes-identity-rules test | Test file failed to import the missing module | 8 pass after 8.2 | One case failed first (untrimmed key), fixed by trimming in the rule. |
+| 8.3 | n/a | pnpm check exit 0 (api 59 files, 3214 tests), contracts 7 files, 145 tests, web 193 | |
+
+### Measured size
+
+Rules 69, test 102, variant-row 7: 178 lines after Prettier, plus about 30 in the contracts catalog. Nothing was trimmed.
+
+### Decisions
+
+- New catalog codes: SKU_MISSING (warning), SKU_DUPLICATE_IN_PRODUCT (error) and SKU_DUPLICATE_ACROSS_PRODUCTS (warning), the last two with param firstRow; NUMERIC_IDENTIFIER_CELL and NUMERIC_IDENTIFIER_UNSAFE without params.
+- variantesIdentityRules(rows, sink) returns VariantRow records (sourceRow, productKey, sku). sku is undefined when empty, untrusted or unsafe; a number cell with at most 15 digits keeps its raw digits and warns.
+- The numeric-cell policy comes from parseCode; the rule maps its reason and warning strings to catalog codes. Cell-kind reasons are ignored because readRows already reported those cells and marked them untrusted.
+- Rows with an empty or untrusted product_key still get the missing and numeric checks but skip duplicate checks; the empty key itself is PRODUCT_KEY_UNKNOWN in the cross-sheet rule (U8), so nothing is reported here.
+- Duplicate-across-products points at the first row that used the sku in any product.

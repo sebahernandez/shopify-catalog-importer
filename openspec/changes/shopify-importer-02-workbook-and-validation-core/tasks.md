@@ -204,9 +204,9 @@ Satisfies: workbook-contract (matching, Header row, Optional instructions and un
 
 Satisfies: rules (SKU policy, Barcode and numeric identifier cells: sku part).
 
-- [ ] 8.1 RED: create `apps/api/src/catalog-workbook/domain/rules/variantes-identity-rules.test.ts`: empty sku `SKU_MISSING` warning only, same sku twice in one product `SKU_DUPLICATE_IN_PRODUCT` error, across products `SKU_DUPLICATE_ACROSS_PRODUCTS` warning, comparison trimmed as text, number cell `12345` `NUMERIC_IDENTIFIER_CELL`, 16 digits or exponent form `NUMERIC_IDENTIFIER_UNSAFE`, text `00123` clean, formula cell skipped.
-- [ ] 8.2 GREEN: create `domain/variant-row.ts` (identity part) and `domain/rules/variantes-identity-rules.ts`; append codes and Spanish entries in contracts.
-- [ ] 8.3 Run the focused test command and `pnpm check`; record lines.
+- [x] 8.1 RED: create `apps/api/src/catalog-workbook/domain/rules/variantes-identity-rules.test.ts`: empty sku `SKU_MISSING` warning only, same sku twice in one product `SKU_DUPLICATE_IN_PRODUCT` error, across products `SKU_DUPLICATE_ACROSS_PRODUCTS` warning, comparison trimmed as text, number cell `12345` `NUMERIC_IDENTIFIER_CELL`, 16 digits or exponent form `NUMERIC_IDENTIFIER_UNSAFE`, text `00123` clean, formula cell skipped.
+- [x] 8.2 GREEN: create `domain/variant-row.ts` (identity part) and `domain/rules/variantes-identity-rules.ts`; append codes and Spanish entries in contracts.
+- [x] 8.3 Run the focused test command and `pnpm check`; record lines.
 
 ## Phase 9: U6b Variantes options and combinations
 
