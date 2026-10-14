@@ -103,3 +103,25 @@ Seven files (field-result 16, decimal-field 44 and test 65, code-field 28 and te
 
 - Parsers return typed results with plain reason strings, never catalog codes. `PRICE_ZERO` is returned for any decimal field, so the rule reports it only for `precio`. `DECIMAL_AMBIGUOUS` replaces the design's `PRICE_COMMA_SEPARATOR`, as the spec says.
 - Catalog codes later units must append to `ISSUE_CODES` with param keys and Spanish messages: `REQUIRED_FIELD_MISSING`, `DECIMAL_AMBIGUOUS`, `DECIMAL_INVALID`, `DECIMAL_SCALE_EXCEEDED`, `DECIMAL_MAGNITUDE_EXCEEDED`, `PRICE_NEGATIVE`, `PRICE_ZERO`, `COMPARE_AT_BELOW_PRICE`, `NUMERIC_IDENTIFIER_CELL`, `NUMERIC_IDENTIFIER_UNSAFE`, `IMAGE_PATH_INVALID` (reason in params), `CELL_ERROR_VALUE`, `CELL_TYPE_UNEXPECTED`, plus the other rule codes in the validation-rules spec.
+
+## U2c Boolean, integer, barcode and tags parsers: done
+
+Branch: feat/workbook-u2c-boolean-integer-barcode-tags (from feat/workbook-u2b-decimal-code-image-path). Strict TDD, Node 24.21.0, pnpm 12.11.2.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 2.9 / 2.10 | Cannot find the four parser modules | 32 tests pass | Reuses `field-result.ts`, `match-key.ts` and `parseCode`. |
+| 2.15 | n/a | `pnpm check` exit 0 | Final U2 gate: contracts 119, web 193, api 3,088 (3,400 in total). |
+
+### Measured hand-written lines
+
+Eight files (boolean 30 and test 40, integer 27 and test 36, barcode 19 and test 28, tags 28 and test 43) = 251 lines. Within the 400 budget. U2a, U2b and U2c together are about 849 changed lines, which is why U2 was split.
+
+### Decisions for later units
+
+- Barcode separators follow the spec (comma, semicolon, pipe, any whitespace including line breaks); the design's slash is not a separator.
+- Stock is a non-negative integer with an optional 32-bit `max`; `INTEGER_INVALID` maps to `STOCK_INVALID` (stock, max 2147483647) or `IMAGE_ORDER_INVALID` (orden, min 1) in the rules.
+- Tags are trimmed and de-duplicated case-insensitively with `toLowerCase`; a tag number cell is read from its raw text.
+- Catalog codes later units must append: `BARCODE_MULTIPLE`, `BOOLEAN_INVALID`, `STOCK_INVALID`, `INVENTORY_FLAG_REQUIRED`, `IMAGE_ORDER_INVALID`, `TAG_LIMIT_EXCEEDED`.
