@@ -1159,3 +1159,150 @@ Hand-written added lines, 868 against a 400 budget and a ~175 forecast (5.0 time
 | Full gate | `pnpm install --frozen-lockfile`, `pnpm check` (44 contracts, 91 web, 3,005 API tests) and `pnpm build` all exit 0 |
 | Runtime harness | Real Vite dev server on loopback port 0 against a stub API, and Vite build() into a temp directory, both inside the tests; closed and removed afterwards |
 | Rollback boundary | apps/web/**, the eslint block for web tests, the lockfile delta; the tasks.md checkboxes and this batch |
+
+## Batch 16: U16 Health UI
+
+Branch `feat/foundation-u16-health-ui`. Tasks 16.1 to 16.3 complete (3/3 of Phase 16; 61 of 65 overall as native SDD status counts). Mode: Strict TDD.
+Commits (separable, each leaves `pnpm check` and `pnpm build` green): 37c85cb (catalog, health-state type, fail-closed client with tests), dcb56e2 (status dot, health badge, layering test), b8472cd (hook, container, App update, source-hygiene test, bundle test extension), plus a docs commit for this file and tasks.md.
+
+### State mapping as implemented (src/api/http-client.ts, function toHealthResult)
+
+| HTTP status | Body | State |
+|---|---|---|
+| 200 | parses as HealthResponse with status ok and database up | ok |
+| 503 | parses as HealthResponse with status degraded and database down | degraded |
+| anything else | any | unreachable |
+
+Unreachable also covers: fetch throwing or rejecting (network failure, redirect refused by redirect error), timeout, caller abort, any other status code (including 3xx, 4xx, 5xx other than the pair above, status 0), 200 with a degraded body, 503 with an ok body, mixed pairs (ok with down, degraded with up), body not JSON, empty body, body failing the schema, HTML pages from a proxy, the guard's 403 body. Initial state is loading. This matches the design (200 and 503 carry the same schema) and the brief; no difference found.
+
+Request: GET to the relative health route, method GET, credentials omit, cache no-store, redirect error, no headers, no body, abort signal. One request per mount, no polling, no retry. Timeout: 5000 ms (HEALTH_TIMEOUT_MS, injectable through the options object; tests use 20 ms). The whole exchange (request and body read) races the abort, so an injected fetch that ignores its signal still ends.
+
+Version display: the client keeps the pinned version only when it is a short plain token (letters, digits, dot, underscore, hyphen, 1 to 32 characters); anything else is dropped and the state is still reported. The badge renders it as a React text node (escaped).
+
+### Structure
+
+- src/health-state.ts: the four-state type and list, shared by client, hook, catalog and components (outside every layer, so ui can import it).
+- src/i18n/es.ts: the only place with user copy (typed; the states map is checked with satisfies against the state type).
+- src/api/http-client.ts: framework-free, injectable fetch.
+- src/app/useHealth.ts: hook plus the pure function resolveHealthView(result, cancelled), which returns null for an aborted request so state is never touched after unmount or remount. The hook returns the state and, additively to the design, the optional version.
+- src/app/HealthStatusContainer.tsx: container; src/ui/atoms/StatusDot.tsx and src/ui/molecules/HealthBadge.tsx: presentational.
+- App.tsx: main, one h1 (product name), one section with an h2 (status heading) and the container.
+
+### Final Spanish copy (catalog)
+
+Product name (unchanged): Shopify Catalog Importer. Heading: Estado de la API. Loading: Comprobando el estado de la API… Ok: La API y la base de datos están operativas. Degraded: La API responde, pero la base de datos no está disponible. Unreachable: No se pudo conectar con la API. Version line: Versión de la API de Shopify: followed by the value.
+
+### Colours and contrast (computed, not a full audit)
+
+Computed from the built stylesheet's oklch values with the WCAG 2.x relative luminance formula against white, which is the page background (no background is set and no colour scheme is declared). Text: loading label gray-700 10.31:1, ok label green-800 7.09:1, degraded label amber-900 9.09:1, unreachable label red-800 8.37:1, version line gray-600 7.56:1, h2 gray-900 17.75:1. Decorative only (aria-hidden dot, no text): gray-400 2.60:1, green-600 3.22:1, amber-500 2.15:1, red-600 4.76:1; badge border gray-300 1.47:1. All text pairs exceed 4.5:1 in this calculation. No WCAG conformance level is claimed: not verified in a browser, not checked with a tool, dark mode and forced-colours not considered; nothing on the page is interactive.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Refactor |
+|---|---|---|---|---|---|---|---|
+| 16.1/16.2 catalog | apps/web/src/i18n/es.test.ts | Unit | web 91/91 | Failed: Cannot find module health-state | 4/4 | four labels distinct, exact copy, no claim words, version line with two values | None needed |
+| 16.1/16.2 client | apps/web/src/api/http-client.test.ts | Unit (injected fetch, real Response objects) | web 91/91 | Failed: Cannot find module http-client | 44/44 (then a type fix: the injected function type was narrowed; a lint fix for unused parameters) | mapping table 2 ok rows, 1 degraded row, 20 unreachable rows; 11 response shapes; throw, reject, unreadable body, never-settling request, never-arriving body, prompt answer, caller abort, pre-aborted, global fetch; request shape | Prettier and lint only |
+| 16.1/16.2 atom and molecule | ui/atoms/StatusDot.test.ts, ui/molecules/HealthBadge.test.ts | Unit (renderToString) | 139/139 | Failed: Cannot find module StatusDot and HealthBadge | 26/26 together with the layering test | four states by label, live region, one decorative dot, version present, absent, hostile markup escaped, no artefacts, deterministic | Prettier only |
+| 16.1 layering | apps/web/src/ui/layering.test.ts | Unit (source scan) | N/A (new) | Failed: expected the scan to find StatusDot.tsx (empty folder) | 3/3 | scan finds the files, finds no forbidden import, and the matcher is shown to accept and reject specifiers | None needed |
+| 16.1/16.2 hook and container | app/useHealth.test.ts, app/HealthStatusContainer.test.ts | Unit (renderToString, stubbed global fetch) | 165/165 | Failed: Cannot find module useHealth and HealthStatusContainer | 5 and 2 pass | initial loading, no effect or request on the server, three results adopted, aborted results ignored | The first pure function returned the old state; it became resolveHealthView, which returns null so state is never set after an abort |
+| 16.2 App | apps/web/src/app/App.test.ts | Unit | 4/4 (U15 version) | Failed: no h2, no status region, placeholder still present | 6/6 | single h1 and main, single h2, status region inside main, no placeholder, no artefacts, deterministic | None needed |
+| 16.2 hygiene | apps/web/src/source-hygiene.test.ts | Unit (source scan) | N/A (new) | Failed: App.tsx held literal text; the scan could not find the hook yet | 17 cases pass | 14 forbidden patterns, class names built whole, no copy in components | None needed |
+| 16.3 bundle | apps/web/src/bundle.int.test.ts | Integration (Vite build into a temp directory) | 6/6 | Failed: the URL allow-list rejected four strings that zod brings into the bundle (see Issues) | 8/8 | Spanish copy and the relative route present; 127.0.0.1, localhost, :3000 absent | None needed |
+
+RED note for the bundle extension: the two new bundle tests passed on first run because the page already existed by then; they are proven by the mutation checks below (container removed, secret leak).
+
+### Mutation checks (each restored; web suite re-run green: 193/193)
+
+| Mutation | Result |
+|---|---|
+| 200 with a degraded body mapped to ok | 4 failed |
+| Status check removed so an unknown code can map to degraded (two forms) | 3 failed each |
+| Non-JSON body treated as ok | 4 failed |
+| redirect error dropped | 1 failed |
+| Timeout made effectively infinite | 2 failed |
+| Absolute API URL in the client | 1 failed in the client file; 7 failed across the suite (the source scan also fires) |
+| credentials omit dropped; cache no-store dropped; signal dropped | 1, 1 and 3 failed |
+| Version filter removed; caller abort ignored; pre-aborted request still asked | 1, 1 and 1 failed |
+| Version rendered through dangerouslySetInnerHTML (badge) | 1 failed |
+| Version rendered through dangerouslySetInnerHTML (App level) | 1 failed (scan) |
+| Live region attribute removed; made assertive; replaced by role alert | 4 failed each. First attempt matched the comment that holds the same text and survived (replacement hit the wrong occurrence); redone anchored on the opening tag |
+| aria-hidden removed from the dot; set to false | 8 failed each |
+| ui imports from src/api; ui imports from src/app | 1 failed each |
+| Label dropped for one state; version always shown; loading label undefined | 1, 5 and 1 failed |
+| Two tones sharing a colour class | 1 failed |
+| Tailwind class built by template literal; by plus; fragment with a hole inside the map | 2, 1 and 2 failed |
+| Spanish text hard-coded in a component; as an expression; as an aria-label; English text in App; extra element | 8, 8, 1, 2 and 1 failed |
+| import.meta.env read in App | 1 failed (scan) |
+| localStorage used in the hook module | 1 failed (scan; the module also throws on import in Node) |
+| Hook ignores cancellation (resolveHealthView returns the result when aborted) | 1 failed |
+| Hook asks during render instead of in an effect | 1 failed (the no-request-on-the-server test) |
+| Container removed from App | 2 failed (App test and bundle test) |
+| Second h1 | 2 failed |
+| Seeded secret renamed with the VITE_ prefix and rendered by App through import.meta.env (two files) | 2 failed: the bundle test (secret and name in the build) and the scan |
+| Main landmark removed | Invalid mutant (mismatched tags, syntax error), proved nothing; the main assertion is the U15 one, unchanged and mutation-proven in U15 |
+| String(version) around a value already narrowed to string | Equivalent mutant, survived by definition; not counted |
+
+### What the automated tests do NOT cover
+
+There is no DOM environment and none was added, so these are verified by reasoning and by the harness only:
+
+- The effect running in a real browser (fetch call, state update, re-render): the pieces are tested separately (client with an injected fetch, resolveHealthView, server render of every state); the glue in the hook is a few lines. The harness exercised the same client code against the real API through the real proxy.
+- React's development double-mount: the first effect's controller is aborted by the cleanup; its request ends as unreachable inside the client but resolveHealthView returns null for an aborted controller, so setView is never called for it; the second mount makes its own request and sets the final state. Reasoned from the code and the pure function test; not observed in a browser.
+- Abort on unmount: the cleanup calls abort on the controller; the same flag stops the state update. Reasoned the same way; the client's abort path is tested (caller abort, pre-aborted).
+- The live region announcement itself (screen reader behaviour), layout and colours: not testable here.
+
+### End-to-end harness (task 16.3 extension; scripts live in the scratch folder, not committed, nothing recorded in the ledger)
+
+The built API (dist, run with an empty inherited environment through env -i with explicit HOME, DATA_DIR in a mode 700 folder, SECRET_KEY_FILE, API_HOST 127.0.0.1, probed ports, ALLOWED_ORIGINS set to the web origin) behind the real Vite dev server started through its JavaScript API (WEB_HOST 127.0.0.1, WEB_PORT and API_PORT probed, set in the process environment the config reads). The page client was loaded through Vite from its source file and run with a fetch function that sends the request to the web port with the Host and Sec-Fetch-Site a browser on that page sends (a same-origin GET carries no Origin; a second run added the web Origin). 26 checks, all passed:
+
+| Case | Raw answer through the web port | Page state |
+|---|---|---|
+| Healthy | 200, body with the three fields, version 2026-10 | ok |
+| Healthy, with the web Origin header | 200 | ok |
+| Database file removed | 503, same three fields | degraded |
+| Host not allowed by Vite (a foreign name) | 403, plain text from Vite | unreachable |
+| Host not allowed by the API only (loopback with another port) | 403 with the ApiError body | unreachable |
+| API stopped | 502 from the proxy, not JSON | unreachable |
+
+Also: the page HTML (root element, one module script) and the four modules requested (main, App, useHealth, http-client) loaded with status 200 as JavaScript; the dev main module has no host or port literal; the client's request was exactly: relative route, GET, credentials omit, cache no-store, redirect error. After the run: API stopped by SIGTERM, Vite closed, scratch folder removed, both ports refuse connections, key file existed only inside the scratch folder. A real browser check was NOT possible.
+
+### Decisions where the design or the brief was silent
+
+- Test files use the extension .test.ts with createElement, not .test.tsx as task 16.1 names: the web vitest configuration only includes .test.ts and the brief forbids changing earlier configuration; the existing App test already works this way.
+- The hook returns the optional pinned version next to the state (design: state only), because the brief allows showing it.
+- The state type lives in src/health-state.ts so presentational code can import it without touching api or app.
+- The h2 heading sits in App, and the container returns only the badge, so the container stays a data-to-props adapter.
+- The badge shows the version whenever one is passed; the client reports one only for ok and degraded.
+- Version display guard (short plain token) added in the client, beyond schema validation.
+- Hygiene scan regexes are heuristics (for example, JSX text is found by a pattern); the escaping behaviour itself is proven by rendering tests.
+
+### Issues found
+
+- The web bundle now carries zod (through the contracts package; the web package has no direct zod dependency). It added about 100 kB to the script (about 301 kB, 92 kB gzipped) and four URL-like strings that the U15 allow-list rejected: the JSON Schema dialect names for draft 2020-12, draft-07 and draft-04, and a host template text. They are identifiers inside the library, not requests. The allow-list for JavaScript was extended with exactly those four patterns, with a comment. A later slice could cut the size by exposing a lighter parser from contracts; not done here.
+- The page only works where the health route is same-origin. In development the Vite proxy provides that; a production build has no proxy and serving page and API from one origin is a later decision (not in S0).
+- When the API is down the Vite proxy answers 502; the page maps it to unreachable like every other non-pair.
+- No eslint change was needed.
+
+### Spec traceability (U16)
+
+| Requirement or scenario | Test |
+|---|---|
+| Web shell boot: shell renders without runtime errors | App.test.ts (server render of the whole shell), HealthStatusContainer.test.ts, useHealth.test.ts (server render, no request), bundle.int.test.ts build; browser load not run |
+| Web shell boot: bundle free of server code | bundle.int.test.ts: no @importer/api, no seeded secret, no environment access, no host or port literal, URLs allow-listed |
+| Health obtained via contracts types, fail closed | http-client.test.ts (mapping table, fetchHealth cases) |
+| Four states, Spanish, text for every state | HealthBadge.test.ts, es.test.ts |
+| Accessible status: live region, decorative dot, one main, one h1 | HealthBadge.test.ts, StatusDot.test.ts, App.test.ts |
+| No server text rendered as HTML | HealthBadge.test.ts (hostile version escaped), http-client.test.ts (version filter), source-hygiene.test.ts |
+| Layering container versus presentational | layering.test.ts, source-hygiene.test.ts |
+| No environment or absolute API URL in web sources | source-hygiene.test.ts, bundle.int.test.ts |
+
+### Size
+
+Hand-written lines on the branch excluding openspec: 786 added and 11 removed (797 changed) against a 400 budget and a ~260 forecast (3.1 times): source 205 added (http-client 78, HealthBadge 39, useHealth 35, es 17, StatusDot 15, container 8, App 8 added and 4 removed, health-state 5), tests 581 added. By commit: 336, 204, 257 added (the third also removes 11). Each commit is within budget on its own; the split is the slicing. Not trimmed. The lockfile did not change.
+
+| Evidence | Value |
+|---|---|
+| Focused test | `pnpm --filter @importer/web test`: 13 files, 193 tests passed |
+| Full gate | `pnpm install --frozen-lockfile`, `pnpm check` (44 contracts, 193 web, 3,005 API tests) and `pnpm build` all exit 0 |
+| Runtime harness | Built API behind the real Vite dev server on loopback, results above; no real browser |
+| Rollback boundary | apps/web/src health files (api, i18n, health-state, ui, app hook and container, the new tests), the App.tsx and test updates, the bundle test extension; the tasks.md checkboxes and this batch |
