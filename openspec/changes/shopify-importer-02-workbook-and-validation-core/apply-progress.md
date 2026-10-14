@@ -580,3 +580,26 @@ Booted from a temporary clone of the branch (commit 79c3bb1) under the session s
 | Two downloads | identical SHA-256 (5,564 bytes) |
 
 The only log line was the expected warning that a new key was generated in the temporary directory. The process was stopped; no repo process, data directory, key file or database file remained in the real repository, and the real HOME has no importer folder. First two boot attempts failed by design (key directory mode 755, then unmigrated database); both were setup gaps in the harness, not defects.
+
+## U10a Validate endpoint: bounded body reader (13.1 to 13.3; 13.4 and 13.5 move to U10b)
+
+Branch: feat/workbook-u10a-body-reader (from develop at 069ccec). Strict TDD, Node 24. U10 is delivered in two PRs by maintainer decision on 2026-10-14 after the combined chunk measured about 511 lines: U10a (this unit: VS2 and the bounded body reader) and U10b (exception filter, POST route and the endpoint int tests, 13.4 and 13.5). Tasks 13.6, 13.7 and Phase 14 stay pending. The real app was not booted.
+
+### VS2 result (13.1)
+
+Confirmed. Nest 12.1.3 on Express registers body parsers for JSON and urlencoded only, so a body sent as application/octet-stream or the XLSX MIME type is left unread and a controller can stream it from the request. Proven by 1 MB and 20 MB bodies read intact under ESM in the endpoint int tests (delivered in U10b). The raw-body bypass fallback was not needed.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 13.2 body reader test | Suite failed to import the missing bounded-body-reader module | 5 pass after 13.3 | SHA-256 of a known body, exact cap, drain past the cap, Content-Length over the cap left unread, zero bytes |
+
+### Decisions
+
+- UploadRejection (in bounded-body-reader.ts) carries code, status and closeConnection; the exception filter that maps it to the ApiError body arrives in U10b. No new ApiError code was needed.
+- A missing Content-Type is read as octet-stream, so an empty request is 400 and not 415.
+
+### Size
+
+bounded-body-reader 75 and its test 66: 141 hand-written lines. Contracts: 0.
