@@ -5,27 +5,27 @@
 | Field | Value |
 |-------|-------|
 | Estimated changed lines | ~4,100 hand-written (range 3,500 to 4,800; ~50% tests). Generated: lockfile only, plus the vendored SheetJS tarball if it wins (binary, not counted). Deletions negligible. |
-| 400-line budget risk | High for the change as a whole; U3b (~400) is a likely exception; U2, U8 (~380) and U1 (~300) are near the budget |
+| 400-line budget risk | High for the change as a whole; every unit is planned within 400 and none needs a size exception. Watch U2 and U8 (~380, near the budget) and U3c (the spike outcome can add vendoring and measurement work) |
 | Chained PRs recommended | Yes |
-| Suggested split | 13 chained work units: U1, U2, U3a, U3b, U3c, U4, U5, U6a, U6b, U7, U8, U9, U10, plus a final gate that rides on the U10 PR |
+| Suggested split | 14 chained work units: U1, U2, U3a, U3b1, U3b2, U3c, U4, U5, U6a, U6b, U7, U8, U9, U10, plus a final gate that rides on the U10 PR |
 | Delivery strategy | ask-on-risk |
 | Chain strategy | feature-branch-chain (tracker branch: develop) |
 
-Decision needed before apply: Yes
+Decision needed before apply: No
 Chained PRs recommended: Yes
 Chain strategy: feature-branch-chain
 400-line budget risk: High
 
-Decisions needed (size exceptions, asked under ask-on-risk):
-- U3b (ZIP preflight) is estimated at ~400 and has the least slack: accept a size exception, or pre-authorize the split at the boundary between archive checks (steps 1 to 6, tasks 4.3 to 4.6) and the content scan (step 7, tasks 4.7 to 4.9) into U3b-1 and U3b-2.
-- U6 is already split into U6a (~220) and U6b (~230). If the maintainer prefers one PR it would be ~450 and need an exception; the default is to keep the split.
-- Any other unit that measures over 400 hand-written lines at apply time is reported, never trimmed (no comment or test removal to fit).
+No remaining decision. Resolved decisions:
+- U3b is split into U3b1 (ZIP archive checks, design preflight steps 1 to 6, tasks 4.1 to 4.6 and 4.10) and U3b2 (content checks, step 7, tasks 4.7 to 4.9 and 4.11), confirmed by the maintainer on 2026-10-14. No size exception is needed for U3b.
+- U6 is already split into U6a (~220) and U6b (~230); the split is kept.
+- Any unit that measures over 400 hand-written lines at apply time is reported, never trimmed (no comment or test removal to fit). Near budget and watched: U2 and U8 (~380), and U3c (spike outcome).
 
 Estimates keep the design's figures (about 30 percent uncertainty). They were not shrunk to fit.
 
 ### Chain bases (feature-branch-chain, tracker = develop)
 
-PR for U1 targets develop. Every later PR targets the branch of the previous unit in the order U1, U2, U3a, U3b, U3c, U4, U5, U6a, U6b, U7, U8, U9, U10. If a child PR shows the previous unit's changes, its base is wrong and must be retargeted. Only the tracker merges onward.
+PR for U1 targets develop. Every later PR targets the branch of the previous unit in the order U1, U2, U3a, U3b1, U3b2, U3c, U4, U5, U6a, U6b, U7, U8, U9, U10. If a child PR shows the previous unit's changes, its base is wrong and must be retargeted. Only the tracker merges onward.
 
 ### Size and scope per work unit
 
@@ -34,8 +34,9 @@ PR for U1 targets develop. Every later PR targets the branch of the previous uni
 | U1 | `feat/workbook-u1-contracts` | Schema constants, report model, issue catalog, ApiError codes | none (S0 archived) | ~300 | workbook-contract: Sheet and column constants; validation-report: Issue model, Spanish catalog, Severities and counts (shape); endpoint: Request errors (codes) |
 | U2 | `feat/workbook-u2-domain-core` | Limits, cell model, matchKey, field parsers, image path, collector, lint D2 | U1 | ~380 | workbook-contract: name matching (matchKey), Cell value model, One barcode and comma tags (tags); file-safety: Configurable caps (defaults); rules: Image path syntax check, Tag checks (parser), Decimal/Inventory parsers; report: Truncation (collector) |
 | U3a | `feat/workbook-u3a-ooxml-writer` | Own ZIP and OOXML writer, fixture builder, test-support exclusion | U2 | ~330 | workbook-template: Identifier columns keep text, Usability aids (writer primitives) |
-| U3b | `feat/workbook-u3b-zip-preflight` | ArchiveInspector port, ZIP preflight, content scan | U3a | ~400 (likely exception) | file-safety: Preflight before parsing, Configurable archive caps, Ambiguous and unsafe archives, Macros/links/embedded, Formulas (package scan) |
-| U3c | `feat/workbook-u3c-library-spike` | Spike probes, findings, vendoring or pin | U3a, U3b | ~200 | none directly; settles the library for U4 (design D4) |
+| U3b1 | `feat/workbook-u3b1-zip-archive-checks` | ArchiveInspector port, ZIP archive checks (preflight steps 1 to 6: magic bytes, EOCD, entry count, central-directory walk, local-header overlap, bounded inflation with size, CRC and ratio) | U3a | ~230 | file-safety: Preflight before parsing (archive part), Configurable archive caps, Ambiguous and unsafe archives |
+| U3b2 | `feat/workbook-u3b2-zip-content-checks` | Content checks (step 7: required parts, macros, external links, embedded objects, library-independent formula scan), the ArchiveInspector implementation | U3b1 | ~200 | file-safety: Preflight before parsing (content part, inspector-level spy), Macros/links/embedded, Formulas (package scan) |
+| U3c | `feat/workbook-u3c-library-spike` | Spike probes, findings, vendoring or pin | U3b2 | ~200 | none directly; settles the library for U4 (design D4) |
 | U4 | `feat/workbook-u4-reader-adapter` | WorkbookReader port, chosen adapter, contract suite, formula guard | U3c | ~320 | contract: Cell value model; file-safety: Formulas (reader), Sheet size caps; report: no-leak (reader failure) |
 | U5 | `feat/workbook-u5-structure-productos` | Structure resolution, row reading, cell-kind issues, Productos rules | U2, U4 | ~330 | contract: matching, Header row, Optional instructions; rules: Structure, Productos fields, Example products, Tags, Other cell kinds; file-safety: Formulas (per cell), Sheet size caps (per cell) |
 | U6a | `feat/workbook-u6a-variantes-identity` | Variantes identity, SKU policy, numeric SKU cells | U5 | ~220 | rules: SKU policy, Barcode and numeric identifier (sku part) |
@@ -45,7 +46,7 @@ PR for U1 targets develop. Every later PR targets the branch of the previous uni
 | U9 | `feat/workbook-u9-template-module` | Template content, template writer, module, GET route | U8 | ~350 | template: all six requirements; endpoint: Template round trip (use case level) |
 | U10 | `feat/workbook-u10-validate-endpoint` | POST route, bounded body, error mapping, HTTP and perf tests, final gate | U9 | ~350 | endpoint: all seven requirements; report: Fingerprint (HTTP) |
 
-Tasks 1.1 to 14.7 below are grouped by phase; each phase equals one unit (Phase 14 rides on U10).
+Tasks 1.1 to 14.7 below are grouped by phase; each phase equals one unit, except Phase 4, which holds two units (U3b1 and U3b2), and Phase 14, which rides on U10. Total: 123 tasks, every one a checkbox line.
 
 ### Suggested Work Units
 
@@ -54,35 +55,36 @@ Tasks 1.1 to 14.7 below are grouped by phase; each phase equals one unit (Phase 
 | U1 | Contracts for workbook, report, catalog, ApiError | PR 1 | `pnpm --filter @importer/contracts test` | N/A: pure schemas; web compile check via `pnpm --filter @importer/web test` | `packages/contracts/src/{workbook-schema,validation-report,issue-catalog}*`, `api-error*`, `index.ts` |
 | U2 | Pure domain core and lint rule | PR 2 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/domain` | N/A: pure functions; lint negative gate in 2.2 | `catalog-workbook/domain/**`, the eslint block |
 | U3a | Writer and fixture builder | PR 3 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/infrastructure/ooxml src/catalog-workbook/test-support` | `pnpm build` then confirm dist has no test-support | `infrastructure/ooxml/**`, `test-support/**`, `tsconfig.build.json` line |
-| U3b | ZIP preflight | PR 4 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/infrastructure/zip` | Crafted-file matrix against the real inspector (the int tests) | `infrastructure/zip/**`, `ports/archive-inspector.port.ts` |
-| U3c | Library spike and pin | PR 5 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/infrastructure/spike` | Probes on U3a fixtures, measured in the findings | `vendor/sheetjs/**` or the pinned dependency, probe, findings file |
-| U4 | Reader adapter | PR 6 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/infrastructure/reader` | Shared reader contract suite on builder fixtures | `infrastructure/reader/**`, `ports/workbook-reader.port.ts` |
-| U5 | Structure and Productos | PR 7 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/domain/structure src/catalog-workbook/domain/rules` | N/A: in-memory cell model, no XLSX | `domain/structure/**`, `domain/rules/productos*` |
-| U6a | Variantes identity and SKU | PR 8 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/domain/rules` | N/A: pure rules | `domain/rules/variantes-identity*` |
-| U6b | Options and combinations | PR 9 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/domain/rules` | N/A: pure rules | `domain/rules/variantes-options*` |
-| U7 | Variantes values | PR 10 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/domain/rules` | N/A: pure rules | `domain/rules/variantes-{price,barcode,inventory}*` |
-| U8 | Images, assembly, use case | PR 11 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/domain src/catalog-workbook/application` | Use case with the real inspector and reader on a builder workbook | `domain/rules/imagenes*`, `domain/catalog-draft*`, `application/**` |
-| U9 | Template and GET | PR 12 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook` | Boot API, download the template with curl into the scratch directory | `infrastructure/http/**` (GET), template files, module wiring in `app.module.ts` |
-| U10 | POST validate and gate | PR 13 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/infrastructure/http` | Boot API, POST the downloaded template with curl, read the report | POST route, `bounded-body-reader*` |
+| U3b1 | ZIP archive checks | PR 4 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/infrastructure/zip/zip-preflight.int.test.ts` | Crafted-archive matrix against the real preflight (the int tests) | `infrastructure/zip/{central-directory,bounded-inflate,archive-preflight}*`, `ports/archive-inspector.port.ts` |
+| U3b2 | ZIP content checks | PR 5 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/infrastructure/zip` | Crafted-package matrix against the real inspector (the int tests) | `infrastructure/zip/{content-scan,zip-archive-inspector}*` |
+| U3c | Library spike and pin | PR 6 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/infrastructure/spike` | Probes on U3a fixtures, measured in the findings | `vendor/sheetjs/**` or the pinned dependency, probe, findings file |
+| U4 | Reader adapter | PR 7 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/infrastructure/reader` | Shared reader contract suite on builder fixtures | `infrastructure/reader/**`, `ports/workbook-reader.port.ts` |
+| U5 | Structure and Productos | PR 8 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/domain/structure src/catalog-workbook/domain/rules` | N/A: in-memory cell model, no XLSX | `domain/structure/**`, `domain/rules/productos*` |
+| U6a | Variantes identity and SKU | PR 9 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/domain/rules` | N/A: pure rules | `domain/rules/variantes-identity*` |
+| U6b | Options and combinations | PR 10 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/domain/rules` | N/A: pure rules | `domain/rules/variantes-options*` |
+| U7 | Variantes values | PR 11 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/domain/rules` | N/A: pure rules | `domain/rules/variantes-{price,barcode,inventory}*` |
+| U8 | Images, assembly, use case | PR 12 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/domain src/catalog-workbook/application` | Use case with the real inspector and reader on a builder workbook | `domain/rules/imagenes*`, `domain/catalog-draft*`, `application/**` |
+| U9 | Template and GET | PR 13 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook` | Boot API, download the template with curl into the scratch directory | `infrastructure/http/**` (GET), template files, module wiring in `app.module.ts` |
+| U10 | POST validate and gate | PR 14 | `pnpm --filter @importer/api exec vitest run src/catalog-workbook/infrastructure/http` | Boot API, POST the downloaded template with curl, read the report | POST route, `bounded-body-reader*` |
 
 Orchestrator checkpoints (not apply tasks):
 - CP1, after U3c merges and before U4 starts: confirm the library choice in `spike-findings.md`; if fallback B was chosen, re-read U4 scope and expect U4 above 320 lines.
-- CP2, after U3b is measured: answer the size-exception question for U3b.
+- CP2, after U3b1 and U3b2 are each measured: confirm both are within 400 hand-written lines (no exception is expected); U3c does not start before U3b2 merges.
 - CP3, after U10: update `state.yaml` phases and run sdd-verify.
 
-Conventions for every unit: conventional commits, no AI attribution, English code and comments, Spanish only inside the contracts catalog and the template content. Never contact Shopify. The spec files are authoritative for exact codes and field names; where the design differs (see 1.1) follow the spec. Record the focused test result, the runtime harness result and the measured hand-written line count in the apply progress.
+Conventions for every unit: conventional commits, no AI attribution, English code and comments, Spanish only inside the contracts catalog and the template content. Never contact Shopify. The spec files are authoritative for exact codes and field names; the design was aligned to the specs, and if any wording still differs (see 1.1) follow the spec. Record the focused test result, the runtime harness result and the measured hand-written line count in the apply progress.
 
 ## Phase 1: U1 Contracts
 
 Satisfies: workbook-contract (Sheet and column constants), validation-report (Issue model, Spanish catalog, Severities and counts), workbook-validate-endpoint (error codes).
 
-- [ ] 1.1 Reconcile names before coding: record in the apply progress that the specs win over design wording (issue `field` not column, `suggestedAction` not action, `summary.errorCount` and `warningCount`, params may be boolean, codes `FILE_NOT_XLSX`, `FILE_UNREADABLE`, `ZIP_*`, `MACROS_NOT_ALLOWED`, `CELL_TEXT_TOO_LONG`, `SHEET_ROW_LIMIT_EXCEEDED`), and that the design adds a third ApiError code `WORKBOOK_UNSUPPORTED_MEDIA_TYPE` (415) that the endpoint spec does not list. No file edit.
+- [ ] 1.1 Confirm names before coding: record in the apply progress that design.md was aligned to the specs (issue `field`, `suggestedAction`, `summary.errorCount` and `warningCount`, params may be string, number or boolean, codes `FILE_NOT_XLSX`, `FILE_UNREADABLE`, `ZIP_*`, `MACROS_NOT_ALLOWED`, `CELL_TEXT_TOO_LONG`, `SHEET_ROW_LIMIT_EXCEEDED`), that the specs win if any wording still differs, and that the design and U1 add a third ApiError code `WORKBOOK_UNSUPPORTED_MEDIA_TYPE` (415) that the endpoint spec does not list. No file edit.
 - [ ] 1.2 RED: create `packages/contracts/src/workbook-schema.test.ts`: three data sheets plus `Instrucciones`, every column in spec order, required flags (product_key, handle, titulo; product_key, precio; product_key, archivo, orden), `EXAMPLE_PREFIX`, and the source has no `node:` import.
 - [ ] 1.3 GREEN: create `packages/contracts/src/workbook-schema.ts` (`SHEETS`, `COLUMNS` with required flags, `EXAMPLE_PREFIX`).
 - [ ] 1.4 RED: create `packages/contracts/src/validation-report.test.ts`: cell-level issue (error, Variantes, row 4, field precio, product key, non-empty texts), file-level issue with null sheet/row/field, unknown code fails, flat params of string, number or boolean, `fileSha256` is 64 lowercase hex, `valid` true if and only if `errorCount` is 0, `truncated` boolean.
 - [ ] 1.5 GREEN: create `packages/contracts/src/validation-report.ts` (`ValidationIssue`, `ValidationReport` zod schemas).
 - [ ] 1.6 RED: create `packages/contracts/src/issue-catalog.test.ts`: every code has a non-empty message and action, `DECIMAL_SCALE_EXCEEDED` with limit 4 and actual 5 shows both numbers, no `{` left after rendering with declared params, same input gives same text, every code declares its param keys.
-- [ ] 1.7 GREEN: create `packages/contracts/src/issue-catalog.ts` with `ISSUE_CODES` (file-level and structure codes only: FILE_NOT_XLSX, FILE_ENCRYPTED_OR_LEGACY, FILE_UNREADABLE, ZIP_*, MACROS_NOT_ALLOWED, EXTERNAL_LINKS_NOT_ALLOWED, EMBEDDED_CONTENT_NOT_ALLOWED, FORMULA_NOT_ALLOWED, SHEET_*_LIMIT_EXCEEDED, CELL_TEXT_TOO_LONG, SHEET_MISSING, SHEET_DUPLICATE, HEADER_MISSING, HEADER_DUPLICATE, unknown-header and hidden-content warnings), `ISSUE_PARAM_KEYS`, `ISSUE_MESSAGES_ES`, `renderIssue()`. Later units append their codes.
+- [ ] 1.7 GREEN: create `packages/contracts/src/issue-catalog.ts` with `ISSUE_CODES` (file-level and structure codes only: FILE_NOT_XLSX, FILE_ENCRYPTED_OR_LEGACY, FILE_UNREADABLE, ZIP_*, MACROS_NOT_ALLOWED, EXTERNAL_LINKS_NOT_ALLOWED, EMBEDDED_CONTENT_NOT_ALLOWED, FORMULA_NOT_ALLOWED, SHEET_*_LIMIT_EXCEEDED, CELL_TEXT_TOO_LONG, SHEET_MISSING, SHEET_DUPLICATE, HEADER_MISSING, HEADER_DUPLICATE, the warnings `HEADER_UNKNOWN` and `HIDDEN_CONTENT`), `ISSUE_PARAM_KEYS`, `ISSUE_MESSAGES_ES`, `renderIssue()`. Later units append their codes.
 - [ ] 1.8 RED: modify `packages/contracts/src/api-error.test.ts` to accept `WORKBOOK_FILE_REQUIRED`, `WORKBOOK_TOO_LARGE`, `WORKBOOK_UNSUPPORTED_MEDIA_TYPE` and still accept the two existing codes.
 - [ ] 1.9 GREEN: modify `packages/contracts/src/api-error.ts` with the three codes.
 - [ ] 1.10 Export the new modules from `packages/contracts/src/index.ts`; run `pnpm --filter @importer/web test` to confirm the closed enum change breaks nothing.
@@ -110,7 +112,7 @@ Satisfies: workbook-contract (matching, cell model, tags), file-safety (cap defa
 
 ## Phase 3: U3a OOXML writer and fixture builder
 
-Satisfies: workbook-template (Identifier columns keep text, Usability aids: writer primitives only). Provides the crafted-file builder for U3b, U3c, U4. Design D5, D15.
+Satisfies: workbook-template (Identifier columns keep text, Usability aids: writer primitives only). Provides the crafted-file builder for U3b1, U3b2, U3c, U4. Design D5, D15.
 
 - [ ] 3.1 Verify on Node 24 that `zlib.crc32` and `deflateRawSync` exist (design item VS1, first half); record the result. Fallback: a small table-driven CRC-32 in the writer.
 - [ ] 3.2 RED: create `apps/api/src/catalog-workbook/infrastructure/ooxml/zip-writer.test.ts`: local headers, central directory and end record are well formed, CRC matches `zlib.crc32`, stored and deflated entries, same input gives identical bytes (stable SHA-256).
@@ -123,24 +125,30 @@ Satisfies: workbook-template (Identifier columns keep text, Usability aids: writ
 - [ ] 3.9 GREEN: modify `apps/api/tsconfig.build.json` to exclude `src/**/test-support/**`.
 - [ ] 3.10 Run the focused test command, `pnpm build`, and confirm dist holds no test-support folder; record lines.
 
-## Phase 4: U3b ZIP preflight
+## Phase 4: U3b1 ZIP archive checks and U3b2 ZIP content checks
 
-Satisfies: workbook-file-safety (Preflight before parsing, Archive caps, Ambiguous archives, Macros/links/embedded, Formulas package scan). Design preflight steps 1 to 7. Size exception decision applies.
+Satisfies: workbook-file-safety (Preflight before parsing, Archive caps, Ambiguous archives, Macros/links/embedded, Formulas package scan). Design preflight steps 1 to 7. Two PRs, each within the 400-line budget: U3b1 (tasks 4.1 to 4.6, 4.10) holds steps 1 to 6; U3b2 (tasks 4.7 to 4.9, 4.11) holds step 7. Task ids are kept stable, so the gate tasks 4.10 and 4.11 come last in their unit.
 
-- [ ] 4.1 Verify VS1 second half: `inflateRawSync` with `maxOutputLength` throws at the bound. Fallback: a chunked inflate that counts output and aborts. Record the result.
+### U3b1 (branch `feat/workbook-u3b1-zip-archive-checks`, depends on U3a)
+
+- [ ] 4.1 (U3b1) Verify VS1 second half: `inflateRawSync` with `maxOutputLength` throws at the bound. Fallback: a chunked inflate that counts output and aborts. Record the result.
 - [ ] 4.2 Create `apps/api/src/catalog-workbook/ports/archive-inspector.port.ts` (`ArchiveInspector`, `Inspection`, `VerifiedArchive` with `formulaParts`, `ArchiveLimits`).
 - [ ] 4.3 RED (steps 1 to 5): create `infrastructure/zip/zip-preflight.int.test.ts` structure cases: random bytes `FILE_NOT_XLSX`, CFB header `FILE_ENCRYPTED_OR_LEGACY`, two end records or comment not at end, ZIP64 or multi-disk, 201 entries (limit 200, actual 201), cap override 10 versus 11 entries, encrypted flag, method 12, traversal and absolute names `ZIP_UNSAFE_ENTRY_NAME`, duplicate names after case folding `ZIP_AMBIGUOUS_ARCHIVE`, local header name mismatch, overlapping entries.
 - [ ] 4.4 GREEN: create `infrastructure/zip/central-directory.ts` (end record search, directory walk, local header checks, overlap check).
 - [ ] 4.5 RED (step 6): add cases: lying declared sizes rejected on real size, bomb beyond 150 MB or ratio 100 with limit and observed in params, inflation stops once the cap is crossed (bounded output observed), CRC and size mismatch, ratio rule only above 1 MiB.
 - [ ] 4.6 GREEN: create `infrastructure/zip/bounded-inflate.ts` and `infrastructure/zip/archive-preflight.ts` (steps 1 to 6).
-- [ ] 4.7 RED (step 7, split boundary): create `infrastructure/zip/content-scan.int.test.ts`: missing `[Content_Types].xml` or workbook part `FILE_NOT_XLSX`; `xl/vbaProject.bin`, macro content type and macrosheets `MACROS_NOT_ALLOWED` (renamed `catalogo.xlsx` still rejected); `xl/externalLinks/` and external relationship targets `EXTERNAL_LINKS_NOT_ALLOWED`; embeddings and ActiveX `EMBEDDED_CONTENT_NOT_ALLOWED`; sheet hyperlinks allowed; formula parts listed for plain, shared, array, dynamic and text-result formulas; several content findings returned together; a clean package yields no finding.
-- [ ] 4.8 GREEN: create `infrastructure/zip/content-scan.ts` and `infrastructure/zip/zip-archive-inspector.ts` implementing the port with `formulaParts`.
+- [ ] 4.10 U3b1 gate: run `pnpm --filter @importer/api exec vitest run src/catalog-workbook/infrastructure/zip/zip-preflight.int.test.ts` and `pnpm check`; measure hand-written lines (budget 400, planned ~230) and record them. Stop here: U3b2 starts on a branch based on U3b1.
+
+### U3b2 (branch `feat/workbook-u3b2-zip-content-checks`, depends on U3b1)
+
+- [ ] 4.7 RED (step 7): create `infrastructure/zip/content-scan.int.test.ts`: missing `[Content_Types].xml` or workbook part `FILE_NOT_XLSX`; `xl/vbaProject.bin`, macro content type and macrosheets `MACROS_NOT_ALLOWED` (renamed `catalogo.xlsx` still rejected); `xl/externalLinks/` and external relationship targets `EXTERNAL_LINKS_NOT_ALLOWED`; embeddings and ActiveX `EMBEDDED_CONTENT_NOT_ALLOWED`; sheet hyperlinks allowed; formula parts listed for plain, shared, array, dynamic and text-result formulas; several content findings returned together; a clean package yields no finding.
+- [ ] 4.8 GREEN: create `infrastructure/zip/content-scan.ts` and `infrastructure/zip/zip-archive-inspector.ts` implementing the port (archive checks from U3b1 plus the content scan) with `formulaParts`.
 - [ ] 4.9 Add the spy case: a crafted rejected archive never reaches a fake reader at the inspector level (the use-case level proof is in 11.9).
-- [ ] 4.10 Run the focused test command and `pnpm check`; measure lines. If over 400 and the maintainer asked for the split, cut after 4.6 into U3b-1 and U3b-2 (branch `feat/workbook-u3b2-content-scan`).
+- [ ] 4.11 U3b2 gate: run the focused test command (the whole zip folder) and `pnpm check`; measure hand-written lines (budget 400, planned ~200) and record them. Report any overrun, never trim.
 
 ## Phase 5: U3c Library spike
 
-Satisfies: design D4 (decision protocol). No spec requirement is asserted here. Probes check the library's raw output on U3a fixtures that passed U3b.
+Satisfies: design D4 (decision protocol). No spec requirement is asserted here. Probes check the library's raw output on U3a fixtures that passed U3b1 and U3b2.
 
 Exit criteria (all required before U4 starts):
 - Candidates probed in order: SheetJS CE 0.20.3, then `modern-xlsx` 1.2.1. The own reader is the fallback and is not probed.
@@ -282,11 +290,11 @@ Docs: the design lists no README or documentation change for S1, so no README ed
 | workbook-contract: Optional instructions sheet and unknown columns | 2 | 7.1 to 7.4 |
 | workbook-contract: Cell value model | 2 | 2.5, 2.6, 6.2, 6.3 |
 | workbook-contract: One barcode and comma tags | 2 | 2.9, 2.10, 10.3, 10.4 |
-| file-safety: ZIP preflight runs before parsing | 2 | 4.3 to 4.9, 11.9, 11.10 |
-| file-safety: Configurable archive caps | 4 | 2.3, 2.4, 4.3 to 4.6 |
-| file-safety: Ambiguous and unsafe archives | 2 | 4.3, 4.4 |
-| file-safety: Macros, external links, embedded content | 3 | 4.7, 4.8, 13.4 |
-| file-safety: Formulas are blocking | 3 | 4.7, 4.8, 6.2 to 6.5, 7.5, 7.6, 11.9 |
+| file-safety: ZIP preflight runs before parsing | 2 | U3b1: 4.3 to 4.6; U3b2: 4.7 to 4.9; 11.9, 11.10 |
+| file-safety: Configurable archive caps | 4 | 2.3, 2.4, U3b1: 4.3 to 4.6 |
+| file-safety: Ambiguous and unsafe archives | 2 | U3b1: 4.3, 4.4 |
+| file-safety: Macros, external links, embedded content | 3 | U3b2: 4.7, 4.8, 13.4 |
+| file-safety: Formulas are blocking | 3 | U3b2: 4.7, 4.8, 6.2 to 6.5, 7.5, 7.6, 11.9 |
 | file-safety: Sheet size caps | 3 | 6.2, 6.3, 7.5, 7.6 |
 | file-safety: No network and no writes | 2 | 11.9, 11.10, 13.4 |
 | rules: Structure rules | 4 | 7.1 to 7.4 |
@@ -324,6 +332,6 @@ Docs: the design lists no README or documentation change for S1, so no README ed
 | template: Template passes its own safety checks | 1 | 12.4, 12.5 |
 | template: Usability aids | 1 | 3.4, 3.5, 12.4 |
 
-Total: 47 requirements, 122 scenarios; none orphaned. U3c (spike, tasks 5.1 to 5.12) has no spec requirement of its own and exists to settle design D4. Design items to verify: VS1 (3.1, 4.1), VS2 (13.1), VS3 (5.1), VS4 (12.1).
+Total: 47 requirements, 122 scenarios; none orphaned. U3c (spike, tasks 5.1 to 5.12) has no spec requirement of its own and exists to settle design D4. U3b1 (tasks 4.1 to 4.6, 4.10) and U3b2 (tasks 4.7 to 4.9, 4.11) together cover the file-safety archive and content requirements. Task total: 123 checkbox tasks (Phase 1: 11, 2: 15, 3: 10, 4: 11 of which U3b1 7 and U3b2 4, 5: 12, 6: 8, 7: 9, 8: 3, 9: 3, 10: 7, 11: 11, 12: 9, 13: 7, 14: 7). Design items to verify: VS1 (3.1, 4.1), VS2 (13.1), VS3 (5.1), VS4 (12.1).
 
-Open points carried to apply (not blockers): the design names an ApiError 415 code the endpoint spec does not list (see 1.1); codes for unknown-header and hidden-content warnings are not named by the specs and are chosen in U1 and U5, then listed in the apply progress; the final uncompressed cap depends on the E8 measurement (5.7).
+Open points carried to apply (not blockers): the design and U1 add an ApiError 415 code the endpoint spec does not list (see 1.1); the codes for the unknown-header and hidden-content warnings are `HEADER_UNKNOWN` and `HIDDEN_CONTENT` (named in U1, emitted from U5), listed in the apply progress; the final uncompressed cap depends on the E8 measurement (5.7).

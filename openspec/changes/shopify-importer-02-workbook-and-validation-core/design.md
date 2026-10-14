@@ -25,11 +25,11 @@ This is approach A from the proposal. The domain is pure TypeScript: cell model,
 | D4 | XLSX library | Decided by the U3 spike (protocol below). Reading goes only through `WorkbookReader` | Picking a library now | Research left formula, text-cell and limit behaviour unconfirmed (deferred items). Fallback B replaces one adapter file |
 | D5 | Template writing | Own minimal OOXML writer in `infrastructure/ooxml/` (parts plus a ZIP writer using `deflateRawSync` and `zlib.crc32`). The test fixture builder builds on it | Writing with the spike library | The template content is fixed and small, and it needs exact output: text format `@` on code columns, a TRUE/FALSE list validation, a frozen header and column widths. Whether a library writer honours the text format is undocumented (C13). Owning the writer removes a dependency and gives deterministic bytes |
 | D6 | Upload transport | Raw body: `POST /api/workbook/validate` with `Content-Type` set to the XLSX MIME type or `application/octet-stream`. A bounded stream reader caps the size and computes SHA-256 in the same pass | Multipart with memory storage | No multipart parser to configure or harden. A cross-origin browser request with these content types gets a CORS preflight (multipart form posts do not), so the S0 allow-list applies in addition to the guard. The size cap is exact. Tests send bytes with `fetch` and need no form builder. S6 sends `fetch(url, { body: file })`. Cost: no filename is sent, and S1 does not need one |
-| D7 | Error split | Transport problems raise `ApiError` 4xx: missing or empty body 400 `WORKBOOK_FILE_REQUIRED`, wrong media type 415 `WORKBOOK_UNSUPPORTED_MEDIA_TYPE`, more bytes than the upload cap 413 `WORKBOOK_TOO_LARGE`. Every problem with the bytes themselves returns 200 with a report whose blocking issue has `sheet: null`: not a ZIP, encrypted or legacy file, bomb, macros, links, formulas, unreadable | Rejecting bad content with 422 | One rule: a request is a 4xx only when it could not deliver a file. Content always yields a report with the hash, so S6 renders a single shape |
+| D7 | Error split | Transport problems raise `ApiError` 4xx: missing or empty body 400 `WORKBOOK_FILE_REQUIRED`, wrong media type 415 `WORKBOOK_UNSUPPORTED_MEDIA_TYPE`, more bytes than the upload cap 413 `WORKBOOK_TOO_LARGE`. Every problem with the bytes themselves returns 200 with a report whose blocking issue has `sheet: null`: not a ZIP, encrypted or legacy file, bomb, macros, links, formulas, unreadable | Rejecting bad content with 422 | One rule: a request is a 4xx only when it could not deliver a file. Content always yields a report with the hash, so S6 renders a single shape. Note: the endpoint spec lists only 400 and 413 codes and does not name `WORKBOOK_UNSUPPORTED_MEDIA_TYPE`; the U1 contracts include it (three ApiError codes) |
 | D8 | Validation execution | Synchronous and in-process, one pipeline per request (decision 1a). Validation is CPU-bound and blocks the event loop, so validations run one at a time without any extra lock | Worker thread, queue, busy code | Simplest option that fits hundreds to low thousands of products. While a validation runs, `/health` can stall for its duration. This is accepted for a single local operator |
 | D9 | Decimals | `domain/fields/decimal-field.ts` adapts cells to `Money` (details below) | A decimal library; JS `number` | `Money` already rejects commas, exponents and `+`. S1 adds the scale, magnitude and sign policy (10a) |
-| D10 | Report text | Contracts hold `ISSUE_CODES` (closed zod enum), `ISSUE_PARAM_KEYS` and `ISSUE_MESSAGES_ES` (message and suggested-action templates). The API renders `message` and `action` into each issue with `renderIssue()` from contracts. The web can render again from `code` and `params` | Text only in `apps/web/i18n` | Decision 9a. Pure TypeScript with no Node built-ins, so both apps import it. The report is readable with `curl` |
-| D11 | Codes rollout | U1 adds the report model and the file-level and structure codes. Each rule unit appends its own codes and Spanish entries. A contracts test checks that every code has a message, an action and declared params | All roughly 70 codes in U1 | Keeps U1 within budget. Codes land with the rules that emit them (TDD) |
+| D10 | Report text | Contracts hold `ISSUE_CODES` (closed zod enum), `ISSUE_PARAM_KEYS` and `ISSUE_MESSAGES_ES` (message and suggested-action templates). The API renders `message` and `suggestedAction` into each issue with `renderIssue()` from contracts. The web can render again from `code` and `params` | Text only in `apps/web/i18n` | Decision 9a. Pure TypeScript with no Node built-ins, so both apps import it. The report is readable with `curl` |
+| D11 | Codes rollout | U1 adds the report model and the file-level and structure codes. Each rule unit appends its own codes and Spanish entries. A contracts test checks that every code has a message, a suggested action and declared params. The two warning codes the specs leave unnamed are decided in U1 and U5: `HEADER_UNKNOWN` (unknown column header, named in U1 with the structure codes, emitted from U5) and `HIDDEN_CONTENT` (hidden sheet, row or column that holds data, named in U1, emitted from U5) | All roughly 70 codes in U1 | Keeps U1 within budget. Codes land with the rules that emit them (TDD) |
 | D12 | Normalized model | `domain/catalog-draft.ts` (`CatalogDraft`) is returned by `ValidateWorkbookUseCase.execute()` next to the report, only when the report has zero errors. The controller sends only the report | Returning it over HTTP; persisting it | S4 consumes it in-process through the exported use case. HTTP stays a report contract |
 | D13 | SHA-256 | Lowercase hex of exactly the received bytes, computed with `createHash('sha256')` while streaming. Always present in a 200 report. Not computed for 4xx | Hashing in the use case | Single pass. The application layer stays free of `node:crypto` |
 | D14 | Truncation | `IssueCollector` counts every issue but stores at most `maxReportedIssues` (default 1,000) of each severity. Assembly sorts them, keeps errors before warnings up to the cap, and sets `truncated` | Unbounded list; stopping at the first N in rule order | Bounded memory. Summary counts stay exact. Errors are never hidden behind warnings |
@@ -40,13 +40,13 @@ This is approach A from the proposal. The domain is pure TypeScript: cell model,
 
 It runs on the full byte buffer, in this order. Structural failures stop at the first problem. Content findings (step 7) are collected together.
 
-1. **Magic bytes.** The file must start with `PK\x03\x04`. An OLE/CFB header (`D0 CF 11 E0`) means encrypted or legacy XLS: `FILE_ENCRYPTED_OR_LEGACY`. Anything else is `FILE_NOT_XLSX`.
+1. **Magic bytes.** The file must start with `PK\x03\x04`. An OLE/CFB header (`D0 CF 11 E0`) means encrypted or legacy XLS: `FILE_ENCRYPTED_OR_LEGACY`. Anything else is `FILE_NOT_XLSX`. (Steps 1 to 6 are delivered in U3b1, step 7 in U3b2.)
 2. **End of central directory (EOCD).** Search backward over the last 65,557 bytes. Reject the archive when there is not exactly one EOCD, when the comment does not end exactly at end of file, and when the archive is multi-disk or ZIP64 (sentinel values or a ZIP64 locator). An XLSX file within the caps never needs ZIP64.
 3. **Entry count.** At most `maxEntries` (200), from the EOCD, and confirmed while walking the directory.
 4. **Central directory walk.** Reject the encrypted flag (bit 0), and any compression method other than 0 or 8. Names must be non-empty, contain no NUL, backslash or drive prefix, not start with `/`, and contain no `..` segment. Reject names that are duplicates after case-folding (OPC part names are case-insensitive). The sum of declared uncompressed sizes must be at most `maxUncompressedBytes`.
 5. **Local headers.** Each one must lie inside the file with a valid signature and the same name as its central record. Sort the data ranges by offset: they must not overlap, and all must end before the central directory. This rejects overlapping-entry bombs.
 6. **Bounded real inflation.** Inflate each entry with `inflateRawSync(..., { maxOutputLength: min(remaining budget, declared size) + 1 })` **[VS]**. Then require: actual size equal to declared size; matching `zlib.crc32`; total at most `maxUncompressedBytes`; and, for entries above 1 MiB, an actual/compressed ratio of at most `maxRatio` (100). Inflated buffers are discarded right away. Only the small control parts and worksheet XML are scanned (step 7).
-7. **Content.** Require `[Content_Types].xml` and `xl/workbook.xml`, else `WORKBOOK_PART_MISSING`. Reject: any `vbaProject` part, macro content types and `xl/macrosheets/` (`WORKBOOK_MACROS`); `xl/externalLinks/` or a `TargetMode="External"` relationship in `xl/_rels/workbook.xml.rels` (`WORKBOOK_EXTERNAL_LINKS`); `xl/embeddings/`, `xl/activeX/` (`WORKBOOK_EMBEDDED_CONTENT`). Hyperlinks in sheet relationship parts are allowed. Each worksheet part is scanned for a `<f` element (prefix-tolerant regex), and the inspection reports `formulaParts`.
+7. **Content.** Require `[Content_Types].xml` and `xl/workbook.xml`, else `FILE_NOT_XLSX`. Reject: any `vbaProject` part, macro content types and `xl/macrosheets/` (`MACROS_NOT_ALLOWED`); `xl/externalLinks/` or a `TargetMode="External"` relationship in `xl/_rels/workbook.xml.rels` (`EXTERNAL_LINKS_NOT_ALLOWED`); `xl/embeddings/`, `xl/activeX/` (`EMBEDDED_CONTENT_NOT_ALLOWED`). Hyperlinks in sheet relationship parts are allowed. Each worksheet part is scanned for a `<f` element (prefix-tolerant regex), and the inspection reports `formulaParts`.
 
 Default caps, in `DEFAULT_WORKBOOK_LIMITS`:
 
@@ -67,7 +67,7 @@ Spike measurement E8 may lower the uncompressed cap (see below).
 
 | Step | Rule |
 |---|---|
-| Inputs | The fixture matrix from U3a and preflight-cleared bytes from U3b |
+| Inputs | The fixture matrix from U3a and preflight-cleared bytes from U3b1 and U3b2 |
 | Probes | One `*.int.test.ts` per candidate. It checks the library's raw output against each fixture: what the library returns, never our adapter |
 | Order | SheetJS CE 0.20.3, then `modern-xlsx` 1.2.1. The own reader is not probed: it is the fallback |
 | Must pass | E2: a leading-zero text cell (`s`, `str`, `inlineStr`) comes back as exactly that text. E3: a numeric cell is identifiable as numeric and its decimal text is recoverable without display formatting. E4: booleans, errors, `t="d"`, rich text and whitespace-only cells are distinguishable and unmodified. E5: hidden sheet, row and column flags are reported. E6: the original 1-based rows survive gaps. E7: ESM import works under Node 24 and Vitest, with no network, filesystem, eval or install scripts, and the license is acceptable |
@@ -98,12 +98,12 @@ interface WorkbookReader { read(bytes: Uint8Array, archive: VerifiedArchive, lim
 interface TemplateWriter { write(definition: TemplateDefinition): Uint8Array }   // deterministic bytes (fixed docProps timestamps)
 ```
 
-`ReadResult` is either `{ ok: true, sheets }` or a file-level failure (`WORKBOOK_UNREADABLE`, `SHEET_TOO_MANY_ROWS`, `SHEET_TOO_MANY_COLUMNS`, `CELL_TOO_LONG`).
+`ReadResult` is either `{ ok: true, sheets }` or a file-level failure (`FILE_UNREADABLE`, `SHEET_ROW_LIMIT_EXCEEDED`, `SHEET_COLUMN_LIMIT_EXCEEDED`, `CELL_TEXT_TOO_LONG`).
 
 ### Validation pipeline (`application/validate-workbook.use-case.ts`)
 
 1. **Preflight.** A failure produces file-level issues, and the pipeline stops.
-2. **Read.** A failure produces a file-level issue, and the pipeline stops. If `formulaParts` is non-empty but the reader flagged no formula, the pipeline adds a file-level `WORKBOOK_FORMULAS` (guard against the two parsers disagreeing).
+2. **Read.** A failure produces a file-level issue, and the pipeline stops. If `formulaParts` is non-empty but the reader flagged no formula, the pipeline adds a file-level `FORMULA_NOT_ALLOWED` (guard against the two parsers disagreeing).
 3. **Structure** (`domain/structure/`). Sheet and header keys are matched with `matchKey(s) = NFD, strip \p{M}, trim, lowercase` (7a). The header is row 1. Missing required sheets or columns, and duplicates, block. Unknown sheets and columns warn. `Instrucciones` is recognized and ignored. Formula, error and over-long cells block, and they are reported per cell. Hidden sheets, rows and columns that hold data warn. Rows whose mapped cells are all blank or whitespace are skipped.
 4. **Row parsing.** Field parsers (`domain/fields/`) turn cells into typed `ProductRow`, `VariantRow` and `ImageRow` records. Each keeps `sourceRow`, and a field becomes `undefined` when it is invalid, so later rules do not cascade errors from it.
 5. **Per-sheet rules** (`domain/rules/`). Productos, Variantes (identity, SKU and options; values) and Imagenes. Each rule is a pure `(rows, sink) => void`.
@@ -130,10 +130,10 @@ Field parser policy (all pure functions returning `{ value } | { issue }`):
 
   ```ts
   ValidationIssue = { code: IssueCode; severity: 'error' | 'warning'; sheet: SheetName | null; row: number | null;
-                      column: string | null; productKey: string | null; params: Record<string, string | number>;
-                      message: string; action: string }
+                      field: string | null; productKey: string | null; params: Record<string, string | number | boolean>;
+                      message: string; suggestedAction: string }
   ValidationReport = { fileSha256: string /* 64 hex */; valid: boolean;
-                       summary: { errors: number; warnings: number; products: number; variants: number; images: number };
+                       summary: { errorCount: number; warningCount: number; products: number; variants: number; images: number };
                        issues: ValidationIssue[]; truncated: boolean }
   ```
 
@@ -226,7 +226,8 @@ Fixture matrix (builder-generated, nothing binary committed): valid simple produ
 | U1 | Contracts: schema constants, report, file-level and structure codes, catalog, `ApiError` | ~300 |
 | U2 | Domain: limits, cell model, `matchKey`, field parsers, image path, collector; lint (D2) | ~380 |
 | U3a | Own OOXML and ZIP writer, test fixture builder | ~330 |
-| U3b | ZIP preflight and its port | ~400 **(likely exception)** |
+| U3b1 | ArchiveInspector port, ZIP archive checks (preflight steps 1 to 6) | ~230 |
+| U3b2 | Content checks (step 7: macros, links, embedded content, formula scan) and the inspector | ~200 |
 | U3c | Spike probes, findings, vendoring or pin | ~200 |
 | U4 | Reader adapter, contract suite, formula disagreement guard | ~320 |
 | U5 | Structure and Productos rules | ~330 |
@@ -236,7 +237,7 @@ Fixture matrix (builder-generated, nothing binary committed): valid simple produ
 | U9 | Template content, writer adapter, module, `GET` | ~350 |
 | U10 | `POST`, bounded body, filter, wiring, HTTP tests | ~350 |
 
-U3 is pre-split into three units. If U3b still exceeds the budget, split it at the boundary between steps 1 to 6 (archive) and step 7 (content). U6 is pre-split into two. Under `ask-on-risk` the remaining overrun is asked about after the tasks forecast.
+U3 is split into four units (U3a, U3b1, U3b2, U3c); U3b1 holds preflight steps 1 to 6 (archive) and U3b2 holds step 7 (content), by maintainer decision on 2026-10-14. U6 is pre-split into two. Under `ask-on-risk` the remaining overrun is asked about after the tasks forecast.
 
 ## Threat Matrix
 
@@ -252,7 +253,7 @@ Real Excel behaviour (it is simulated only by generated fixtures): whether it ke
 
 ## To Verify (VS)
 
-1. `inflateRawSync` `maxOutputLength` throws at the bound, and `zlib.crc32` exists on Node 24 (U3b).
+1. `inflateRawSync` `maxOutputLength` throws at the bound, and `zlib.crc32` exists on Node 24 (U3a and U3b1).
 2. Nest 12 Express leaves `application/octet-stream` and the XLSX MIME type unread, and `@Req()` streaming works under ESM (U10).
 3. pnpm 12 `file:` tarball integrity in the lockfile; `minimumReleaseAge` and `allowBuilds` for `modern-xlsx`; WASM initialization under Vitest (U3c).
 4. `StreamableFile` headers for the download (U9).
@@ -265,5 +266,5 @@ None blocks tasks. Each needs the delta spec to agree:
 - [ ] The header row is fixed at row 1.
 - [ ] Image `archivo` accepts relative local paths only; URLs are rejected (S3 may revisit).
 - [ ] External hyperlinks in sheets are allowed; only workbook-level external links block.
-- [ ] Issues carry the rendered Spanish `message` and `action` in addition to `code` and `params` (D10).
+- [ ] Issues carry the rendered Spanish `message` and `suggestedAction` in addition to `code` and `params` (D10).
 - [ ] The final value of the uncompressed cap depends on spike measurement E8.
