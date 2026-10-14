@@ -206,9 +206,9 @@ Carry-over from U5: assert RedactingLogger is assignable to the Nest LoggerServi
 
 Satisfies: health-check (healthy, database down, no leakage, foreign origin read), persistence-baseline (readiness signal).
 
-- [ ] 14.1 RED: create `apps/api/src/health/health.int.test.ts`: 200 body validates `HealthResponse` with `database: up`; database removed gives 503 with `degraded` and `down`; body contains neither the key value nor any path; foreign-origin GET /health returns the body and no allow header.
-- [ ] 14.2 GREEN: create `apps/api/src/health/health.controller.ts` and `health.module.ts`; import in `app.module.ts`.
-- [ ] 14.3 Run the runtime harness: boot the API against a temp `DATA_DIR`, then `curl --fail http://127.0.0.1:<port>/health`.
+- [x] 14.1 RED: create `apps/api/src/health/health.int.test.ts`: 200 body validates `HealthResponse` with `database: up`; database removed gives 503 with `degraded` and `down`; body contains neither the key value nor any path; foreign-origin GET /health returns the body and no allow header.
+- [x] 14.2 GREEN: create `apps/api/src/health/health.controller.ts` and `health.module.ts`; import in `app.module.ts`.
+- [x] 14.3 Run the runtime harness: boot the API against a temp `DATA_DIR`, then `curl --fail http://127.0.0.1:<port>/health`.
 
 ## Phase 15: U15 Web scaffold
 
