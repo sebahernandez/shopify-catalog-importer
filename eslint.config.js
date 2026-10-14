@@ -20,7 +20,13 @@ const PRISMA = {
   message: 'Keep persistence out of this layer.',
 };
 const OTHER_MODULES = {
-  group: ['**/persistence/**', '**/local-security/**', '**/health/**', '**/config/**'],
+  group: [
+    '**/persistence/**',
+    '**/local-security/**',
+    '**/health/**',
+    '**/config/**',
+    '**/catalog-workbook/**',
+  ],
   message: 'The shared kernel must not depend on other modules.',
 };
 const INFRASTRUCTURE = {
@@ -121,6 +127,18 @@ export default defineConfig(
       'no-restricted-imports': [
         'error',
         { patterns: [NEST, PRISMA, OTHER_MODULES, INFRASTRUCTURE] },
+      ],
+    },
+  },
+
+  {
+    // The workbook domain and application layers stay pure; tests may use a file-system spy.
+    files: ['apps/api/src/catalog-workbook/{domain,application}/**/*.ts'],
+    ignores: ['**/*.test.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [...BUILT_INS, NEST, PRISMA, INFRASTRUCTURE] },
       ],
     },
   },
