@@ -920,3 +920,102 @@ Hand-written lines on the branch, excluding openspec: 2,138 added and 3 removed 
 | Full gate | `pnpm check` exit 0 (2,969 API tests, 42 contracts, 2 skipped); `pnpm build` exit 0 |
 | Runtime harness | built program run described above |
 | Rollback boundary | apps/api/src/main.ts, app.module.ts (back to the empty module), key-boot.ts, process-exit.ts, local-security/cors-middleware.ts and bind-policy.ts with their tests, the three added BootError codes, the no-ship test additions; the tasks.md checkboxes and this batch |
+
+## Batch 14: U14 Health endpoint
+
+Branch `feat/foundation-u14-health`. Tasks 14.1 to 14.3 complete (3/3 of Phase 14; 55 of 65 overall, counting as native SDD status does). Mode: Strict TDD.
+Commits: d0057ac (route, module, wiring, core HTTP suite), fc9bfc8 (leakage and read-only proofs), plus a docs commit for this file and the checkboxes.
+
+### Response matrix (design Interfaces, as implemented)
+
+| Database state | Status | Body |
+|---|---|---|
+| Reachable | 200 | status ok, database up, shopifyApiVersion from configuration |
+| Service disconnected, file removed, file replaced (different inode) | 503 | status degraded, database down, same version |
+| The check throws, rejects or answers anything other than true | 503 | same degraded body, no error text |
+
+Same three fields in every case; the schema is the contracts package one, validated with the strict form in the tests. The table-missing case is NOT detected by the readiness check (it runs a plain select and compares the file identity), so a dropped table keeps answering 200; no test pins that limitation.
+
+### Structure and the lint rules
+
+The lint config restricts NestJS only in the shared kernel and in ports, so the controller may import it. The decision lives in a framework-free function, `health-report.ts` (`reportHealth(check, version)`), the controller is a thin adapter with explicit `@Inject(PRISMA_SERVICE)` and `@Inject(APP_CONFIG)`, and `HealthModule.forRoot(config, persistence)` takes the two dynamic modules `AppModule` already builds (one persistence object is now shared by `AppModule` and `HealthModule`). The status code is set with a pass-through response (a minimal one-member interface, as the filter does). The route is `@Controller('health')` at the root; the boot already excluded it from the global prefix.
+
+### Router behaviour
+
+- GET and HEAD at the health route: answered (HEAD without a body).
+- The api-prefixed path: 404.
+- POST, PUT, PATCH, DELETE at the health route: 404, handler not run. Because the route has no handler for those methods, the guard never runs for them (as recorded in U13 for unrouted requests), so a foreign-origin POST gets 404 too, with no allow header and no handler run. With a temporary all-methods handler the same four tests fail, and the foreign-origin POST is then answered by the guard.
+- Host not allowed on GET: 403 with the ApiError body, handler not run.
+
+### TDD Cycle Evidence
+
+| Task | Test file | Layer | Safety net | RED | GREEN | Triangulate | Refactor |
+|---|---|---|---|---|---|---|---|
+| 14.2 decision | apps/api/src/health/health-report.test.ts | Unit | N/A (new) | Failed: the module health-report could not be resolved | 7/7 | up, down, two versions, rejecting check, synchronously throwing check, non-true value, strict schema parse | Lint fix (useless assignment) |
+| 14.1/14.2 HTTP | apps/api/src/health/health.int.test.ts | Integration (real application on loopback port 0, temp dirs) | 48/48 (main and no-ship suites) | 15 of 22 failed with expected 404 to be 200 (no route); the 7 that passed were 404 or absence assertions, later proven by mutation | 22/22, then 29/29 | healthy with two versions, root versus prefix, HEAD, three real database failures, two stubbed failures, recovery, foreign origin both states, allowed origin, bad Host, four methods, foreign POST, 20 concurrent in both states | typing of the connect spy replaced by the recorded this of a call-through spy |
+| 14.1 proofs | same file | Integration | 22/22 | tests added over existing behaviour; proven by mutation below | 36/36 | key in six forms plus the file line, five paths, tmpdir, Node version, V8 version, a driver message carrying all markers; healthy, three degraded cases, removed file; 25-call read-only runs in three states | Own disconnect checkpoints the log, so that test reads its baseline after the disconnect |
+| 14.2 wiring | apps/api/src/local-security/no-test-route-ships.test.ts | Unit | 7/7 | 1 failed: imports length 3 expected, 4 received | 7/7 | now asserts exactly one controller, the health one, among four imports | None needed |
+| 14.3 | built program | Runtime | n/a | n/a | see harness | n/a | n/a |
+
+### Mutation checks (each restored, folder re-run green 36/36)
+
+| Mutation | Result |
+|---|---|
+| Version hard-coded | 16 failed |
+| 200 returned when the database is down | 8 failed |
+| Error rethrown instead of 503 | 4 failed (first attempt used a multi-line pattern that did not match and survived; redone with an edit) |
+| Route moved under the prefix (exclusion removed) | 16 failed |
+| Module import dropped from AppModule | 16 failed (plus the wiring test) |
+| Host check bypassed for the health route | 1 failed |
+| Data directory added to the body | 15 failed |
+| Error text added to the body | 4 failed |
+| Handler inserts a row | 5 failed |
+| Handler writes a file in the data directory | 2 failed |
+| Handler reconnects when the database is down | 2 failed |
+| Handler logs the data directory through the application logger | 3 failed (a console.log variant survived because it bypasses the captured logger; not a path the application uses) |
+| Response header carries the Node version | 3 failed |
+| All-methods handler instead of GET | 4 failed |
+
+### Leakage markers
+
+The key in base64 (padded and not), base64url (padded and not), hex lower and upper case, and the key file line; the workspace root, its random folder name, the data directory, the database file path, the key file path, the home directory, the OS temp directory; the Node version in both spellings and the V8 version; and a driver error message carrying every marker. Asserted absent from the whole serialised reply (status, headers, body) for 200 (GET, foreign-origin GET, HEAD) and 503 (stubbed rejection, disconnected service, removed file), and from every captured log line of the run. The Express X-Powered-By header is still sent (no version); it was not changed because the app-wide setting belongs to the boot unit.
+
+### Read-only proof
+
+Before and after 50 calls (GET and HEAD, with and without a foreign origin): the data directory file list, the database size and modification time, every app_setting row (key, stored envelope, updated_at), and the key file bytes are equal. With the file removed, five calls leave the directory listing unchanged and the file absent. With the service disconnected, the database state is unchanged.
+
+### Runtime harness (task 14.3)
+
+Built program (`pnpm build`, then the built entry run with Node 24 under an empty inherited environment) with explicit HOME, DATA_DIR (mode 700), SECRET_KEY_FILE, API_HOST 127.0.0.1, API_PORT (an ephemeral port checked free) and SHOPIFY_API_VERSION 2031-07, all inside a fresh scratch folder; the baseline SQL applied first with the better-sqlite3 driver. Two earlier attempts failed on harness setup only (a data folder that was not mode 700; then the database removed by the first attempt's own step), both stopped at start-up with the typed error before listening. The successful run: `curl --fail` on the loopback health URL gave 200 and the body `{"status":"ok","database":"up","shopifyApiVersion":"2031-07"}`; the api-prefixed path 404; a wrong Host 403 with the ApiError body; after removing the database file `curl --fail` exited 22 (HTTP 503) and the body was the degraded one; 11 JSON log lines and 0 bytes on stderr; key file mode 600. SIGTERM, process gone, no listener left, scratch folder removed.
+
+### Decisions where the design was silent
+
+- Non-GET methods get the router's 404, not 405 (no handler is declared; nothing was added to produce a 405).
+- HEAD is answered like GET (Express behaviour); it is a safe method and read-only.
+- The check is asked on every request and nothing is cached or throttled.
+- `reportHealth` treats only the value true as reachable, so a malformed answer fails closed to 503.
+- The unreachable path never logs (the error is dropped inside `reportHealth`), so no error text can reach the logger either.
+- The existing wiring test in the local-security folder was updated, as its own comment anticipated: it now expects four imports and exactly one controller, the health one.
+
+### Spec traceability
+
+| Scenario | Test |
+|---|---|
+| health-check: Healthy | health.int.test.ts "answers 200 with the shared body, reading the pinned version from configuration"; health-report.test.ts |
+| health-check: Database down | health.int.test.ts "GET /health when the database is not reachable" (disconnected, file removed, file replaced, check throws, recovery) |
+| health-check: No leakage | health.int.test.ts "what the answer and the logs never contain" (healthy, degraded, file gone) |
+| health-check: Foreign origin read | health.int.test.ts "the local request guard around GET /health" (foreign origin runs the handler, no allow header; bad Host rejected) |
+| Health is read-only | health.int.test.ts "GET /health is read-only" (three tests) and the mutation checks above |
+| persistence-baseline: readiness signal | the not-reachable block consumes isReachable() through the real service (disconnected, removed, replaced) |
+| Web shell boot (both scenarios) | open: U15 and U16 |
+
+### Size
+
+Hand-written lines on the branch, excluding openspec: 679 added and 6 removed (source 91 plus 6 and 3 in app.module.ts, tests about 590) against a 400 budget and a ~145 forecast (4.7 times). By commit: route and core suite 489 (source about 91, tests about 398), proofs 200. Not trimmed. A `size:exception` is recommended, or the PR can be sliced along the two commits (489 and 200).
+
+| Evidence | Value |
+|---|---|
+| Focused test | `pnpm --filter @importer/api exec vitest run src/health`: 2 files, 36 tests passed |
+| Full gate | `pnpm check` exit 0 (3,005 API tests); `pnpm build` exit 0 |
+| Runtime harness | built program run described above |
+| Rollback boundary | apps/api/src/health/**, the health import in app.module.ts (and the shared persistence constant), the updated no-ship wiring test; the tasks.md checkboxes and this batch |
