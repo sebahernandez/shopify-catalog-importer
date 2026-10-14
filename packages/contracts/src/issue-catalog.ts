@@ -34,6 +34,11 @@ export const ISSUE_CODES = z.enum([
   'HANDLE_INVALID_FORMAT',
   'EXAMPLE_PRODUCT',
   'TAG_LIMIT_EXCEEDED',
+  'SKU_MISSING',
+  'SKU_DUPLICATE_IN_PRODUCT',
+  'SKU_DUPLICATE_ACROSS_PRODUCTS',
+  'NUMERIC_IDENTIFIER_CELL',
+  'NUMERIC_IDENTIFIER_UNSAFE',
 ]);
 
 export type IssueCode = z.infer<typeof ISSUE_CODES>;
@@ -69,6 +74,11 @@ export const ISSUE_PARAM_KEYS: Readonly<Record<IssueCode, readonly string[]>> = 
   HANDLE_INVALID_FORMAT: [],
   EXAMPLE_PRODUCT: [],
   TAG_LIMIT_EXCEEDED: [],
+  SKU_MISSING: [],
+  SKU_DUPLICATE_IN_PRODUCT: ['firstRow'],
+  SKU_DUPLICATE_ACROSS_PRODUCTS: ['firstRow'],
+  NUMERIC_IDENTIFIER_CELL: [],
+  NUMERIC_IDENTIFIER_UNSAFE: [],
 };
 
 interface IssueTemplate {
@@ -200,6 +210,26 @@ export const ISSUE_MESSAGES_ES: Readonly<Record<IssueCode, IssueTemplate>> = {
     message:
       'Las etiquetas superan el límite: más de 250 etiquetas o alguna de más de 255 caracteres.',
     suggestedAction: 'Reduce la cantidad de etiquetas o acorta las más largas.',
+  },
+  SKU_MISSING: {
+    message: 'Esta variante no tiene SKU.',
+    suggestedAction: 'Completa el sku si lo necesitas para identificar la variante.',
+  },
+  SKU_DUPLICATE_IN_PRODUCT: {
+    message: 'El sku ya se usó en la fila {firstRow} para el mismo producto.',
+    suggestedAction: 'Usa un sku distinto para cada variante del producto.',
+  },
+  SKU_DUPLICATE_ACROSS_PRODUCTS: {
+    message: 'El sku ya se usó en la fila {firstRow} en otro producto.',
+    suggestedAction: 'Revisa que repetir el sku entre productos sea intencional.',
+  },
+  NUMERIC_IDENTIFIER_CELL: {
+    message: 'La celda es numérica; si el código empezaba con ceros, Excel pudo haberlos perdido.',
+    suggestedAction: 'Da formato de texto a la columna y vuelve a escribir el código completo.',
+  },
+  NUMERIC_IDENTIFIER_UNSAFE: {
+    message: 'La celda numérica tiene 16 o más dígitos o está en notación científica.',
+    suggestedAction: 'Da formato de texto a la columna y vuelve a escribir el código completo.',
   },
 };
 
