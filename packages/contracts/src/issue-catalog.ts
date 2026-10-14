@@ -44,6 +44,17 @@ export const ISSUE_CODES = z.enum([
   'OPTION_INCOMPLETE',
   'VARIANT_COUNT_HIGH',
   'OPTION_VALUE_TOO_LONG',
+  'DECIMAL_AMBIGUOUS',
+  'DECIMAL_INVALID',
+  'DECIMAL_SCALE_EXCEEDED',
+  'DECIMAL_MAGNITUDE_EXCEEDED',
+  'PRICE_NEGATIVE',
+  'PRICE_ZERO',
+  'COMPARE_AT_BELOW_PRICE',
+  'BARCODE_MULTIPLE',
+  'BOOLEAN_INVALID',
+  'STOCK_INVALID',
+  'INVENTORY_FLAG_REQUIRED',
 ]);
 
 export type IssueCode = z.infer<typeof ISSUE_CODES>;
@@ -89,6 +100,17 @@ export const ISSUE_PARAM_KEYS: Readonly<Record<IssueCode, readonly string[]>> = 
   OPTION_INCOMPLETE: [],
   VARIANT_COUNT_HIGH: ['count'],
   OPTION_VALUE_TOO_LONG: [],
+  DECIMAL_AMBIGUOUS: [],
+  DECIMAL_INVALID: [],
+  DECIMAL_SCALE_EXCEEDED: [],
+  DECIMAL_MAGNITUDE_EXCEEDED: [],
+  PRICE_NEGATIVE: [],
+  PRICE_ZERO: [],
+  COMPARE_AT_BELOW_PRICE: [],
+  BARCODE_MULTIPLE: [],
+  BOOLEAN_INVALID: [],
+  STOCK_INVALID: [],
+  INVENTORY_FLAG_REQUIRED: [],
 };
 
 interface IssueTemplate {
@@ -262,6 +284,55 @@ export const ISSUE_MESSAGES_ES: Readonly<Record<IssueCode, IssueTemplate>> = {
   OPTION_VALUE_TOO_LONG: {
     message: 'El valor de la opción supera los 255 caracteres.',
     suggestedAction: 'Acorta el valor de la opción.',
+  },
+  DECIMAL_AMBIGUOUS: {
+    message:
+      'El número usa coma o separadores de miles, por lo que no se puede interpretar con certeza.',
+    suggestedAction:
+      'Escribe el número con punto decimal y sin separadores de miles, por ejemplo 1999.99.',
+  },
+  DECIMAL_INVALID: {
+    message: 'El valor no es un número decimal válido.',
+    suggestedAction:
+      'Escribe solo dígitos con punto decimal opcional, sin texto ni notación científica.',
+  },
+  DECIMAL_SCALE_EXCEEDED: {
+    message: 'El número tiene más de 4 decimales.',
+    suggestedAction: 'Reduce el número a un máximo de 4 decimales.',
+  },
+  DECIMAL_MAGNITUDE_EXCEEDED: {
+    message: 'El número es demasiado grande: debe ser menor que 1000000000000.',
+    suggestedAction: 'Escribe un valor menor que 1000000000000.',
+  },
+  PRICE_NEGATIVE: {
+    message: 'El monto no puede ser negativo.',
+    suggestedAction: 'Escribe un monto igual o mayor que cero.',
+  },
+  PRICE_ZERO: {
+    message: 'El precio es cero.',
+    suggestedAction: 'Confirma que la variante debe venderse a precio cero.',
+  },
+  COMPARE_AT_BELOW_PRICE: {
+    message: 'El precio de comparación es menor que el precio.',
+    suggestedAction: 'Usa un precio de comparación mayor que el precio, o déjalo vacío.',
+  },
+  BARCODE_MULTIPLE: {
+    message: 'La celda contiene más de un código de barras.',
+    suggestedAction: 'Deja un solo código de barras por variante.',
+  },
+  BOOLEAN_INVALID: {
+    message: 'El valor no es un sí o no reconocido.',
+    suggestedAction: 'Escribe verdadero, falso, sí, no, true, false, 1 o 0.',
+  },
+  STOCK_INVALID: {
+    message: 'El stock debe ser un número entero igual o mayor que cero.',
+    suggestedAction:
+      'Escribe una cantidad entera sin decimales ni texto; es obligatoria si se gestiona inventario.',
+  },
+  INVENTORY_FLAG_REQUIRED: {
+    message: 'Hay stock, pero la columna gestionar_inventario está vacía.',
+    suggestedAction:
+      'Indica en gestionar_inventario si se gestiona el inventario de esta variante.',
   },
 };
 
