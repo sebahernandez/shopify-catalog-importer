@@ -236,3 +236,31 @@ Lines, blank lines and comments included: content-scan 53, zip-archive-inspector
 - `formulaParts` lists worksheet parts directly under xl/worksheets whose XML has an f element (prefix tolerant). It is only filled when there are no content findings.
 - `ZipArchiveInspector` is not wired into any Nest module; U9 and U10 do that.
 - The builder's extra parts are not registered in content types; macro content types are tested by replacing the content types part.
+
+## U3c Library spike: complete (5.1 to 5.12)
+
+Branch: feat/workbook-u3c-library-spike. Strict TDD where code was produced, Node 24. Full evidence in spike-findings.md.
+
+### Outcome
+
+SheetJS CE 0.20.3 passed every must-pass and should-pass criterion, so it is chosen. modern-xlsx was not probed and fallback B is not needed. Tarball SHA-256 8dc73fc3b00203e72d176e85b50938627c7b086e607c682e8d3c22c02bb99fe8, vendored under vendor/sheetjs with the recorded hash file and the Apache-2.0 license; pnpm 12 recorded the sha512 integrity in the lockfile. The 150 MB uncompressed cap stays (peak RSS 1.21 GB at 156 MB, below 1.5 GB).
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 5.4 probe | Two failures from wrong fixture expectations (shared-formula shift; missing shared string table makes the sheet vanish) | 8 probe tests pass | Probes check raw library output on fixtures that first pass the real ZipArchiveInspector. |
+| 5.8 integrity | Corrupted recorded hash gave one failure (expected hash against computed hash) | 3 tests pass | Recomputes sha256, checks the lockfile sha512, checks the license file. |
+
+### Measured size
+
+sheetjs-probe.int.test 206 lines, vendor-integrity.int.test 28 lines: 234 hand-written lines against the 400 budget (planned about 200). Vendored tarball, lockfile and records are excluded.
+
+### Decisions and hazards for U4
+
+- Parse with cellFormula, cellDates and cellStyles on. cellDates keeps t="d" distinct; cellStyles is required for hidden row and column flags.
+- A t="s" cell with no shared string table makes the sheet disappear silently: U4 must treat a sheet name without a sheet object as a structure failure.
+- cellStyles on a package with no styles part parses about 10 times slower; avoid it in that case.
+- The lexical numeric value is not exposed: number raw is the shortest round-trip of the double.
+- Dynamic array formulas are not covered by the fixture builder. The modern-xlsx parts of VS3 stayed unverified because SheetJS won.
+- vendor is added to the ESLint and Prettier ignore lists. U4 does not start until CP1 is acknowledged.

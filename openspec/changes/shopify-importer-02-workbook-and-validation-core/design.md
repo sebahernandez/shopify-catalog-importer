@@ -36,6 +36,8 @@ This is approach A from the proposal. The domain is pure TypeScript: cell model,
 | D15 | Test-only builder | `src/catalog-workbook/test-support/**`, excluded by adding `src/**/test-support/**` to `tsconfig.build.json`. `no-test-route-ships.test.ts` asserts the exclusion | A folder outside `src` | Same project service for lint and typecheck. Short relative imports |
 | D16 | Image path check | Pure `domain/fields/image-path.ts` (`checkImagePath`). It returns a normalized relative path or a reason. S3 reuses it (8a) | Inside S3 | Decision 8a |
 
+**D4 outcome (2026-10-14, U3c spike).** SheetJS CE 0.20.3 passed every must-pass criterion (E2 to E7) and both should-pass criteria (E1, E8), so it is the chosen library; `modern-xlsx` was not probed and fallback B is not needed. Vendored tarball SHA-256 `8dc73fc3b00203e72d176e85b50938627c7b086e607c682e8d3c22c02bb99fe8`. The 150 MB cap stays (peak RSS 1.2 GB at 156 MB uncompressed). The reader must call `XLSX.read` with `cellFormula`, `cellDates` and `cellStyles` on. See `spike-findings.md`.
+
 ### ZIP preflight (`infrastructure/zip/`, port `ArchiveInspector`)
 
 It runs on the full byte buffer, in this order. Structural failures stop at the first problem. Content findings (step 7) are collected together.
