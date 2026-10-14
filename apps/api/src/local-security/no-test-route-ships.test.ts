@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { ConfigModule } from '../config/config.module.js';
 import { parseEnv } from '../config/env.schema.js';
+import { HealthController } from '../health/health.controller.js';
 import { LocalSecurityModule } from './local-security.module.js';
 
 const SRC = fileURLToPath(new URL('..', import.meta.url));
@@ -47,13 +48,14 @@ describe('the test-only write route does not ship', () => {
     expect(Reflect.getMetadata('controllers', AppModule) ?? []).toEqual([]);
   });
 
-  it('declares no controller in the module graph that AppModule.forRoot builds', async () => {
+  // The health route (U14) is the one controller the application ships; it must stay the only one.
+  it('declares exactly one controller, the health route, in the graph AppModule.forRoot builds', async () => {
     const { AppModule } = await import('../app.module.js');
     const dynamic = AppModule.forRoot({ config: parseEnv({}), logger: { warn: () => undefined } });
     expect(dynamic.controllers ?? []).toEqual([]);
     const imports = (dynamic.imports ?? []) as { controllers?: unknown[] }[];
-    expect(imports).toHaveLength(3);
-    for (const imported of imports) expect(imported.controllers ?? []).toEqual([]);
+    expect(imports).toHaveLength(4);
+    expect(imports.flatMap((imported) => imported.controllers ?? [])).toEqual([HealthController]);
   });
 
   it('starts the program with no options, so no extra module and no environment switch', () => {
