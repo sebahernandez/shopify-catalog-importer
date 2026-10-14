@@ -603,3 +603,24 @@ Confirmed. Nest 12.1.3 on Express registers body parsers for JSON and urlencoded
 ### Size
 
 bounded-body-reader 75 and its test 66: 141 hand-written lines. Contracts: 0.
+
+## U10b Validate endpoint: exception filter, POST route and integration tests (13.4 and 13.5)
+
+Branch: feat/workbook-u10b-validate-route (from develop at 8a9d563, after U10a). Strict TDD, Node 24. Second of the two parts of U10; the code was written and verified together with U10a and split afterwards. The real app was not booted.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 13.4 validate int test | 16 tests failed with 404 (route missing) | 17 pass after 13.5 | All cases of 13.4; fetch on 127.0.0.1 port 0; two extra cases from splitting the over-20 MB case into header and stream variants and from a tier-A scope test |
+
+### Decisions
+
+- WorkbookExceptionFilter (UseFilters on the route) maps UploadRejection to the ApiError body and sets Connection: close when the body was left unread (header over cap, wrong media type). Fixed messages per code. No new ApiError code was needed.
+- The route answers the report only, with 200 and Cache-Control no-store; the CatalogDraft never leaves the process.
+- Header-over-cap test sends headers only: a full 21 MB send with Content-Length over the cap races the server close and can end in EPIPE on the client (observed flaky once in 3 runs). A streamed over-cap body is drained and answered 413 deterministically. Real browsers may see the same race; it is inherent to answering immediately and closing.
+- Reader double is injected by replacing the WORKBOOK_READER provider in the dynamic module (no @nestjs/testing in the repository). The foreign-origin case adds LocalSecurityModule with a hand-set Host header, like the S0 guard test. The no-side-effect case spies fs writers and dns lookup (only the client loopback literal allowed); the module has no database provider at all.
+
+### Size
+
+Exception filter 23, controller +37 net (58 total), int test 307: about 370 hand-written lines. Contracts: 0.
