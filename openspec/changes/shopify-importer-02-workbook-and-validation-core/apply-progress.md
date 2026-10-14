@@ -125,3 +125,38 @@ Eight files (boolean 30 and test 40, integer 27 and test 36, barcode 19 and test
 - Stock is a non-negative integer with an optional 32-bit `max`; `INTEGER_INVALID` maps to `STOCK_INVALID` (stock, max 2147483647) or `IMAGE_ORDER_INVALID` (orden, min 1) in the rules.
 - Tags are trimmed and de-duplicated case-insensitively with `toLowerCase`; a tag number cell is read from its raw text.
 - Catalog codes later units must append: `BARCODE_MULTIPLE`, `BOOLEAN_INVALID`, `STOCK_INVALID`, `INVENTORY_FLAG_REQUIRED`, `IMAGE_ORDER_INVALID`, `TAG_LIMIT_EXCEEDED`.
+
+## U3a OOXML writer and fixture builder: partial (3.6, 3.7 and 3.10 remain)
+
+Branch: feat/workbook-u3a-ooxml-writer (from develop with U1 and U2). Strict TDD, Node 24.21.0, pnpm 12.11.2. Stopped at a size boundary: the writer is done, the fixture builder and its crafted zips are not started.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 3.1 | n/a | VS1 first half passes | Node 24.21.0: `typeof zlib.crc32` is `function`, `deflateRawSync` works. No table-driven fallback needed. |
+| 3.2 / 3.3 | Cannot find module `zip-writer.js` | 3 tests pass (after one fix) | First GREEN run failed on a wrong central-record layout (the test caught a mis-sized trailer and offset); fixed, then green. |
+| 3.4 / 3.5 | Cannot find module `package-writer.js` | 6 tests pass | `packageParts` returns the parts so tests and the builder can inspect or alter them; `writePackage` zips them. |
+| 3.8 / 3.9 | `expected ['src/**/*.test.ts'] to include 'src/**/test-support/**'` | 8 tests pass | `tsconfig.build.json` now excludes `src/**/test-support/**`. |
+
+### Measured hand-written lines (after prettier, tests included)
+
+- After 3.3: 111 (zip-writer 55, test 56).
+- After 3.5: 307 (package-writer 70 and test 70, sheet-xml 56, zip-writer pair 111).
+- After 3.9: 315 (adds 8 changed lines in no-test-route-ships.test.ts and tsconfig.build.json).
+
+The builder pair (3.6 and 3.7, about 35 crafted cases) would not fit in the remaining 85 lines, so it moves to a follow-up unit (U3a2) on a branch based on this one. Task 3.10 is also deferred because it must confirm dist holds no test-support folder once that folder exists. Partial check done: `pnpm build` succeeds and dist has no test-support folder (none exists yet); full `pnpm test` is contracts 119, web 193, api 3,098 (3,410 total, up 10).
+
+### Decisions for later units
+
+- Cells are inline strings (`t="inlineStr"`, `xml:space="preserve"`), all text. Typed cells (numbers, formulas, errors, dates, rich text), hidden sheet, row and column flags, and sparse rows are NOT supported by `sheet-xml.ts` yet; the builder pair must widen `SheetDefinition` (or post-process the parts) test-first.
+- Text format is style index 1 (built-in numFmtId 49) applied to the column and to body cells; it stays on when aids are off. Aids (frozen header, widths, TRUE/FALSE list) switch off with `{ aids: false }`.
+- `writeZip` entries default to deflate; `method: 'stored'` is supported. Archives are classic ZIP, no comment, fixed DOS timestamp. Crafted-zip cases (ZIP64, multi-disk, flags, lying sizes, overlaps) need their own byte-level builder in `test-support/crafted-zip.ts`, since `writeZip` only produces well-formed archives.
+
+### U3a cut decision and orchestrator correction
+
+The agent stopped at the 3.5 boundary with 307 lines (315 after 3.9) because the fixture builder with about 35 crafted cases cannot fit in the remaining budget. By orchestrator decision the unit is cut: U3a keeps tasks 3.1 to 3.5, 3.8 and 3.9; the fixture builder (3.6, 3.7) and the final build check (3.10) move to a new unit U3a2 based on U3a.
+
+The agent reported lint and prettier clean but did not run the type check; the orchestrator's `pnpm check` caught one error (`exactOptionalPropertyTypes` in `package-writer.test.ts`, `{ aids: boolean | undefined }` not assignable to `PackageOptions`) and fixed the test to omit the key when `aids` is undefined. After the fix `pnpm check` and `pnpm build` exit 0 (contracts 119, web 193, api 3,098: 3,410 in total).
+
+Notes for U3a2: `sheet-xml.ts` supports only text cells, so number, formula, error, date and rich-text cells, hidden sheet/row/column flags and sparse rows must be added test-first; `writeZip` produces only well-formed archives, so the malformed cases (ZIP64, multi-disk, flags, lying sizes, overlaps, CRC mismatch) need a byte-level builder in `test-support/crafted-zip.ts`; task 3.10 must re-run once `test-support` exists to confirm dist holds no such folder.
