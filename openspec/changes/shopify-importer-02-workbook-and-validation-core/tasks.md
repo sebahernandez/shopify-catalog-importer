@@ -177,14 +177,14 @@ Exit criteria (all required before U4 starts):
 
 Satisfies: workbook-contract (Cell value model), file-safety (Formulas reader side, Sheet size caps), validation-report (no leak on reader failure). Adapter filename follows the spike: sheetjs, modern-xlsx, or own reader.
 
-- [ ] 6.1 Create `apps/api/src/catalog-workbook/ports/workbook-reader.port.ts` (`WorkbookReader`, `ReadResult`, `SheetLimits`) and the sheet types in `domain/workbook-cell.ts` if not already present.
-- [ ] 6.2 RED: create `apps/api/src/catalog-workbook/test-support/workbook-reader.contract.ts` and `infrastructure/reader/workbook-reader.int.test.ts`: text versus number, leading zeros, booleans, errors, dates, rich text, hidden sheets, rows and columns, sparse rows keep original numbers, whitespace untouched, 32,768-character cell, row and column caps give the file-level failure with limit and observed, plain, shared and array formulas flagged with coordinates.
-- [ ] 6.3 GREEN: create `infrastructure/reader/<chosen>-workbook-reader.ts` mapping to the domain cell model (the number `raw` text policy documented in a comment).
-- [ ] 6.4 RED: create `application/formula-guard.test.ts`: `formulaParts` non-empty with no flagged cell yields a file-level `FORMULA_NOT_ALLOWED`; both agreeing yields nothing extra.
-- [ ] 6.5 GREEN: create `application/formula-guard.ts`.
-- [ ] 6.6 RED: extend the reader int test: a library exception becomes a generic failure with no library message, stack or absolute path.
-- [ ] 6.7 GREEN: add the error mapping inside the adapter.
-- [ ] 6.8 Run the focused test command and `pnpm check`; record lines (fallback B may exceed 320: report).
+- [x] 6.1 Create `apps/api/src/catalog-workbook/ports/workbook-reader.port.ts` (`WorkbookReader`, `ReadResult`, `SheetLimits`) and the sheet types in `domain/workbook-cell.ts` if not already present.
+- [x] 6.2 RED: create `apps/api/src/catalog-workbook/test-support/workbook-reader.contract.ts` and `infrastructure/reader/workbook-reader.int.test.ts`: text versus number, leading zeros, booleans, errors, dates, rich text, hidden sheets, rows and columns, sparse rows keep original numbers, whitespace untouched, 32,768-character cell, row and column caps give the file-level failure with limit and observed, plain, shared and array formulas flagged with coordinates.
+- [x] 6.3 GREEN: create `infrastructure/reader/<chosen>-workbook-reader.ts` mapping to the domain cell model (the number `raw` text policy documented in a comment).
+- [x] 6.4 RED: create `application/formula-guard.test.ts`: `formulaParts` non-empty with no flagged cell yields a file-level `FORMULA_NOT_ALLOWED`; both agreeing yields nothing extra.
+- [x] 6.5 GREEN: create `application/formula-guard.ts`.
+- [x] 6.6 RED: extend the reader int test: a library exception becomes a generic failure with no library message, stack or absolute path.
+- [x] 6.7 GREEN: add the error mapping inside the adapter.
+- [x] 6.8 Run the focused test command and `pnpm check`; record lines (fallback B may exceed 320: report).
 
 ## Phase 7: U5 Structure and Productos rules
 

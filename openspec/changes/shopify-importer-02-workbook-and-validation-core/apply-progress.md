@@ -264,3 +264,30 @@ sheetjs-probe.int.test 206 lines, vendor-integrity.int.test 28 lines: 234 hand-w
 - The lexical numeric value is not exposed: number raw is the shortest round-trip of the double.
 - Dynamic array formulas are not covered by the fixture builder. The modern-xlsx parts of VS3 stayed unverified because SheetJS won.
 - vendor is added to the ESLint and Prettier ignore lists. U4 does not start until CP1 is acknowledged.
+
+## U4 Reader adapter: complete (6.1 to 6.8)
+
+Branch: feat/workbook-u4-reader-adapter. Strict TDD, Node 24. SheetJS CE 0.20.3 (CP1 acknowledged). The adapter is not wired into any Nest module; U9 and U10 do that.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 6.2 contract and int test | Stub reader that always fails: 7 of 7 contract tests failed (FILE_UNREADABLE instead of the expected cells and failures) | 7 pass after 6.3 | The contract is reusable by any adapter through workbookReaderContract. |
+| 6.4 formula guard | Test file failed to import the missing module | 3 pass after 6.5 | |
+| 6.6 error mapping | The mapping shipped inside 6.3, so the tests passed at once. Mutation check: rethrowing in the catch made the exception test fail (the secret message surfaced), then restored | 3 error tests pass | Covers a thrown library error, a shared-string cell without its table, and a package without a styles part. |
+
+### Measured size
+
+Port 27, contract 160, adapter 142, int test 66, formula-guard 17, formula-guard test 28: 440 lines after Prettier, against the 400 budget (planned about 300). Over budget by 40 and the overrun is mostly tests (254 of 440) and the multi-line comments the policies need; nothing was trimmed.
+
+### Decisions
+
+- Failure shape: ok false with one finding plus an optional cell location (sheet, row, col). CELL_TEXT_TOO_LONG params are limit and actual only, as fixed in the catalog; the location travels beside the params so U5 can build the cell issue with sheet, row and field.
+- Row cap counts data rows (last used row minus the header). Column cap counts the used range width. Both are checked from the sheet range before any cell is mapped. The cell cap counts UTF-16 code units.
+- Exponent-form numbers: raw is String(double) unchanged, so 1e+21 and 1e-7 keep exponent form and the decimal and code rules reject them (design 10a, 11a). Documented in the adapter.
+- cellStyles is switched off when the package has no styles part (about 10 times slower otherwise). Cost: hidden rows and columns are not reported for such a package. Packages from our template and from Excel always carry the part.
+- Any exception from the library, a sheet name without a sheet object and an invalid date all give FILE_UNREADABLE with empty params; nothing of the library message, stack or path leaves the adapter.
+- The adapter takes an optional parse function in its constructor (default XLSX.read) so tests can inject a throwing parser.
+- formula-guard returns an empty list or one FORMULA_NOT_ALLOWED finding; per-cell formula reporting stays with the reader flags.
+- Existing issue codes only; no new code needed. The blank kind is only produced for stub cells, which the reader never requests, so absent cells are simply missing from rows.
