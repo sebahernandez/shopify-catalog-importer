@@ -1,7 +1,7 @@
 import { escapeXml, sheetXml, type SheetDefinition } from './sheet-xml.js';
 import { writeZip, type ZipEntry } from './zip-writer.js';
 
-export type { SheetDefinition } from './sheet-xml.js';
+export type { CellValue, SheetDefinition } from './sheet-xml.js';
 
 export interface PackageOptions {
   /** Frozen header, column widths and the TRUE/FALSE dropdown. The text format is not an aid. */
@@ -49,7 +49,7 @@ export function packageParts(
     ),
     part(
       'xl/workbook.xml',
-      `<workbook xmlns="${MAIN}" xmlns:r="${REL}"><sheets>${numbered.map(({ sheet, id }) => `<sheet name="${escapeXml(sheet.name)}" sheetId="${id}" r:id="rId${id}"/>`).join('')}</sheets></workbook>`,
+      `<workbook xmlns="${MAIN}" xmlns:r="${REL}"><sheets>${numbered.map(({ sheet, id }) => `<sheet name="${escapeXml(sheet.name)}" sheetId="${id}"${sheet.hidden ? ' state="hidden"' : ''} r:id="rId${id}"/>`).join('')}</sheets></workbook>`,
     ),
     part(
       'xl/_rels/workbook.xml.rels',

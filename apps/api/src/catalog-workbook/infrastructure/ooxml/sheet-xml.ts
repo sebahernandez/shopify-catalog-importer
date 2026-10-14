@@ -1,7 +1,14 @@
+/** A plain string is a text cell; a raw cell carries its own type and inner XML (number, formula, error...). */
+export type CellValue = string | { readonly t?: string; readonly xml: string };
+
 export interface SheetDefinition {
   readonly name: string;
-  /** Row 0 is the header. Every cell is text. */
-  readonly rows: readonly (readonly string[])[];
+  /** Row 0 is the header. An undefined row is skipped, which leaves a gap in the row numbers. */
+  readonly rows: readonly (readonly CellValue[] | undefined)[];
+  readonly hidden?: boolean;
+  /** Zero-based rows and columns flagged hidden. */
+  readonly hiddenRows?: readonly number[];
+  readonly hiddenColumns?: readonly number[];
   /** Zero-based columns whose typed values must stay text (number format `@`). */
   readonly textColumns?: readonly number[];
   readonly widths?: readonly number[];
@@ -23,23 +30,32 @@ export function columnLetter(index: number): string {
 /** The text style (index 1 in styles.xml) is applied to the column and to its cells. */
 export function sheetXml(sheet: SheetDefinition, aids: boolean): string {
   const text = new Set(sheet.textColumns ?? []);
-  const columnCount = Math.max(0, ...sheet.rows.map((row) => row.length));
+  const hiddenColumns = new Set(sheet.hiddenColumns);
+  const hiddenRows = new Set(sheet.hiddenRows);
+  const columnCount = Math.max(0, ...sheet.rows.map((row) => row?.length ?? 0));
   const columns = Array.from({ length: columnCount }, (_, index) => {
     const width = aids ? sheet.widths?.[index] : undefined;
-    if (width === undefined && !text.has(index)) return '';
+    const hidden = hiddenColumns.has(index) ? ' hidden="1"' : '';
+    if (width === undefined && !text.has(index) && !hidden) return '';
     const attributes = width === undefined ? 'width="9"' : `width="${width}" customWidth="1"`;
     const style = text.has(index) ? ' style="1"' : '';
-    return `<col min="${index + 1}" max="${index + 1}" ${attributes}${style}/>`;
+    return `<col min="${index + 1}" max="${index + 1}" ${attributes}${hidden}${style}/>`;
   }).join('');
   const rows = sheet.rows
     .map((row, rowIndex) => {
+      if (row === undefined) return '';
       const cells = row
         .map((value, index) => {
+          if (typeof value !== 'string') {
+            const type = value.t === undefined ? '' : ` t="${value.t}"`;
+            return `<c r="${columnLetter(index)}${rowIndex + 1}"${type}>${value.xml}</c>`;
+          }
           const style = text.has(index) && rowIndex > 0 ? ' s="1"' : '';
           return `<c r="${columnLetter(index)}${rowIndex + 1}"${style} t="inlineStr"><is><t xml:space="preserve">${escapeXml(value)}</t></is></c>`;
         })
         .join('');
-      return `<row r="${rowIndex + 1}">${cells}</row>`;
+      const hidden = hiddenRows.has(rowIndex) ? ' hidden="1"' : '';
+      return `<row r="${rowIndex + 1}"${hidden}>${cells}</row>`;
     })
     .join('');
   const pane = '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/>';
