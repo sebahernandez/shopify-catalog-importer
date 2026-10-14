@@ -422,3 +422,26 @@ Price rules 53, price test 104, variant-row 5: 162 lines, plus 71 in the contrac
 - variantesPriceRules(rows, variants, sink) returns the VariantRow records extended with price and compareAtPrice (Money, undefined when empty, untrusted or invalid).
 - PRICE_ZERO is reported only for precio; a zero precio_comparacion is silent on its own and warns COMPARE_AT_BELOW_PRICE when precio is higher. An untrusted precio is not reported as missing.
 - Pending: 10.3 to 10.6 (barcode, inventory) and 10.7.
+
+## U7b Variantes barcode and inventory rules: complete (10.3 to 10.7)
+
+Branch: feat/workbook-u7b-variantes-barcode-inventory (from develop at e5b94ab). Strict TDD, Node 24. No contract changes: the catalog already had every code used.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 10.3 barcode test | Test file failed to import the missing module | 11 pass after 10.4 | Written first. |
+| 10.5 inventory test | Test file failed to import the missing module | 21 pass after 10.6 | Written first. |
+| 10.7 | n/a | pnpm check exit 0 (api 63 files, 3271 tests; contracts 7 files, 177 tests; web 13 files, 193 tests) | One lint fix and one prettier run on the inventory test. |
+
+### Measured size
+
+Barcode rule 36, barcode test 74, inventory rule 60, inventory test 123, variant-row 27 (+8 this unit): 320 lines including the variant-row growth. Nothing was trimmed.
+
+### Decisions
+
+- variantesBarcodeRules and variantesInventoryRules follow the price rule shape: (rows, variants, sink) returning VariantRow[] extended with barcode, and with manageInventory, stock and location.
+- Codes used: BARCODE_MULTIPLE, NUMERIC_IDENTIFIER_UNSAFE (errors), NUMERIC_IDENTIFIER_CELL (warning), BOOLEAN_INVALID, STOCK_INVALID, INVENTORY_FLAG_REQUIRED (field gestionar_inventario), REQUIRED_FIELD_MISSING (field ubicacion, param field).
+- Stock is an integer up to 2147483647. An empty flag with valid stock is INVENTORY_FLAG_REQUIRED and manageInventory stays undefined; an empty flag with empty stock is false. Untrusted or invalid stock never triggers a flag or managed-stock cascade; an untrusted flag skips every dependent check.
+- A flag of false with stock present is accepted silently. Location is trimmed; an untrusted ubicacion is not reported as missing.
