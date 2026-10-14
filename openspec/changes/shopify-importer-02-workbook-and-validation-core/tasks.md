@@ -7,7 +7,7 @@
 | Estimated changed lines | ~4,100 hand-written (range 3,500 to 4,800; ~50% tests). Generated: lockfile only, plus the vendored SheetJS tarball if it wins (binary, not counted). Deletions negligible. |
 | 400-line budget risk | High for the change as a whole; every unit is planned within 400 and none needs a size exception. Watch U2 and U8 (~380, near the budget) and U3c (the spike outcome can add vendoring and measurement work) |
 | Chained PRs recommended | Yes |
-| Suggested split | 14 chained work units: U1, U2, U3a, U3b1, U3b2, U3c, U4, U5, U6a, U6b, U7, U8, U9, U10, plus a final gate that rides on the U10 PR |
+| Suggested split | 15 chained work units: U1a, U1b, U2, U3a, U3b1, U3b2, U3c, U4, U5, U6a, U6b, U7, U8, U9, U10, plus a final gate that rides on the U10 PR |
 | Delivery strategy | ask-on-risk |
 | Chain strategy | feature-branch-chain (tracker branch: develop) |
 
@@ -25,14 +25,15 @@ Estimates keep the design's figures (about 30 percent uncertainty). They were no
 
 ### Chain bases (feature-branch-chain, tracker = develop)
 
-PR for U1 targets develop. Every later PR targets the branch of the previous unit in the order U1, U2, U3a, U3b1, U3b2, U3c, U4, U5, U6a, U6b, U7, U8, U9, U10. If a child PR shows the previous unit's changes, its base is wrong and must be retargeted. Only the tracker merges onward.
+PR for U1a targets develop. Every later PR targets the branch of the previous unit in the order U1a, U1b, U2, U3a, U3b1, U3b2, U3c, U4, U5, U6a, U6b, U7, U8, U9, U10. If a child PR shows the previous unit's changes, its base is wrong and must be retargeted. Only the tracker merges onward.
 
 ### Size and scope per work unit
 
 | Unit | Branch | Scope | Depends on | Hand-written lines | Spec requirements covered (capability: requirement) |
 |---|---|---|---|---|---|
-| U1 | `feat/workbook-u1-contracts` | Schema constants, report model, issue catalog, ApiError codes | none (S0 archived) | ~300 | workbook-contract: Sheet and column constants; validation-report: Issue model, Spanish catalog, Severities and counts (shape); endpoint: Request errors (codes) |
-| U2 | `feat/workbook-u2-domain-core` | Limits, cell model, matchKey, field parsers, image path, collector, lint D2 | U1 | ~380 | workbook-contract: name matching (matchKey), Cell value model, One barcode and comma tags (tags); file-safety: Configurable caps (defaults); rules: Image path syntax check, Tag checks (parser), Decimal/Inventory parsers; report: Truncation (collector) |
+| U1a | `feat/workbook-u1a-schema-catalog` | Schema constants and issue catalog (split from U1 by user decision on 2026-10-14: U1 measured about 482 lines) | none (S0 archived) | ~340 |
+| U1b | `feat/workbook-u1b-report-api-errors` | Report model and ApiError codes | U1a | ~150 | workbook-contract: Sheet and column constants; validation-report: Issue model, Spanish catalog, Severities and counts (shape); endpoint: Request errors (codes) |
+| U2 | `feat/workbook-u2-domain-core` | Limits, cell model, matchKey, field parsers, image path, collector, lint D2 | U1b | ~380 | workbook-contract: name matching (matchKey), Cell value model, One barcode and comma tags (tags); file-safety: Configurable caps (defaults); rules: Image path syntax check, Tag checks (parser), Decimal/Inventory parsers; report: Truncation (collector) |
 | U3a | `feat/workbook-u3a-ooxml-writer` | Own ZIP and OOXML writer, fixture builder, test-support exclusion | U2 | ~330 | workbook-template: Identifier columns keep text, Usability aids (writer primitives) |
 | U3b1 | `feat/workbook-u3b1-zip-archive-checks` | ArchiveInspector port, ZIP archive checks (preflight steps 1 to 6: magic bytes, EOCD, entry count, central-directory walk, local-header overlap, bounded inflation with size, CRC and ratio) | U3a | ~230 | file-safety: Preflight before parsing (archive part), Configurable archive caps, Ambiguous and unsafe archives |
 | U3b2 | `feat/workbook-u3b2-zip-content-checks` | Content checks (step 7: required parts, macros, external links, embedded objects, library-independent formula scan), the ArchiveInspector implementation | U3b1 | ~200 | file-safety: Preflight before parsing (content part, inspector-level spy), Macros/links/embedded, Formulas (package scan) |
@@ -74,17 +75,17 @@ Orchestrator checkpoints (not apply tasks):
 
 Conventions for every unit: conventional commits, no AI attribution, English code and comments, Spanish only inside the contracts catalog and the template content. Never contact Shopify. The spec files are authoritative for exact codes and field names; the design was aligned to the specs, and if any wording still differs (see 1.1) follow the spec. Record the focused test result, the runtime harness result and the measured hand-written line count in the apply progress.
 
-## Phase 1: U1 Contracts
+## Phase 1: U1 Contracts (delivered as U1a: 1.1 to 1.3, 1.6, 1.7 and U1b: 1.4, 1.5, 1.8 to 1.11)
 
 Satisfies: workbook-contract (Sheet and column constants), validation-report (Issue model, Spanish catalog, Severities and counts), workbook-validate-endpoint (error codes).
 
-- [ ] 1.1 Confirm names before coding: record in the apply progress that design.md was aligned to the specs (issue `field`, `suggestedAction`, `summary.errorCount` and `warningCount`, params may be string, number or boolean, codes `FILE_NOT_XLSX`, `FILE_UNREADABLE`, `ZIP_*`, `MACROS_NOT_ALLOWED`, `CELL_TEXT_TOO_LONG`, `SHEET_ROW_LIMIT_EXCEEDED`), that the specs win if any wording still differs, and that the design and U1 add a third ApiError code `WORKBOOK_UNSUPPORTED_MEDIA_TYPE` (415) that the endpoint spec does not list. No file edit.
-- [ ] 1.2 RED: create `packages/contracts/src/workbook-schema.test.ts`: three data sheets plus `Instrucciones`, every column in spec order, required flags (product_key, handle, titulo; product_key, precio; product_key, archivo, orden), `EXAMPLE_PREFIX`, and the source has no `node:` import.
-- [ ] 1.3 GREEN: create `packages/contracts/src/workbook-schema.ts` (`SHEETS`, `COLUMNS` with required flags, `EXAMPLE_PREFIX`).
+- [x] 1.1 Confirm names before coding: record in the apply progress that design.md was aligned to the specs (issue `field`, `suggestedAction`, `summary.errorCount` and `warningCount`, params may be string, number or boolean, codes `FILE_NOT_XLSX`, `FILE_UNREADABLE`, `ZIP_*`, `MACROS_NOT_ALLOWED`, `CELL_TEXT_TOO_LONG`, `SHEET_ROW_LIMIT_EXCEEDED`), that the specs win if any wording still differs, and that the design and U1 add a third ApiError code `WORKBOOK_UNSUPPORTED_MEDIA_TYPE` (415) that the endpoint spec does not list. No file edit.
+- [x] 1.2 RED: create `packages/contracts/src/workbook-schema.test.ts`: three data sheets plus `Instrucciones`, every column in spec order, required flags (product_key, handle, titulo; product_key, precio; product_key, archivo, orden), `EXAMPLE_PREFIX`, and the source has no `node:` import.
+- [x] 1.3 GREEN: create `packages/contracts/src/workbook-schema.ts` (`SHEETS`, `COLUMNS` with required flags, `EXAMPLE_PREFIX`).
 - [ ] 1.4 RED: create `packages/contracts/src/validation-report.test.ts`: cell-level issue (error, Variantes, row 4, field precio, product key, non-empty texts), file-level issue with null sheet/row/field, unknown code fails, flat params of string, number or boolean, `fileSha256` is 64 lowercase hex, `valid` true if and only if `errorCount` is 0, `truncated` boolean.
 - [ ] 1.5 GREEN: create `packages/contracts/src/validation-report.ts` (`ValidationIssue`, `ValidationReport` zod schemas).
-- [ ] 1.6 RED: create `packages/contracts/src/issue-catalog.test.ts`: every code has a non-empty message and action, `DECIMAL_SCALE_EXCEEDED` with limit 4 and actual 5 shows both numbers, no `{` left after rendering with declared params, same input gives same text, every code declares its param keys.
-- [ ] 1.7 GREEN: create `packages/contracts/src/issue-catalog.ts` with `ISSUE_CODES` (file-level and structure codes only: FILE_NOT_XLSX, FILE_ENCRYPTED_OR_LEGACY, FILE_UNREADABLE, ZIP_*, MACROS_NOT_ALLOWED, EXTERNAL_LINKS_NOT_ALLOWED, EMBEDDED_CONTENT_NOT_ALLOWED, FORMULA_NOT_ALLOWED, SHEET_*_LIMIT_EXCEEDED, CELL_TEXT_TOO_LONG, SHEET_MISSING, SHEET_DUPLICATE, HEADER_MISSING, HEADER_DUPLICATE, the warnings `HEADER_UNKNOWN` and `HIDDEN_CONTENT`), `ISSUE_PARAM_KEYS`, `ISSUE_MESSAGES_ES`, `renderIssue()`. Later units append their codes.
+- [x] 1.6 RED: create `packages/contracts/src/issue-catalog.test.ts`: every code has a non-empty message and action, `DECIMAL_SCALE_EXCEEDED` with limit 4 and actual 5 shows both numbers, no `{` left after rendering with declared params, same input gives same text, every code declares its param keys.
+- [x] 1.7 GREEN: create `packages/contracts/src/issue-catalog.ts` with `ISSUE_CODES` (file-level and structure codes only: FILE_NOT_XLSX, FILE_ENCRYPTED_OR_LEGACY, FILE_UNREADABLE, ZIP_*, MACROS_NOT_ALLOWED, EXTERNAL_LINKS_NOT_ALLOWED, EMBEDDED_CONTENT_NOT_ALLOWED, FORMULA_NOT_ALLOWED, SHEET_*_LIMIT_EXCEEDED, CELL_TEXT_TOO_LONG, SHEET_MISSING, SHEET_DUPLICATE, HEADER_MISSING, HEADER_DUPLICATE, the warnings `HEADER_UNKNOWN` and `HIDDEN_CONTENT`), `ISSUE_PARAM_KEYS`, `ISSUE_MESSAGES_ES`, `renderIssue()`. Later units append their codes.
 - [ ] 1.8 RED: modify `packages/contracts/src/api-error.test.ts` to accept `WORKBOOK_FILE_REQUIRED`, `WORKBOOK_TOO_LARGE`, `WORKBOOK_UNSUPPORTED_MEDIA_TYPE` and still accept the two existing codes.
 - [ ] 1.9 GREEN: modify `packages/contracts/src/api-error.ts` with the three codes.
 - [ ] 1.10 Export the new modules from `packages/contracts/src/index.ts`; run `pnpm --filter @importer/web test` to confirm the closed enum change breaks nothing.
