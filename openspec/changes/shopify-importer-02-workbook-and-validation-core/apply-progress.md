@@ -677,3 +677,12 @@ Booted from a temporary clone of the branch (commit 59884e6) under the session s
 | POST of a text file named as xlsx | 200, valid false, FILE_NOT_XLSX, sheet null |
 
 The process was stopped. No repo process, data directory, key file or database file remained in the real repository, and the real HOME has no importer folder.
+
+## U11 Verify corrections (W3, W4, W5; tasks 15.1 to 15.3)
+
+### TDD evidence
+
+- RED: 8 new or adjusted tests failed for the right reason (VARIANT_SKU_UNKNOWN produced with no variants, FORMULA_NOT_ALLOWED missing for Instrucciones and unknown sheets, errors listed before warnings untruncated). GREEN: all pass after the fixes.
+- W3: imagenesRules takes `variants` as undefined when Variantes is unusable and a set of products with an untrusted sku; tests "does not resolve variant_sku when the variants are unavailable", "does not call a sku unknown when its product has an untrusted variant sku" and the use-case test "reports only SHEET_MISSING when Variantes is absent, with no variant_sku cascade".
+- W4: guardFormulas now reports each formula cell of a non-data sheet with params sheet and ref, and keeps the coarse finding when the two parsers disagree; tests in formula-guard.test.ts and "blocks a formula that sits only in Instrucciones or an unknown sheet".
+- W5: IssueCollector.build returns one sorted list when nothing is cut and errors before warnings only when truncating; tests "mixes severities in sheet, row and column order when nothing is cut" and "orders an Imagenes error after Productos warnings when nothing is cut". No existing test needed a change for the old order.

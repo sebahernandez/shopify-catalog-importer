@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { WorkbookSheet } from '../domain/workbook-cell.js';
 import { guardFormulas } from './formula-guard.js';
 
-const sheet = (formula: boolean): WorkbookSheet => ({
-  name: 'A',
+const sheet = (formula: boolean, name = 'A'): WorkbookSheet => ({
+  name,
   index: 0,
   visibility: 'visible',
   hiddenRows: new Set(),
@@ -19,7 +19,25 @@ describe('guardFormulas', () => {
   });
 
   it('adds nothing when both parsers agree there is a formula', () => {
-    expect(guardFormulas(['xl/worksheets/sheet1.xml'], [sheet(true)])).toEqual([]);
+    expect(guardFormulas(['xl/worksheets/sheet1.xml'], [sheet(true, 'Productos')])).toEqual([]);
+  });
+
+  it('names the sheet and cell of a formula in a sheet no rule reads', () => {
+    const found = guardFormulas(['xl/worksheets/sheet1.xml'], [sheet(true, 'Instrucciones')]);
+    expect(found).toEqual([
+      { code: 'FORMULA_NOT_ALLOWED', params: { sheet: 'Instrucciones', ref: 'A2' } },
+    ]);
+  });
+
+  it('reports a formula in an unknown sheet even when a data sheet has one too', () => {
+    const sheets = [sheet(true, 'Productos'), sheet(true, 'Notas')];
+    expect(guardFormulas(['xl/w.xml'], sheets)).toEqual([
+      { code: 'FORMULA_NOT_ALLOWED', params: { sheet: 'Notas', ref: 'A2' } },
+    ]);
+  });
+
+  it('skips data sheets, whose formulas the reader reports per cell', () => {
+    expect(guardFormulas(['xl/w.xml'], [sheet(true, 'Productos')])).toEqual([]);
   });
 
   it('adds nothing when neither sees a formula', () => {

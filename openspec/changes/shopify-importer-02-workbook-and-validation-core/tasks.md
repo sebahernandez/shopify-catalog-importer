@@ -282,6 +282,12 @@ Docs: the design lists no README or documentation change for S1, so no README ed
 - [x] 14.6 Confirm no task contacted Shopify and that runtime code of the module performs no network call or file write (search the module source).
 - [x] 14.7 Walk the proposal success criteria and tick each with its evidence in the apply progress (spike findings, crafted rejections, rule fixtures, template round trip, endpoint 4xx versus 200, green gates).
 
+## Phase 15: Verify corrections (U11)
+
+- [x] 15.1 W3: skip the Imagenes variant_sku resolution when Variantes is unavailable, and do not call a sku unknown when its product has an untrusted variant sku (imagenes-rules and use-case pipeline tests).
+- [x] 15.2 W4: block a formula cell in Instrucciones or an unknown sheet with FORMULA_NOT_ALLOWED naming the sheet and cell (formula-guard and use-case tests).
+- [x] 15.3 W5: order an untruncated report by file, sheet, row, column mixing severities, and keep errors before warnings only when truncating (issue-collector and assemble-report tests).
+
 ## Coverage Table (47 requirements, 122 scenarios)
 
 | Capability: Requirement | Scenarios | Tasks |

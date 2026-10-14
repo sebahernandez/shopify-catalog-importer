@@ -24,15 +24,18 @@ function textOf(source: SourceRow, field: string): string | undefined {
  * count limits, and `variant_sku` against the variants of the same product. A row without a
  * product_key is left to the cross-sheet rule, and an untrusted field (already reported by
  * readRows) is skipped. The lowest `orden` of a product is its cover; picking it is the draft's
- * job. Returns the typed rows; an empty, untrusted or invalid field is left `undefined`.
+ * job. `variants` is `undefined` when the Variantes sheet is unusable, and `untrustedSkuProducts`
+ * holds the products with a variant whose sku cell was untrusted: in both cases the sheet or cell
+ * is already reported, so an unresolved sku is not repeated as unknown. Returns the typed rows; an empty, untrusted or invalid field is left `undefined`.
  */
 export function imagenesRules(
   rows: readonly SourceRow[],
-  variants: readonly VariantRow[],
+  variants: readonly VariantRow[] | undefined,
   sink: IssueCollector,
+  untrustedSkuProducts: ReadonlySet<string> = new Set(),
 ): ImageRow[] {
   const skusByProduct = new Map<string, string[]>();
-  for (const { productKey, sku } of variants) {
+  for (const { productKey, sku } of variants ?? []) {
     if (productKey === undefined || sku === undefined) continue;
     skusByProduct.set(productKey, [...(skusByProduct.get(productKey) ?? []), sku.trim()]);
   }
@@ -69,10 +72,10 @@ export function imagenesRules(
 
     const wanted = textOf(source, 'variant_sku');
     let variantSku: string | undefined;
-    if (productKey !== undefined && wanted !== undefined) {
+    if (variants !== undefined && productKey !== undefined && wanted !== undefined) {
       const matches = (skusByProduct.get(productKey) ?? []).filter((sku) => sku === wanted);
       if (matches.length === 1) variantSku = wanted;
-      else
+      else if (matches.length > 0 || !untrustedSkuProducts.has(productKey))
         report(
           'error',
           matches.length === 0 ? 'VARIANT_SKU_UNKNOWN' : 'VARIANT_SKU_AMBIGUOUS',

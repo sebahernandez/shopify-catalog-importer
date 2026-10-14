@@ -38,9 +38,13 @@ const variant = (sourceRow: number, sku: string, productKey = 'P1'): VariantRow 
   sku,
 });
 
-function run(rows: SourceRow[], variants: VariantRow[] = []) {
+function run(
+  rows: SourceRow[],
+  variants: VariantRow[] | null = [],
+  untrustedSkuProducts: ReadonlySet<string> = new Set(),
+) {
   const sink = new IssueCollector(1000);
-  const typed = imagenesRules(rows, variants, sink);
+  const typed = imagenesRules(rows, variants ?? undefined, sink, untrustedSkuProducts);
   return { typed, issues: sink.build().issues };
 }
 
@@ -129,6 +133,18 @@ describe('imagenesRules', () => {
     expect(run([row(2, { sku: text('A-1') })], variants).issues).toEqual([
       issue('VARIANT_SKU_AMBIGUOUS', 2, 'variant_sku'),
     ]);
+  });
+
+  it('does not resolve variant_sku when the variants are unavailable', () => {
+    const { issues, typed } = run([row(2, { sku: text('A-1') })], null);
+    expect(issues).toEqual([]);
+    expect(typed[0]?.variantSku).toBeUndefined();
+  });
+
+  it('does not call a sku unknown when its product has an untrusted variant sku', () => {
+    const rows = [row(2, { sku: text('B-2') }), row(3, { key: text('P2'), sku: text('B-2') })];
+    const { issues } = run(rows, [variant(2, 'A-1')], new Set(['P1']));
+    expect(issues).toEqual([issue('VARIANT_SKU_UNKNOWN', 3, 'variant_sku')]);
   });
 
   it('leaves a row without product_key to the cross-sheet rule', () => {

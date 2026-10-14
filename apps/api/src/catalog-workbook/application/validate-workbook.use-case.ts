@@ -26,6 +26,16 @@ export interface ValidationOutcome {
   readonly draft?: CatalogDraft;
 }
 
+/** Products with a Variantes row whose sku cell was untrusted (already reported by readRows). */
+function untrustedSkuProducts(rows: readonly SourceRow[]): ReadonlySet<string> {
+  const products = new Set<string>();
+  for (const { cells, untrusted } of rows) {
+    const key = cells.get('product_key');
+    if (untrusted.has('sku') && key?.kind === 'text') products.add(key.text);
+  }
+  return products;
+}
+
 /**
  * Runs the whole validation as a pure function of the bytes: preflight, read, formula guard,
  * structure, per-sheet rules, cross-sheet rules, assembly and draft. It keeps no state between
@@ -103,7 +113,15 @@ export class ValidateWorkbookUseCase {
       variants = variantesBarcodeRules(variantRows, variants, sink);
       variants = variantesInventoryRules(variantRows, variants, sink);
     }
-    const images = imageRows === undefined ? [] : imagenesRules(imageRows, variants, sink);
+    const images =
+      imageRows === undefined
+        ? []
+        : imagenesRules(
+            imageRows,
+            variantRows === undefined ? undefined : variants,
+            sink,
+            untrustedSkuProducts(variantRows ?? []),
+          );
     // With a sheet skipped, its keys would all look unknown; the sheet is already reported.
     if (productRows && variantRows && imageRows) crossSheetRules(products, variants, images, sink);
     return { products, variants, images };

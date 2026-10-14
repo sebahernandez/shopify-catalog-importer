@@ -44,6 +44,24 @@ describe('IssueCollector', () => {
     expect(issues.map((item) => item.severity)).toEqual(['error', 'error', 'warning']);
   });
 
+  it('mixes severities in sheet, row and column order when nothing is cut', () => {
+    const collector = new IssueCollector(10);
+    collector.add(issue({ sheet: 'Imagenes', row: 2, field: 'archivo' }));
+    collector.add(
+      issue({ severity: 'warning', sheet: 'Productos', row: 3, code: 'EXAMPLE_PRODUCT' }),
+    );
+    collector.add(
+      issue({ severity: 'warning', sheet: 'Productos', row: 2, code: 'EXAMPLE_PRODUCT' }),
+    );
+    const { issues, truncated } = collector.build();
+    expect(truncated).toBe(false);
+    expect(issues.map((item) => [item.sheet, item.row, item.severity])).toEqual([
+      ['Productos', 2, 'warning'],
+      ['Productos', 3, 'warning'],
+      ['Imagenes', 2, 'error'],
+    ]);
+  });
+
   it('does not flag truncation when everything fits', () => {
     const collector = new IssueCollector(2);
     collector.add(issue());
