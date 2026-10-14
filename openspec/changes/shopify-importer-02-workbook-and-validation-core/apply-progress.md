@@ -312,3 +312,24 @@ Sheet builder 50, resolve-sheets 32 and test 55, resolve-headers 53 and test 67:
 - resolveSheets returns a map of the resolved data sheets; a missing or colliding sheet is reported once and left out of the map.
 - resolveHeaders returns the column map and a usable flag (false when a required column is missing or duplicated); a duplicated header is reported once and mapped to neither column.
 - A pure sheet builder in the test-support folder builds in-memory sheets for the domain tests (shared by the three structure test files).
+
+## U5b Row reading: complete (7.5 and 7.6)
+
+Branch: feat/workbook-u5b-read-rows (from develop at 6250631, after U5a). Strict TDD, Node 24. Second of the three parts of U5.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 7.5 read-rows test | Test file failed to import the missing module | 10 pass after 7.6 | Passed at the first run. |
+
+### Measured size
+
+Read-rows 93 and test 130: 223 lines, plus 14 in the contracts catalog. Nothing was trimmed.
+
+### Decisions
+
+- New catalog codes: CELL_ERROR_VALUE and CELL_TYPE_UNEXPECTED (no params). The generic catalog test already covers every new code.
+- HIDDEN_CONTENT message reworded to contenido oculto con datos (kind), because the kind also covers a hidden sheet; kind values are columnas, filas and hoja, once per sheet each.
+- readRows returns SourceRow records with the original row, trimmed cells and an untrusted field set. Formula, error, date and misplaced boolean cells are reported per cell with sheet, row and field, then left out of the cells, so rules skip them and the field parsers never see them. A formula cell counts as data even if its cached value is blank.
+- reportReadFailure maps a reader failure to an issue. For CELL_TEXT_TOO_LONG the field is null: the reader fails before any header exists and the catalog params are only limit and actual, so the column cannot be named reliably. Sheet and row are set. Accepted by the maintainer.

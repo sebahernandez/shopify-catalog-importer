@@ -26,6 +26,8 @@ export const ISSUE_CODES = z.enum([
   'HEADER_DUPLICATE',
   'HEADER_UNKNOWN',
   'HIDDEN_CONTENT',
+  'CELL_ERROR_VALUE',
+  'CELL_TYPE_UNEXPECTED',
 ]);
 
 export type IssueCode = z.infer<typeof ISSUE_CODES>;
@@ -53,6 +55,8 @@ export const ISSUE_PARAM_KEYS: Readonly<Record<IssueCode, readonly string[]>> = 
   HEADER_DUPLICATE: ['sheet', 'column'],
   HEADER_UNKNOWN: ['sheet', 'header'],
   HIDDEN_CONTENT: ['sheet', 'kind'],
+  CELL_ERROR_VALUE: [],
+  CELL_TYPE_UNEXPECTED: [],
 };
 
 interface IssueTemplate {
@@ -148,8 +152,16 @@ export const ISSUE_MESSAGES_ES: Readonly<Record<IssueCode, IssueTemplate>> = {
     suggestedAction: 'Elimina la columna {header} o revisa que el nombre sea el de la plantilla.',
   },
   HIDDEN_CONTENT: {
-    message: 'La hoja {sheet} tiene {kind} ocultas con datos.',
+    message: 'La hoja {sheet} tiene contenido oculto con datos ({kind}).',
     suggestedAction: 'Muestra el contenido oculto y revisa que sea correcto.',
+  },
+  CELL_ERROR_VALUE: {
+    message: 'La celda contiene un valor de error de Excel.',
+    suggestedAction: 'Corrige el error de la celda y escribe el valor correcto.',
+  },
+  CELL_TYPE_UNEXPECTED: {
+    message: 'El tipo de dato de la celda no es válido para esta columna.',
+    suggestedAction: 'Escribe en la celda un texto o un número, según corresponda a la columna.',
   },
 };
 
