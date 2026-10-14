@@ -468,3 +468,21 @@ image-row 13, imagenes rule 111, imagenes test 148, cross-sheet rule 39, cross-s
 - IMAGE_COUNT_HIGH is reported once per product at the first row over 250, field null. IMAGE_ORDER_DUPLICATE is on the later row with the first row as param. Cover selection is left to the draft (U8b).
 - crossSheetRules(products, variants, images, sink) returns nothing and reports PRODUCT_KEY_UNKNOWN on field product_key for an empty, untrusted or unknown key (an untrusted key is indistinguishable from an empty one in the typed rows). PRODUCT_WITHOUT_VARIANTS is once per key, on the first Productos row; a Productos row without key is skipped. Images do not count as variants.
 - Pending: U8b and U8c.
+
+## U8b Report assembly and catalog draft: complete (11.5 to 11.8)
+
+Branch: feat/workbook-u8b-assembly-draft (from develop at db4882c). Strict TDD, Node 24. U8c (11.9 to 11.11) is not started.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 11.5 assemble-report test | Test file failed to import the missing module | 10 pass after 11.6 | Written first. |
+| 11.7 catalog-draft test | Test file failed to import the missing module | 5 pass after 11.8 | Written first. |
+
+### Decisions
+
+- assembleReport(collected, fileSha256) takes the IssueCollector build() output. The collector already sorts, caps per severity and counts exactly, so assembly only renders each issue with renderIssue, parses the code against the contracts catalog and carries totals. The hash is a parameter.
+- productKey in report issues is null: the collected issue does not carry it. Open question for a later slice.
+- buildCatalogDraft(errorCount, products, variants, images) returns undefined with errors. Images are ordered by orden, position is the orden value and the first is the cover. Option sourceRow is the first variant row of the product. Required fields missing with zero errors throw (caller bug).
+- No contracts changes.

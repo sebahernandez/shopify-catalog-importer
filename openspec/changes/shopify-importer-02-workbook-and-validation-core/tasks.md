@@ -236,10 +236,10 @@ Satisfies: rules (Image rules, Cross-sheet references, Determinism), validation-
 - [x] 11.2 GREEN: create `domain/image-row.ts` and `domain/rules/imagenes-rules.ts`; append codes and Spanish entries.
 - [x] 11.3 RED: create `domain/rules/cross-sheet-rules.test.ts`: Variantes row 7 with key `ZZ` and an Imagenes row with an empty or unknown key give `PRODUCT_KEY_UNKNOWN` at their rows, a product without Variantes gives `PRODUCT_WITHOUT_VARIANTS`.
 - [x] 11.4 GREEN: create `domain/rules/cross-sheet-rules.ts`.
-- [ ] 11.5 RED: create `application/assemble-report.test.ts`: order file-level, sheet, row, column, only warnings is valid, one error and two warnings counts, 1,500 issues keep 1,000 with `truncated` and exact totals, 600 warnings before 600 errors keeps all errors, three defects in sheet then row order, same input gives identical lists, no tier B code, no Shopify claim.
-- [ ] 11.6 GREEN: create `application/assemble-report.ts`.
-- [ ] 11.7 RED: create `domain/catalog-draft.test.ts`: draft built only with zero errors, prices are `Money`, every element has `sourceRow`, the lowest `orden` image is the cover regardless of row order (3, 1, 2).
-- [ ] 11.8 GREEN: create `domain/catalog-draft.ts` and `domain/build-catalog-draft.ts`.
+- [x] 11.5 RED: create `application/assemble-report.test.ts`: order file-level, sheet, row, column, only warnings is valid, one error and two warnings counts, 1,500 issues keep 1,000 with `truncated` and exact totals, 600 warnings before 600 errors keeps all errors, three defects in sheet then row order, same input gives identical lists, no tier B code, no Shopify claim.
+- [x] 11.6 GREEN: create `application/assemble-report.ts`.
+- [x] 11.7 RED: create `domain/catalog-draft.test.ts`: draft built only with zero errors, prices are `Money`, every element has `sourceRow`, the lowest `orden` image is the cover regardless of row order (3, 1, 2).
+- [x] 11.8 GREEN: create `domain/catalog-draft.ts` and `domain/build-catalog-draft.ts`.
 - [ ] 11.9 RED: create `application/validate-workbook.use-case.test.ts` with fake inspector and reader spies: rejected archive never calls the reader and returns a file-level blocking issue with no data-row issues, random bytes `FILE_NOT_XLSX` parses with the contracts schema, reader throws gives `FILE_UNREADABLE` with no error text, stack or path in params or texts, formula guard wired, `fileSha256` passed through and present on rejected files, no network, file-system or database double fires for valid and invalid input, a second run carries nothing from the first.
 - [ ] 11.10 GREEN: create `application/validate-workbook.use-case.ts` and `catalog-workbook.tokens.ts` (`WORKBOOK_LIMITS`, port tokens).
 - [ ] 11.11 Run the focused test command and `pnpm check`; record lines (near budget: report, do not trim).
