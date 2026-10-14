@@ -539,3 +539,44 @@ Code: port 20, content 116, use case 11, writer 11, tokens +1 (159). Tests: cont
 ### Check
 
 pnpm check exit 0: contracts 195 tests, web 193 tests, api 3328 tests.
+
+## U9b Template route and module wiring: complete (12.1, 12.6 to 12.8; 12.9 left to the orchestrator)
+
+Branch: feat/workbook-u9b-template-route (from develop at 89842a7). Strict TDD, Node 24. The boot harness (12.9) was not run here.
+
+### VS4 result (12.1)
+
+Nest 12.1.3 StreamableFile with options type and disposition sets the XLSX content type and the attachment Content-Disposition on the Express adapter; no explicit response headers were needed. Cache-Control no-store comes from the Header decorator. The fallback was not used.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 12.6 template int test | Suite failed to import the missing catalog-workbook.module | 2 pass after 12.7 | Module booted alone with the same global prefix main.ts sets; fetch on 127.0.0.1 port 0. |
+| 12.8 no-test-route-ships | Failed: imports length 5 instead of 4 | 8 pass | Expectations now: five imports, controllers HealthController and WorkbookController. |
+
+### Decisions
+
+- CatalogWorkbookModule.forRoot({ limits? }) uses useFactory providers for WORKBOOK_LIMITS, ARCHIVE_INSPECTOR, WORKBOOK_READER, TEMPLATE_WRITER, ValidateWorkbookUseCase and GenerateTemplateUseCase; exports both use cases.
+- Controller: GET workbook/template only, file name catalog-template.xlsx. The global prefix api is set in main.ts; GET is unguarded by origin.
+- Linting needed a typed Server cast in the test (getHttpServer returns any).
+
+### Check
+
+pnpm check exit 0: contracts 195 tests, web 193 tests, api 3330 tests.
+
+### U9b harness (task 12.9, run by the orchestrator)
+
+Booted from a temporary clone of the branch (commit 79c3bb1) under the session scratch directory, never from the real repository or the real HOME. Environment injected with env -i: HOME, DATA_DIR and SECRET_KEY_FILE pointing into the temporary directory (key directory mode 700), loopback 127.0.0.1, port 39517, log level warn. Steps: frozen install and build in the clone, prisma migrate deploy with the same isolated environment (the API refuses to start on an unmigrated database, MIGRATION_REQUIRED), then node dist/main.js in the background.
+
+| Check | Result |
+|---|---|
+| GET health | 200 |
+| GET api/workbook/template with curl --fail | exit 0, 200 |
+| Content-Type | application/vnd.openxmlformats-officedocument.spreadsheetml.sheet |
+| Content-Disposition | attachment; filename catalog-template.xlsx |
+| Cache-Control | no-store |
+| First bytes | 504b0304 (ZIP signature) |
+| Two downloads | identical SHA-256 (5,564 bytes) |
+
+The only log line was the expected warning that a new key was generated in the temporary directory. The process was stopped; no repo process, data directory, key file or database file remained in the real repository, and the real HOME has no importer folder. First two boot attempts failed by design (key directory mode 755, then unmigrated database); both were setup gaps in the harness, not defects.

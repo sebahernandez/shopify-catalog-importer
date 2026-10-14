@@ -1,6 +1,7 @@
 import { Module, type DynamicModule, type ModuleMetadata } from '@nestjs/common';
 import { APP_CONFIG, ConfigModule } from './config/config.module.js';
 import type { AppConfig } from './config/load-config.js';
+import { CatalogWorkbookModule } from './catalog-workbook/catalog-workbook.module.js';
 import { HealthModule } from './health/health.module.js';
 import { LocalSecurityModule } from './local-security/local-security.module.js';
 import { PersistenceModule } from './persistence/persistence.module.js';
@@ -41,6 +42,7 @@ export class AppModule {
         persistence,
         HealthModule.forRoot(config, persistence),
         LocalSecurityModule.forRoot(config, { logger: options.logger }),
+        CatalogWorkbookModule.forRoot(),
         ...(options.extraModules ?? []),
       ],
     };
