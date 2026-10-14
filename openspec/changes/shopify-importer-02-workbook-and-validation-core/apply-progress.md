@@ -160,3 +160,28 @@ The agent stopped at the 3.5 boundary with 307 lines (315 after 3.9) because the
 The agent reported lint and prettier clean but did not run the type check; the orchestrator's `pnpm check` caught one error (`exactOptionalPropertyTypes` in `package-writer.test.ts`, `{ aids: boolean | undefined }` not assignable to `PackageOptions`) and fixed the test to omit the key when `aids` is undefined. After the fix `pnpm check` and `pnpm build` exit 0 (contracts 119, web 193, api 3,098: 3,410 in total).
 
 Notes for U3a2: `sheet-xml.ts` supports only text cells, so number, formula, error, date and rich-text cells, hidden sheet/row/column flags and sparse rows must be added test-first; `writeZip` produces only well-formed archives, so the malformed cases (ZIP64, multi-disk, flags, lying sizes, overlaps, CRC mismatch) need a byte-level builder in `test-support/crafted-zip.ts`; task 3.10 must re-run once `test-support` exists to confirm dist holds no such folder.
+
+## U3a2 Fixture builder and crafted ZIPs: complete (3.6, 3.7, 3.10)
+
+Branch: feat/workbook-u3a2-fixture-builder (from develop with U1, U2, U3a). Strict TDD, Node 24.21.0, pnpm 12.11.2. Both case groups delivered; nothing remains.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| Group A1 (sheet-xml extension) | `row.length` fails on an undefined (sparse) row in `sheet-xml.ts`; 1 failed, 6 passed | 10 tests pass in the ooxml folder | `SheetDefinition` gains `hidden`, `hiddenRows`, `hiddenColumns`, undefined rows and raw cells (`{ t?, xml }`). |
+| Group A2 (3.6/3.7 builder) | Cannot find module `workbook-fixture-builder.js` | 14 tests pass | One test expectation fixed (quotes are escaped by `escapeXml`), not the builder. Covers number, plain, shared, array and text-result formulas, error, date (`t="d"`), rich text, long cell, hidden sheet/row/column, sparse rows, macro part, external link, embedding. |
+| Group B (3.6/3.7 crafted-zip) | Cannot find module `crafted-zip.js` | 6 tests pass (20 in test-support) | One GREEN failure: CRC xor produced a negative number; fixed with `>>> 0`. Covers not a ZIP, CFB header, ZIP64, multi-disk, encrypted flag, method 12, traversal, absolute and duplicate names, lying sizes, overlapping entries, CRC mismatch, ratio bomb, N entries. |
+| 3.10 | n/a | `pnpm check` exit 0, `pnpm build` exit 0 | dist holds no test-support folder. Totals: contracts 119, web 193, api 3,119 (3,431 in total, up 21 from 3,410). |
+
+### Measured hand-written lines (after prettier, tests included; added plus deleted)
+
+- After A1: 50 (sheet-xml 28, package-writer 4, test 18).
+- After A2: 187 (builder 56 and test 81 added).
+- After Group B: 363 (crafted-zip 89 and test 87 added). Within the 400 budget.
+
+### Decisions for later units
+
+- Builder API: `buildWorkbook(sheets?, extraParts?)`, `workbookParts` (returns entries so a test can alter parts), cell helpers (`numberCell`, `formulaCell`, `sharedFormula`, `arrayFormula`, `textFormula`, `errorCell`, `dateCell`, `richTextCell`, `longCell`) and extra parts (`macroPart`, `externalLinkPart`, `embeddingPart`).
+- Crafted archives are zero-argument builders except `ratioBomb(size)` and `manyEntries(count)`; they patch a well-formed `writeZip` archive. Lying sizes patches the uncompressed size to 1 in both headers; overlap points the second entry's local offset at the first; the ZIP64 case adds a locator and saturates the end record.
+- The extra parts hold placeholder bytes and are not registered in the content types (enough for part-name scans).

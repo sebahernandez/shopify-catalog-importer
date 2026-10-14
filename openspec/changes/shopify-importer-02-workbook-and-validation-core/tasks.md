@@ -121,11 +121,11 @@ Satisfies: workbook-template (Identifier columns keep text, Usability aids: writ
 - [x] 3.3 GREEN: create `infrastructure/ooxml/zip-writer.ts`.
 - [x] 3.4 RED: create `infrastructure/ooxml/package-writer.test.ts`: content types, workbook and relationship parts, text cells stored as strings (leading zero kept), text number format on chosen columns, a TRUE/FALSE list validation, frozen header, column widths, fixed document timestamps, aids can be switched off.
 - [x] 3.5 GREEN: create `infrastructure/ooxml/sheet-xml.ts` and `package-writer.ts`.
-- [ ] 3.6 RED: create `apps/api/src/catalog-workbook/test-support/workbook-fixture-builder.test.ts`: builds a valid workbook and each crafted case (not a ZIP, CFB header, ZIP64, multi-disk, encrypted flag, method 12, traversal name, absolute name, duplicate name, lying sizes, overlapping entries, CRC mismatch, ratio bomb, N entries, macro part, external link, embedding, plain, shared, array and text-result formulas, error, date and rich-text cells, hidden sheet, row and column, sparse rows, long cell).
-- [ ] 3.7 GREEN: create `test-support/workbook-fixture-builder.ts` and `test-support/crafted-zip.ts` on top of the writer.
+- [x] 3.6 RED: create `apps/api/src/catalog-workbook/test-support/workbook-fixture-builder.test.ts`: builds a valid workbook and each crafted case (not a ZIP, CFB header, ZIP64, multi-disk, encrypted flag, method 12, traversal name, absolute name, duplicate name, lying sizes, overlapping entries, CRC mismatch, ratio bomb, N entries, macro part, external link, embedding, plain, shared, array and text-result formulas, error, date and rich-text cells, hidden sheet, row and column, sparse rows, long cell).
+- [x] 3.7 GREEN: create `test-support/workbook-fixture-builder.ts` and `test-support/crafted-zip.ts` on top of the writer.
 - [x] 3.8 RED: modify `apps/api/src/local-security/no-test-route-ships.test.ts` to assert `src/**/test-support/**` is excluded in `tsconfig.build.json`.
 - [x] 3.9 GREEN: modify `apps/api/tsconfig.build.json` to exclude `src/**/test-support/**`.
-- [ ] 3.10 Run the focused test command, `pnpm build`, and confirm dist holds no test-support folder; record lines.
+- [x] 3.10 Run the focused test command, `pnpm build`, and confirm dist holds no test-support folder; record lines.
 
 ## Phase 4: U3b1 ZIP archive checks and U3b2 ZIP content checks
 
