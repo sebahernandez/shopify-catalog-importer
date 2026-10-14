@@ -133,13 +133,13 @@ Satisfies: workbook-file-safety (Preflight before parsing, Archive caps, Ambiguo
 
 ### U3b1 (branch `feat/workbook-u3b1-zip-archive-checks`, depends on U3a)
 
-- [ ] 4.1 (U3b1) Verify VS1 second half: `inflateRawSync` with `maxOutputLength` throws at the bound. Fallback: a chunked inflate that counts output and aborts. Record the result.
-- [ ] 4.2 Create `apps/api/src/catalog-workbook/ports/archive-inspector.port.ts` (`ArchiveInspector`, `Inspection`, `VerifiedArchive` with `formulaParts`, `ArchiveLimits`).
-- [ ] 4.3 RED (steps 1 to 5): create `infrastructure/zip/zip-preflight.int.test.ts` structure cases: random bytes `FILE_NOT_XLSX`, CFB header `FILE_ENCRYPTED_OR_LEGACY`, two end records or comment not at end, ZIP64 or multi-disk, 201 entries (limit 200, actual 201), cap override 10 versus 11 entries, encrypted flag, method 12, traversal and absolute names `ZIP_UNSAFE_ENTRY_NAME`, duplicate names after case folding `ZIP_AMBIGUOUS_ARCHIVE`, local header name mismatch, overlapping entries.
-- [ ] 4.4 GREEN: create `infrastructure/zip/central-directory.ts` (end record search, directory walk, local header checks, overlap check).
-- [ ] 4.5 RED (step 6): add cases: lying declared sizes rejected on real size, bomb beyond 150 MB or ratio 100 with limit and observed in params, inflation stops once the cap is crossed (bounded output observed), CRC and size mismatch, ratio rule only above 1 MiB.
-- [ ] 4.6 GREEN: create `infrastructure/zip/bounded-inflate.ts` and `infrastructure/zip/archive-preflight.ts` (steps 1 to 6).
-- [ ] 4.10 U3b1 gate: run `pnpm --filter @importer/api exec vitest run src/catalog-workbook/infrastructure/zip/zip-preflight.int.test.ts` and `pnpm check`; measure hand-written lines (budget 400, planned ~230) and record them. Stop here: U3b2 starts on a branch based on U3b1.
+- [x] 4.1 (U3b1) Verify VS1 second half: `inflateRawSync` with `maxOutputLength` throws at the bound. Fallback: a chunked inflate that counts output and aborts. Record the result.
+- [x] 4.2 Create `apps/api/src/catalog-workbook/ports/archive-inspector.port.ts` (`ArchiveInspector`, `Inspection`, `VerifiedArchive` with `formulaParts`, `ArchiveLimits`).
+- [x] 4.3 RED (steps 1 to 5): create `infrastructure/zip/zip-preflight.int.test.ts` structure cases: random bytes `FILE_NOT_XLSX`, CFB header `FILE_ENCRYPTED_OR_LEGACY`, two end records or comment not at end, ZIP64 or multi-disk, 201 entries (limit 200, actual 201), cap override 10 versus 11 entries, encrypted flag, method 12, traversal and absolute names `ZIP_UNSAFE_ENTRY_NAME`, duplicate names after case folding `ZIP_AMBIGUOUS_ARCHIVE`, local header name mismatch, overlapping entries.
+- [x] 4.4 GREEN: create `infrastructure/zip/central-directory.ts` (end record search, directory walk, local header checks, overlap check).
+- [x] 4.5 RED (step 6): add cases: lying declared sizes rejected on real size, bomb beyond 150 MB or ratio 100 with limit and observed in params, inflation stops once the cap is crossed (bounded output observed), CRC and size mismatch, ratio rule only above 1 MiB.
+- [x] 4.6 GREEN: create `infrastructure/zip/bounded-inflate.ts` and `infrastructure/zip/archive-preflight.ts` (steps 1 to 6).
+- [x] 4.10 U3b1 gate: run `pnpm --filter @importer/api exec vitest run src/catalog-workbook/infrastructure/zip/zip-preflight.int.test.ts` and `pnpm check`; measure hand-written lines (budget 400, planned ~230) and record them. Stop here: U3b2 starts on a branch based on U3b1.
 
 ### U3b2 (branch `feat/workbook-u3b2-zip-content-checks`, depends on U3b1)
 
