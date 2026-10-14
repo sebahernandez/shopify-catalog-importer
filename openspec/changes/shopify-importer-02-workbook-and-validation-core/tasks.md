@@ -190,10 +190,10 @@ Satisfies: workbook-contract (Cell value model), file-safety (Formulas reader si
 
 Satisfies: workbook-contract (matching, Header row, Optional instructions and unknown columns), rules (Structure, Productos fields, Example products, Tags, Other cell kinds), file-safety (Formulas per cell, Sheet size caps per cell).
 
-- [ ] 7.1 RED: create `apps/api/src/catalog-workbook/domain/structure/resolve-sheets.test.ts`: ` Imágenes ` resolves to `Imagenes`, two colliding names `SHEET_DUPLICATE` and neither chosen, missing sheet `SHEET_MISSING` once with no row cascade, `Instrucciones` and unknown sheets ignored.
-- [ ] 7.2 GREEN: create `domain/structure/resolve-sheets.ts`.
-- [ ] 7.3 RED: create `domain/structure/resolve-headers.test.ts`: `TITULO`, `Handle`, padded `product_key` in any order, `HEADER_MISSING` for `handle`, `HEADER_DUPLICATE` for `SKU` and `sku`, absent `marca` silent, unknown header `notas` warns, issues use canonical names.
-- [ ] 7.4 GREEN: create `domain/structure/resolve-headers.ts`.
+- [x] 7.1 RED: create `apps/api/src/catalog-workbook/domain/structure/resolve-sheets.test.ts`: ` Imágenes ` resolves to `Imagenes`, two colliding names `SHEET_DUPLICATE` and neither chosen, missing sheet `SHEET_MISSING` once with no row cascade, `Instrucciones` and unknown sheets ignored.
+- [x] 7.2 GREEN: create `domain/structure/resolve-sheets.ts`.
+- [x] 7.3 RED: create `domain/structure/resolve-headers.test.ts`: `TITULO`, `Handle`, padded `product_key` in any order, `HEADER_MISSING` for `handle`, `HEADER_DUPLICATE` for `SKU` and `sku`, absent `marca` silent, unknown header `notas` warns, issues use canonical names.
+- [x] 7.4 GREEN: create `domain/structure/resolve-headers.ts`.
 - [ ] 7.5 RED: create `domain/structure/read-rows.test.ts`: blank and whitespace-only rows skipped without shifting numbers (row 4 stays 4), hidden sheet, row or column with data warns, formula cells give `FORMULA_NOT_ALLOWED` with sheet, original row and field (plain, shared, text result) and their rules are skipped while other cells are validated, error cell `CELL_ERROR_VALUE`, date cell `CELL_TYPE_UNEXPECTED`, boolean cell only valid in `gestionar_inventario`, reader cap failures become `SHEET_ROW_LIMIT_EXCEEDED`, `SHEET_COLUMN_LIMIT_EXCEEDED`, `CELL_TEXT_TOO_LONG` (cell with sheet, row, field).
 - [ ] 7.6 GREEN: create `domain/structure/read-rows.ts`.
 - [ ] 7.7 RED: create `domain/rules/productos-rules.test.ts`: empty `titulo` on row 5 gives `REQUIRED_FIELD_MISSING`, repeated key on row 3 refers to first row, case-insensitive handle duplicate on row 4, `camisa roja` invalid, `camisa-roja-2` valid, `EJEMPLO-REMERA` one `EXAMPLE_PRODUCT` warning and also the defect error, tag over 255 or more than 250 tags `TAG_LIMIT_EXCEEDED`, `a, A, b` no issue.

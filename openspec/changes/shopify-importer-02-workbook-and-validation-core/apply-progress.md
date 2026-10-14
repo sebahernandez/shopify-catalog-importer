@@ -291,3 +291,24 @@ Port 27, contract 160, adapter 142, int test 66, formula-guard 17, formula-guard
 - The adapter takes an optional parse function in its constructor (default XLSX.read) so tests can inject a throwing parser.
 - formula-guard returns an empty list or one FORMULA_NOT_ALLOWED finding; per-cell formula reporting stays with the reader flags.
 - Existing issue codes only; no new code needed. The blank kind is only produced for stub cells, which the reader never requests, so absent cells are simply missing from rows.
+
+## U5a Sheet and header resolution: complete (7.1 to 7.4)
+
+Branch: feat/workbook-u5a-sheets-headers (from develop at aa2c8ea). Strict TDD, Node 24. U5 was split in three by maintainer decision on 2026-10-14 after the structure work alone measured 494 lines: U5a (this unit: sheet builder, resolve-sheets, resolve-headers), U5b (read-rows and its catalog codes), U5c (Productos rules).
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 7.1 resolve-sheets test | Test file failed to import the missing module | 4 pass after 7.2 | |
+| 7.3 resolve-headers test | Test file failed to import the missing module | 6 pass after 7.4 | First run failed one assertion because the test assumed header order; the map follows canonical order, so the test compares an object. |
+
+### Measured size
+
+Sheet builder 50, resolve-sheets 32 and test 55, resolve-headers 53 and test 67: 257 lines after Prettier. Nothing was trimmed.
+
+### Decisions
+
+- resolveSheets returns a map of the resolved data sheets; a missing or colliding sheet is reported once and left out of the map.
+- resolveHeaders returns the column map and a usable flag (false when a required column is missing or duplicated); a duplicated header is reported once and mapped to neither column.
+- A pure sheet builder in the test-support folder builds in-memory sheets for the domain tests (shared by the three structure test files).
