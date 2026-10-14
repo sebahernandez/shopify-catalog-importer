@@ -1,6 +1,7 @@
 import { Module, type DynamicModule, type ModuleMetadata } from '@nestjs/common';
 import { APP_CONFIG, ConfigModule } from './config/config.module.js';
 import type { AppConfig } from './config/load-config.js';
+import { HealthModule } from './health/health.module.js';
 import { LocalSecurityModule } from './local-security/local-security.module.js';
 import { PersistenceModule } from './persistence/persistence.module.js';
 import type { LoggerPort } from './shared-kernel/logging/logger.port.js';
@@ -18,8 +19,8 @@ export interface AppModuleOptions {
 }
 
 /**
- * The root module. S0 declares no controller here: the health route (U14) arrives through its
- * own module, and the test-only write route never reaches this class.
+ * The root module. It declares no controller itself: the health route arrives through
+ * `HealthModule`, and the test-only write route never reaches this class.
  *
  * `ConfigModule` is given the configuration `bootstrap()` loaded before any application existed,
  * so every module sees the same object and the environment file is read once.
@@ -32,11 +33,13 @@ export class AppModule {
       providers: [{ provide: APP_CONFIG, useValue: options.config }],
       exports: [APP_CONFIG],
     };
+    const persistence = PersistenceModule.forRoot(config);
     return {
       module: AppModule,
       imports: [
         config,
-        PersistenceModule.forRoot(config),
+        persistence,
+        HealthModule.forRoot(config, persistence),
         LocalSecurityModule.forRoot(config, { logger: options.logger }),
         ...(options.extraModules ?? []),
       ],
