@@ -1,9 +1,18 @@
 import 'reflect-metadata';
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { ApiError, HealthResponse } from '@importer/contracts';
 import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
@@ -321,5 +330,192 @@ describe('concurrent requests', () => {
     await boot();
     expect(connectSpy).toHaveBeenCalledTimes(1);
     expect(theService()).toBeInstanceOf(PrismaService);
+  });
+});
+
+// A key written the way the real key file is, so the application loads it instead of generating one.
+function seedKey(box: Sandbox, bytes: Buffer): void {
+  mkdirSync(dirname(box.keyFile), { recursive: true, mode: 0o700 });
+  writeFileSync(box.keyFile, `k1:${bytes.toString('base64')}\n`, { mode: 0o600 });
+  chmodSync(box.keyFile, 0o600);
+}
+
+function formsOf(bytes: Buffer): string[] {
+  const b64 = bytes.toString('base64');
+  const url = bytes.toString('base64url');
+  const hex = bytes.toString('hex');
+  return [b64, b64.replace(/=+$/, ''), url, `${url}=`, hex, hex.toUpperCase()];
+}
+
+describe('what the answer and the logs never contain', () => {
+  const KEY = Buffer.from(Array.from({ length: 32 }, (_, i) => 0xa0 + i));
+  const MESSAGE_MARKER = 'raw-driver-message-marker';
+
+  // Every recognisable value the process holds: the key in each textual form, the key file line,
+  // every path the sandbox gave the application, and the versions of the runtime.
+  function markers(): string[] {
+    return [
+      ...formsOf(KEY),
+      `k1:${KEY.toString('base64')}`,
+      sb.root,
+      basename(sb.root),
+      sb.dataDir,
+      databaseFilePath(sb.dataDir),
+      sb.keyFile,
+      sb.home,
+      tmpdir(),
+      process.version,
+      process.versions.node,
+      process.versions.v8,
+      MESSAGE_MARKER,
+    ];
+  }
+
+  const wholeReply = (reply: Reply): string =>
+    JSON.stringify({ status: reply.status, headers: reply.headers, body: reply.body });
+
+  function expectNoMarker(text: string): void {
+    expect(text.length).toBeGreaterThan(0);
+    for (const marker of markers()) expect(text).not.toContain(marker);
+  }
+
+  async function bootWithKey(): Promise<BootHandle> {
+    seedKey(sb, KEY);
+    // Configuration values are seeded with the markers too: they are set, so they could leak.
+    return boot({ DATA_DIR: sb.dataDir, SECRET_KEY_FILE: sb.keyFile });
+  }
+
+  it('markers are real: each one is present in the sandbox the application runs in', () => {
+    seedKey(sb, KEY);
+    expect(readFileSync(sb.keyFile, 'utf8')).toContain(KEY.toString('base64'));
+    expect(databaseFilePath(sb.dataDir).startsWith(sb.dataDir)).toBe(true);
+    expect(sb.dataDir.startsWith(sb.root)).toBe(true);
+    expect(markers().length).toBeGreaterThan(12);
+  });
+
+  it('holds for the healthy answer: response, headers and every log line', async () => {
+    const handle = await bootWithKey();
+    const replies = await Promise.all([
+      send(handle.address.port, 'GET', '/health'),
+      send(handle.address.port, 'GET', '/health', { origin: 'https://evil.example' }),
+      send(handle.address.port, 'HEAD', '/health'),
+    ]);
+    for (const reply of replies) {
+      expect(reply.status).toBe(200);
+      expectNoMarker(wholeReply(reply));
+    }
+    expect(Object.keys(JSON.parse(replies[0]?.body ?? '{}') as object).sort()).toEqual([
+      'database',
+      'shopifyApiVersion',
+      'status',
+    ]);
+    expect(lines.length).toBeGreaterThan(3);
+    expectNoMarker(lines.join('\n'));
+  });
+
+  it('holds for the degraded answer, whichever way the database is down', async () => {
+    const handle = await bootWithKey();
+    const port = handle.address.port;
+    const answers: Reply[] = [];
+
+    const check = vi.spyOn(PrismaService.prototype, 'isReachable');
+    check.mockRejectedValueOnce(
+      new Error(`${MESSAGE_MARKER} ${markers().join(' ')} at ${sb.dataDir}`),
+    );
+    answers.push(await send(port, 'GET', '/health'));
+
+    await theService().disconnect();
+    answers.push(await send(port, 'GET', '/health'));
+
+    for (const reply of answers) {
+      expect(reply.status).toBe(503);
+      expectNoMarker(wholeReply(reply));
+      expect(Object.keys(JSON.parse(reply.body) as object).sort()).toEqual([
+        'database',
+        'shopifyApiVersion',
+        'status',
+      ]);
+    }
+    expectNoMarker(lines.join('\n'));
+  });
+
+  it('holds when the database file is gone, and the log carries no health error at all', async () => {
+    const handle = await bootWithKey();
+    const before = lines.length;
+    rmSync(databaseFilePath(sb.dataDir));
+    const reply = await send(handle.address.port, 'GET', '/health');
+    expect(reply.status).toBe(503);
+    expectNoMarker(wholeReply(reply));
+    expectNoMarker(lines.join('\n'));
+    expect(lines.slice(before).join('\n')).not.toMatch(/ENOENT|SQLITE|unable to open/i);
+  });
+});
+
+describe('GET /health is read-only', () => {
+  const CALLS = 25;
+
+  function dataFiles(): string[] {
+    return readdirSync(sb.dataDir).sort();
+  }
+
+  function databaseState(): { rows: unknown[]; size: number; mtimeMs: number } {
+    const file = databaseFilePath(sb.dataDir);
+    const { size, mtimeMs } = statSync(file);
+    const db = new Database(file, { readonly: true });
+    try {
+      const rows = db.prepare('SELECT key, value, updated_at FROM app_setting ORDER BY key').all();
+      return { rows, size, mtimeMs };
+    } finally {
+      db.close();
+    }
+  }
+
+  const callMany = (port: number, headers: Record<string, string> = {}): Promise<Reply[]> =>
+    Promise.all(
+      Array.from({ length: CALLS }, (_, i) =>
+        send(port, i % 2 === 0 ? 'GET' : 'HEAD', '/health', headers),
+      ),
+    );
+
+  it('leaves the key-check row, the database file and the data directory as they were', async () => {
+    const handle = await boot();
+    const files = dataFiles();
+    const before = databaseState();
+    expect(before.rows).toHaveLength(1);
+    const keyBefore = readFileSync(sb.keyFile);
+
+    const replies = [
+      ...(await callMany(handle.address.port)),
+      ...(await callMany(handle.address.port, { origin: 'https://evil.example' })),
+    ];
+
+    expect(replies).toHaveLength(CALLS * 2);
+    expect(replies.every((reply) => reply.status === 200)).toBe(true);
+    expect(dataFiles()).toEqual(files);
+    expect(databaseState()).toEqual(before);
+    expect(readFileSync(sb.keyFile).equals(keyBefore)).toBe(true);
+  });
+
+  it('creates nothing when the database is down: the removed file stays removed', async () => {
+    const handle = await boot();
+    rmSync(databaseFilePath(sb.dataDir));
+    const files = dataFiles();
+    expect(files).not.toContain('importer.db');
+
+    const replies = await callMany(handle.address.port);
+
+    expect(replies.every((reply) => reply.status === 503)).toBe(true);
+    expect(dataFiles()).toEqual(files);
+    expect(() => statSync(databaseFilePath(sb.dataDir))).toThrow(/ENOENT/);
+  });
+
+  it('writes nothing when the service is disconnected', async () => {
+    const handle = await boot();
+    // Closing the connection checkpoints the log into the file, so the state is read afterwards.
+    await theService().disconnect();
+    const before = databaseState();
+    const replies = await callMany(handle.address.port);
+    expect(replies.every((reply) => reply.status === 503)).toBe(true);
+    expect(databaseState()).toEqual(before);
   });
 });
