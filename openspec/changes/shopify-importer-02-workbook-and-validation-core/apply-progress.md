@@ -512,3 +512,30 @@ Code: use case 111, tokens 4, assemble-report delta +27 (142). Tests: use-case t
 ### Check
 
 pnpm check exit 0: contracts 195 tests, web 193 tests, api 3317 tests.
+
+## U9a Template content, use case and OOXML writer: complete (12.2 to 12.5)
+
+Branch: feat/workbook-u9a-template (from develop at 7ef019b). Strict TDD, Node 24. U9b (12.1, 12.6 to 12.9) is not started: no controller, no Nest module.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 12.2 content test | Suite failed to import the missing template-content module | 5 pass after 12.3 | Headers are compared with the contract constants. |
+| 12.3 use case | Written together with its test and the content module, so no separate RED run | 1 pass | Small unit test with a writer double. |
+| 12.4 writer int test | Suite failed to import the missing ooxml-template-writer module; a first GREEN run also failed two cases because the test read errorCount from the wrong report path (summary.errorCount) | 5 pass | The test was fixed, not the code. |
+
+### Decisions
+
+- Port: TemplateWriter.write(definition): Uint8Array, with TemplateDefinition and TemplateSheet defined in the port (all cells are text strings, so no application import of the OOXML types).
+- Content is pure data built from the contract COLUMNS, so headers cannot drift. Examples: EJEMPLO-GORRA (one variant, empty options, barcode 0123456789012 as text) and EJEMPLO-REMERA (two variants, option Talla S and M). Identifier columns sku, codigo_barras and ubicacion are text columns; gestionar_inventario has the TRUE/FALSE list.
+- OoxmlTemplateWriter takes PackageOptions (aids on by default); aids off still validates identically.
+- TEMPLATE_WRITER token added to the tokens file.
+
+### Measured size
+
+Code: port 20, content 116, use case 11, writer 11, tokens +1 (159). Tests: content 74, use case 13, writer int 82 (169). Contracts: 0. Combined 328 hand-written lines, within the 400 budget.
+
+### Check
+
+pnpm check exit 0: contracts 195 tests, web 193 tests, api 3328 tests.
