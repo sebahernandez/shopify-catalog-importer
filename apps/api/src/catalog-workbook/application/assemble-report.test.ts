@@ -1,7 +1,7 @@
 import { ISSUE_CODES, ValidationReport, renderIssue } from '@importer/contracts';
 import { describe, expect, it } from 'vitest';
 import { type CollectedIssue, IssueCollector } from '../domain/issue-collector.js';
-import { assembleReport } from './assemble-report.js';
+import { assembleReport, productKeyIndex } from './assemble-report.js';
 
 const SHA = 'a'.repeat(64);
 
@@ -106,5 +106,19 @@ describe('assembleReport', () => {
     expect(report.issues.every(({ code }) => codes.includes(code))).toBe(true);
     expect(codes.some((code) => /SHOPIFY|HANDLE_EXISTS|LOCATION_UNKNOWN/.test(code))).toBe(false);
     expect(JSON.stringify(report)).not.toMatch(/shopify/i);
+  });
+
+  it('carries the product key of the row, and null for file-level and unknown rows', () => {
+    const collector = new IssueCollector(100);
+    collector.add(issue({ sheet: 'Variantes', row: 4, field: 'sku' }));
+    collector.add(issue({ sheet: 'Variantes', row: 5, field: 'sku' }));
+    collector.add(issue({ sheet: null, row: null, field: null, code: 'FILE_UNREADABLE' }));
+    const keys = productKeyIndex([], [{ sourceRow: 4, productKey: 'p-1', sku: undefined }], []);
+    const report = assembleReport(collector.build(), SHA, keys);
+    expect(report.issues.map(({ sheet, row, productKey }) => [sheet, row, productKey])).toEqual([
+      [null, null, null],
+      ['Variantes', 4, 'p-1'],
+      ['Variantes', 5, null],
+    ]);
   });
 });

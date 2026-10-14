@@ -240,9 +240,9 @@ Satisfies: rules (Image rules, Cross-sheet references, Determinism), validation-
 - [x] 11.6 GREEN: create `application/assemble-report.ts`.
 - [x] 11.7 RED: create `domain/catalog-draft.test.ts`: draft built only with zero errors, prices are `Money`, every element has `sourceRow`, the lowest `orden` image is the cover regardless of row order (3, 1, 2).
 - [x] 11.8 GREEN: create `domain/catalog-draft.ts` and `domain/build-catalog-draft.ts`.
-- [ ] 11.9 RED: create `application/validate-workbook.use-case.test.ts` with fake inspector and reader spies: rejected archive never calls the reader and returns a file-level blocking issue with no data-row issues, random bytes `FILE_NOT_XLSX` parses with the contracts schema, reader throws gives `FILE_UNREADABLE` with no error text, stack or path in params or texts, formula guard wired, `fileSha256` passed through and present on rejected files, no network, file-system or database double fires for valid and invalid input, a second run carries nothing from the first.
-- [ ] 11.10 GREEN: create `application/validate-workbook.use-case.ts` and `catalog-workbook.tokens.ts` (`WORKBOOK_LIMITS`, port tokens).
-- [ ] 11.11 Run the focused test command and `pnpm check`; record lines (near budget: report, do not trim).
+- [x] 11.9 RED: create `application/validate-workbook.use-case.test.ts` with fake inspector and reader spies: rejected archive never calls the reader and returns a file-level blocking issue with no data-row issues, random bytes `FILE_NOT_XLSX` parses with the contracts schema, reader throws gives `FILE_UNREADABLE` with no error text, stack or path in params or texts, formula guard wired, `fileSha256` passed through and present on rejected files, no network, file-system or database double fires for valid and invalid input, a second run carries nothing from the first.
+- [x] 11.10 GREEN: create `application/validate-workbook.use-case.ts` and `catalog-workbook.tokens.ts` (`WORKBOOK_LIMITS`, port tokens).
+- [x] 11.11 Run the focused test command and `pnpm check`; record lines (near budget: report, do not trim).
 
 ## Phase 12: U9 Template, module, GET route
 

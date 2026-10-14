@@ -486,3 +486,29 @@ Branch: feat/workbook-u8b-assembly-draft (from develop at db4882c). Strict TDD, 
 - productKey in report issues is null: the collected issue does not carry it. Open question for a later slice.
 - buildCatalogDraft(errorCount, products, variants, images) returns undefined with errors. Images are ordered by orden, position is the orden value and the first is the cover. Option sourceRow is the first variant row of the product. Required fields missing with zero errors throw (caller bug).
 - No contracts changes.
+
+## U8c Use case and tokens: complete (11.9 to 11.11) plus productKey correction
+
+Branch: feat/workbook-u8c-use-case (from develop at a1c4ca7). Strict TDD, Node 24. U9 is not started.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| productKey correction | New assemble-report case failed: productKeyIndex is not a function | 11 pass | Written first, existing 10 cases untouched. |
+| 11.9 use-case test | Test file failed to import the missing module | 7 pass after 11.10 | One assertion regex was wrong (the catalog message contains the text .xlsx); the test was fixed, not the code. |
+
+### Decisions
+
+- productKey: assembleReport takes an optional third argument, a map of sheet and row to product key built by productKeyIndex from the typed product, variant and image rows. The collector and CollectedIssue are unchanged. File-level, header and rows with no typed key stay null.
+- ValidateWorkbookUseCase(inspector, reader, limits).execute(bytes, fileSha256) returns report and an optional draft. Reader throw becomes FILE_UNREADABLE with empty params. A reader cap failure goes through reportReadFailure and stops. A formula guard finding stops the pipeline with the file-level issue.
+- Cross-sheet rules run only when all three sheets were usable, so a skipped sheet does not make every key look unknown.
+- Tokens: WORKBOOK_LIMITS, ARCHIVE_INSPECTOR, WORKBOOK_READER as symbols. No TEMPLATE_WRITER token (no port yet). No Nest module (U9).
+
+### Measured size
+
+Code: use case 111, tokens 4, assemble-report delta +27 (142). Tests: use-case test 130, assemble-report test delta +14 (144). Contracts: 0. Combined 286 hand-written lines, within the 400 budget.
+
+### Check
+
+pnpm check exit 0: contracts 195 tests, web 193 tests, api 3317 tests.
