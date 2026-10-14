@@ -51,14 +51,17 @@ export class IssueCollector {
     }
   }
 
-  /** Errors come before warnings, each sorted; the list is cut at the cap. */
+  /**
+   * One sorted list when everything fits; once something is cut, errors come before warnings so
+   * the cap never drops an error for a warning.
+   */
   build(): CollectedReport {
     const { error, warning } = this.#kept;
-    const issues = [...error.sort(compare), ...warning.sort(compare)].slice(
-      0,
-      this.maxReportedIssues,
-    );
     const total = this.#counts.error + this.#counts.warning;
+    const issues =
+      total <= this.maxReportedIssues
+        ? [...error, ...warning].sort(compare)
+        : [...error.sort(compare), ...warning.sort(compare)].slice(0, this.maxReportedIssues);
     return {
       issues,
       errorCount: this.#counts.error,

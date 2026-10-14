@@ -89,6 +89,34 @@ describe('ValidateWorkbookUseCase', () => {
     expect(report.valid).toBe(false);
   });
 
+  it('reports only SHEET_MISSING when Variantes is absent, with no variant_sku cascade', async () => {
+    const sheets = [
+      buildSheet('Productos', [PRODUCTOS, ['p-1', 'remera', 'Remera']]),
+      buildSheet('Imagenes', [
+        [...IMAGENES, 'variant_sku'],
+        ['p-1', 'a.jpg', 1, 'S1'],
+      ]),
+    ];
+    const { report } = await setup(PASSED, reading(sheets)).useCase.execute(BYTES, SHA);
+    expect(report.issues.map(({ code, sheet }) => [code, sheet])).toEqual([
+      ['SHEET_MISSING', 'Variantes'],
+    ]);
+  });
+
+  it('blocks a formula that sits only in Instrucciones or an unknown sheet', async () => {
+    const formula = { value: { kind: 'blank' as const }, formula: true };
+    for (const name of ['Instrucciones', 'Notas']) {
+      const sheets = [...workbook([['p-1', 'S1', 10]]), buildSheet(name, [[formula]])];
+      const found = { ok: true, archive: { entries: [], formulaParts: ['xl/w.xml'] } } as const;
+      const { report, draft } = await setup(found, reading(sheets)).useCase.execute(BYTES, SHA);
+      expect(draft).toBeUndefined();
+      expect(report.valid).toBe(false);
+      expect(report.issues).toMatchObject([
+        { code: 'FORMULA_NOT_ALLOWED', params: { sheet: name, ref: 'A1' } },
+      ]);
+    }
+  });
+
   it('gives zero errors and a draft for a valid workbook, without network or file access', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     const { inspect, reader, useCase } = setup(PASSED, reading(workbook([['p-1', 'S1', 10]])));

@@ -37,6 +37,22 @@ describe('assembleReport', () => {
     ]);
   });
 
+  it('orders an Imagenes error after Productos warnings when nothing is cut', () => {
+    const warning = (row: number) =>
+      issue({ severity: 'warning', code: 'EXAMPLE_PRODUCT', row, field: null });
+    const report = assemble([
+      issue({ sheet: 'Imagenes', row: 2, field: 'archivo', code: 'IMAGE_PATH_INVALID' }),
+      warning(3),
+      warning(2),
+    ]);
+    expect(report.issues.map(({ severity, sheet, row }) => [severity, sheet, row])).toEqual([
+      ['warning', 'Productos', 2],
+      ['warning', 'Productos', 3],
+      ['error', 'Imagenes', 2],
+    ]);
+    expect(report.truncated).toBe(false);
+  });
+
   it('is valid with only warnings', () => {
     const report = assemble([issue({ severity: 'warning' })]);
     expect(report).toMatchObject({ valid: true, summary: { errorCount: 0, warningCount: 1 } });
