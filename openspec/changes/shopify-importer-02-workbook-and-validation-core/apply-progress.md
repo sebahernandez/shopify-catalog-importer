@@ -57,3 +57,29 @@ validation-report 37 + test 75, api-error +9 -2 and test +7 -1, index +5, reques
 ### Deviations
 
 - `apps/api/src/local-security/request-policy.ts`: `RejectionCode` was `ApiError['error']['code']`, so widening the enum broke the api typecheck in the guard maps. It is now narrowed with `Extract` to the two guard codes (`HOST_NOT_ALLOWED`, `ORIGIN_NOT_ALLOWED`). This is outside the listed rollback boundary but the typecheck requires it.
+
+## U2 split decision
+
+U2 was first implemented as one unit and measured about 849 changed lines, double the 400-line budget (the overrun was not caught at a pair boundary because lines were measured only at the end). By user decision on 2026-10-14 it was delivered as three PRs: U2a (tasks 2.1 to 2.6, 2.13, 2.14), U2b (tasks 2.7, 2.8, 2.11, 2.12) and U2c (tasks 2.9, 2.10, 2.15). The one-piece draft was split by file without changing code; each unit was re-verified on its own branch.
+
+## U2a Lint rule, limits, cell model, name matching and issue collector: done
+
+Branch: feat/workbook-u2a-limits-cell-collector (from develop). Strict TDD, Node 24.21.0, pnpm 12.11.2.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 2.1 / 2.2 | Temporary `node:crypto` import in a domain file: `pnpm lint` failed with the built-in restriction naming `node:crypto` | Import removed, `pnpm lint` clean | The new block ignores `*.test.ts` so later purity tests can use a file-system spy. |
+| 2.3 / 2.4 | Cannot find module `workbook-limits.js` | 3 tests pass | Adds `withLimits` for the override merge (frozen result). |
+| 2.5 / 2.6 | Cannot find modules `match-key.js` and `workbook-cell.js` | 7 tests pass | `normalizeCell` returns `FieldValue` (text trimmed, blank and whitespace-only become `empty`). |
+| 2.13 / 2.14 | Cannot find module `issue-collector.js` | 5 tests pass | Counts exact, cap per severity, errors first, deterministic sort. |
+
+### Measured hand-written lines
+
+312 insertions and 1 deletion across 9 files (source and tests, eslint.config.js +19 -1). Within the 400 budget.
+
+### Decisions for later units
+
+- `IssueCollector` takes a plain `CollectedIssue` (code is a string, sheet is a contracts `DataSheet`); column order comes from contracts `COLUMNS` and unknown fields sort after known ones. The use case renders issues later.
+- Lint: the new block bans Node built-ins, Nest, Prisma and infrastructure imports in the module's domain and application folders, and ignores test files.
