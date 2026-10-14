@@ -83,3 +83,23 @@ Branch: feat/workbook-u2a-limits-cell-collector (from develop). Strict TDD, Node
 
 - `IssueCollector` takes a plain `CollectedIssue` (code is a string, sheet is a contracts `DataSheet`); column order comes from contracts `COLUMNS` and unknown fields sort after known ones. The use case renders issues later.
 - Lint: the new block bans Node built-ins, Nest, Prisma and infrastructure imports in the module's domain and application folders, and ignores test files.
+
+## U2b Decimal, code and image path parsers: done
+
+Branch: feat/workbook-u2b-decimal-code-image-path (from feat/workbook-u2a-limits-cell-collector). Strict TDD, Node 24.21.0, pnpm 12.11.2.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 2.7 / 2.8 | Cannot find modules `decimal-field.js` and `code-field.js` | 21 tests pass | Money-based; the float artifact `19.989999999999998` fails the scale rule and is never rounded. Shared `field-result.ts` (`FieldResult`, `cellReason`). |
+| 2.11 / 2.12 | Cannot find module `image-path.js` | 15 tests pass | Purity proved with a mocked `node:fs` whose spies are never called. |
+
+### Measured hand-written lines
+
+Seven files (field-result 16, decimal-field 44 and test 65, code-field 28 and test 42, image-path 42 and test 48) = 285 lines. Within the 400 budget.
+
+### Decisions for later units
+
+- Parsers return typed results with plain reason strings, never catalog codes. `PRICE_ZERO` is returned for any decimal field, so the rule reports it only for `precio`. `DECIMAL_AMBIGUOUS` replaces the design's `PRICE_COMMA_SEPARATOR`, as the spec says.
+- Catalog codes later units must append to `ISSUE_CODES` with param keys and Spanish messages: `REQUIRED_FIELD_MISSING`, `DECIMAL_AMBIGUOUS`, `DECIMAL_INVALID`, `DECIMAL_SCALE_EXCEEDED`, `DECIMAL_MAGNITUDE_EXCEEDED`, `PRICE_NEGATIVE`, `PRICE_ZERO`, `COMPARE_AT_BELOW_PRICE`, `NUMERIC_IDENTIFIER_CELL`, `NUMERIC_IDENTIFIER_UNSAFE`, `IMAGE_PATH_INVALID` (reason in params), `CELL_ERROR_VALUE`, `CELL_TYPE_UNEXPECTED`, plus the other rule codes in the validation-rules spec.
