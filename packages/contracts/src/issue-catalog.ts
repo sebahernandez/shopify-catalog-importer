@@ -28,6 +28,12 @@ export const ISSUE_CODES = z.enum([
   'HIDDEN_CONTENT',
   'CELL_ERROR_VALUE',
   'CELL_TYPE_UNEXPECTED',
+  'REQUIRED_FIELD_MISSING',
+  'PRODUCT_KEY_DUPLICATE',
+  'HANDLE_DUPLICATE',
+  'HANDLE_INVALID_FORMAT',
+  'EXAMPLE_PRODUCT',
+  'TAG_LIMIT_EXCEEDED',
 ]);
 
 export type IssueCode = z.infer<typeof ISSUE_CODES>;
@@ -57,6 +63,12 @@ export const ISSUE_PARAM_KEYS: Readonly<Record<IssueCode, readonly string[]>> = 
   HIDDEN_CONTENT: ['sheet', 'kind'],
   CELL_ERROR_VALUE: [],
   CELL_TYPE_UNEXPECTED: [],
+  REQUIRED_FIELD_MISSING: ['field'],
+  PRODUCT_KEY_DUPLICATE: ['firstRow'],
+  HANDLE_DUPLICATE: ['firstRow'],
+  HANDLE_INVALID_FORMAT: [],
+  EXAMPLE_PRODUCT: [],
+  TAG_LIMIT_EXCEEDED: [],
 };
 
 interface IssueTemplate {
@@ -162,6 +174,32 @@ export const ISSUE_MESSAGES_ES: Readonly<Record<IssueCode, IssueTemplate>> = {
   CELL_TYPE_UNEXPECTED: {
     message: 'El tipo de dato de la celda no es válido para esta columna.',
     suggestedAction: 'Escribe en la celda un texto o un número, según corresponda a la columna.',
+  },
+  REQUIRED_FIELD_MISSING: {
+    message: 'Falta un valor obligatorio en la columna {field}.',
+    suggestedAction: 'Completa la columna {field} en esta fila.',
+  },
+  PRODUCT_KEY_DUPLICATE: {
+    message: 'El product_key ya se usó en la fila {firstRow}.',
+    suggestedAction: 'Usa un product_key distinto para cada producto.',
+  },
+  HANDLE_DUPLICATE: {
+    message:
+      'El handle ya se usó en la fila {firstRow} (no se distingue entre mayúsculas y minúsculas).',
+    suggestedAction: 'Usa un handle distinto para cada producto.',
+  },
+  HANDLE_INVALID_FORMAT: {
+    message: 'El handle solo puede tener letras, números y guiones, sin espacios.',
+    suggestedAction: 'Corrige el handle, por ejemplo camisa-roja-2.',
+  },
+  EXAMPLE_PRODUCT: {
+    message: 'Este producto es un ejemplo de la plantilla.',
+    suggestedAction: 'Elimina las filas de ejemplo antes de importar tu catálogo.',
+  },
+  TAG_LIMIT_EXCEEDED: {
+    message:
+      'Las etiquetas superan el límite: más de 250 etiquetas o alguna de más de 255 caracteres.',
+    suggestedAction: 'Reduce la cantidad de etiquetas o acorta las más largas.',
   },
 };
 

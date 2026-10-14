@@ -333,3 +333,24 @@ Read-rows 93 and test 130: 223 lines, plus 14 in the contracts catalog. Nothing 
 - HIDDEN_CONTENT message reworded to contenido oculto con datos (kind), because the kind also covers a hidden sheet; kind values are columnas, filas and hoja, once per sheet each.
 - readRows returns SourceRow records with the original row, trimmed cells and an untrusted field set. Formula, error, date and misplaced boolean cells are reported per cell with sheet, row and field, then left out of the cells, so rules skip them and the field parsers never see them. A formula cell counts as data even if its cached value is blank.
 - reportReadFailure maps a reader failure to an issue. For CELL_TEXT_TOO_LONG the field is null: the reader fails before any header exists and the catalog params are only limit and actual, so the column cannot be named reliably. Sheet and row are set. Accepted by the maintainer.
+
+## U5c Productos rules: complete (7.7 to 7.9)
+
+Branch: feat/workbook-u5c-productos-rules (from develop at dce39b7, after U5b). Strict TDD, Node 24. Last of the three parts of U5.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 7.7 productos-rules test | Test file failed to import the missing module | 8 pass after 7.8 | Passed at the first run. |
+| 7.9 | n/a | pnpm check exit 0 (api 58 files, 3206 tests), contracts 7 files, 135 tests | |
+
+### Measured size
+
+Rules 82 and test 101, product-row 9: 192 lines after Prettier, plus 38 in the contracts catalog. Nothing was trimmed.
+
+### Decisions
+
+- New catalog codes: REQUIRED_FIELD_MISSING (param field, reusable by later rules), PRODUCT_KEY_DUPLICATE and HANDLE_DUPLICATE (param firstRow), HANDLE_INVALID_FORMAT, EXAMPLE_PRODUCT, TAG_LIMIT_EXCEEDED (no params, the limits are in the message). The spec leaves the names unspecified; these are chosen here.
+- productosRules(rows, sink) returns ProductRow records (sourceRow, productKey, handle, title, tags). A field is undefined when empty, untrusted or invalid; an invalid-format handle is undefined and is not checked for duplicates.
+- Fields in the untrusted set are not read and not reported as missing. product_key duplicates compare the trimmed text exactly; handles compare case-insensitively. The tag warning comes from the existing tags parser.
