@@ -185,3 +185,29 @@ Branch: feat/workbook-u3a2-fixture-builder (from develop with U1, U2, U3a). Stri
 - Builder API: `buildWorkbook(sheets?, extraParts?)`, `workbookParts` (returns entries so a test can alter parts), cell helpers (`numberCell`, `formulaCell`, `sharedFormula`, `arrayFormula`, `textFormula`, `errorCell`, `dateCell`, `richTextCell`, `longCell`) and extra parts (`macroPart`, `externalLinkPart`, `embeddingPart`).
 - Crafted archives are zero-argument builders except `ratioBomb(size)` and `manyEntries(count)`; they patch a well-formed `writeZip` archive. Lying sizes patches the uncompressed size to 1 in both headers; overlap points the second entry's local offset at the first; the ZIP64 case adds a locator and saturates the end record.
 - The extra parts hold placeholder bytes and are not registered in the content types (enough for part-name scans).
+
+## U3b1 ZIP archive checks: complete (4.1 to 4.6, 4.10)
+
+Branch: feat/workbook-u3b1-zip-archive-checks. Strict TDD, Node 24.21.0. Design preflight steps 1 to 6 are delivered; step 7 (content) stays in U3b2.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 4.1 VS1 second half | n/a (probe) | Passed | On Node 24.21.0 `inflateRawSync` with `maxOutputLength` throws `ERR_BUFFER_TOO_LARGE` when output exceeds the bound; output of exactly the bound passes. No chunked fallback needed. |
+| 4.3 structure cases | Cannot find module `archive-preflight.js` | 13 tests pass | Steps 1 to 5. |
+| 4.5 step 6 cases | Cannot find module `bounded-inflate.js` | 20 tests pass | Lying sizes, ratio bomb, ratio floor, CRC, stored entries, bounded inflate unit cases. |
+| 4.10 gate | n/a | `pnpm check` exit 0 | contracts 119, web 193, api 3,139 (3,451 in total, up 20). Focused file: 20 passed. |
+
+### Measured size
+
+Files (lines, blank lines and comments included): port 38, central-directory 140, archive-preflight 50, bounded-inflate 16, zip-preflight.int.test 168. Total 412 against the 400 budget (planned about 230): over by 12, reported and not trimmed.
+
+### Decisions for later units
+
+- Finding codes: encrypted flag gives FILE_ENCRYPTED_OR_LEGACY; ZIP64, multi-disk, two end records, comment not at end, method other than 0 or 8, local header problems, overlap, duplicates, CRC or real-size mismatch give ZIP_AMBIGUOUS_ARCHIVE; unsafe names give ZIP_UNSAFE_ENTRY_NAME. No new codes were added.
+- Structural failures return a single finding (stop at the first problem). Step 6 also stops at the first bad entry.
+- Port: `FileFinding` is `{ code: IssueCode; params }`; `ArchiveLimits` is the structural subset (maxEntries, maxUncompressedBytes, maxRatio) of the workbook limits; `ArchiveEntry` carries name, method, resolved dataOffset, compressedSize and size so U3b2 can inflate control parts; `formulaParts` is empty until U3b2. `ArchiveInspector.inspect(bytes, limits)` is declared, not implemented.
+- `preflightArchive(zip: Buffer, limits)` is the internal entry point for U3b2's inspector class.
+- When the bound is crossed the observed size is reported as bound plus 1 (a lower bound); the report never needs the true size.
+- Ratio rule is per entry above 1 MiB, as in the design.
