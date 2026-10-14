@@ -1,10 +1,14 @@
-// Placeholder shell. The health badge arrives in U16; user-visible copy moves to the string
-// catalog (i18n/es.ts) in the same unit.
+import { es } from '../i18n/es';
+import { HealthStatusContainer } from './HealthStatusContainer';
+
 export function App() {
   return (
     <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-2xl font-semibold">Shopify Catalog Importer</h1>
-      <p className="mt-2 text-sm text-gray-600">La interfaz está en construcción.</p>
+      <h1 className="text-2xl font-semibold">{es.product}</h1>
+      <section className="mt-6 flex flex-col gap-3">
+        <h2 className="text-lg font-medium text-gray-900">{es.health.heading}</h2>
+        <HealthStatusContainer />
+      </section>
     </main>
   );
 }

@@ -222,9 +222,9 @@ Satisfies: workspace-tooling (web isolated from API, depends on contracts only),
 
 Satisfies: health-check (shell renders, health obtained via contracts types), layering (container/presentational).
 
-- [ ] 16.1 RED: create `apps/web/src/ui/molecules/HealthBadge.test.tsx` (server-side render for `loading`, `ok`, `degraded`, `unreachable`) and `apps/web/src/app/useHealth.test.ts` (parse with `HealthResponse`, invalid body maps to `unreachable`).
-- [ ] 16.2 GREEN: create `apps/web/src/i18n/es.ts`, `src/api/http-client.ts`, `src/app/useHealth.ts`, `src/app/HealthStatusContainer.tsx`, `src/ui/atoms/StatusDot.tsx`, `src/ui/molecules/HealthBadge.tsx`; update `src/app/App.tsx`.
-- [ ] 16.3 Re-run `pnpm build` and the bundle test from 15.2.
+- [x] 16.1 RED: create `apps/web/src/ui/molecules/HealthBadge.test.tsx` (server-side render for `loading`, `ok`, `degraded`, `unreachable`) and `apps/web/src/app/useHealth.test.ts` (parse with `HealthResponse`, invalid body maps to `unreachable`).
+- [x] 16.2 GREEN: create `apps/web/src/i18n/es.ts`, `src/api/http-client.ts`, `src/app/useHealth.ts`, `src/app/HealthStatusContainer.tsx`, `src/ui/atoms/StatusDot.tsx`, `src/ui/molecules/HealthBadge.tsx`; update `src/app/App.tsx`.
+- [x] 16.3 Re-run `pnpm build` and the bundle test from 15.2.
 
 ## Phase 17: U17 Documentation and final gate
 

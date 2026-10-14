@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { es } from './i18n/es';
 
 const webRoot = fileURLToPath(new URL('..', import.meta.url));
 const workspaceRoot = resolve(webRoot, '..', '..');
@@ -13,12 +14,19 @@ const SEED_NAME = 'IMPORTER_TEST_SEEDED_SECRET';
 const SEED_VALUE = 'seeded-secret-7f3a9c1e-not-a-real-credential';
 
 // URLs that are text inside a file, not a request: XML namespaces, the Tailwind licence banner
-// (a CSS comment) and the React error-decoder message. Nothing else may appear in any file.
+// (a CSS comment), the React error-decoder message, and two identifiers inside zod (the web
+// bundle carries zod through the contracts package): JSON Schema dialect names and a template
+// used to build a host pattern. Nothing else may appear in any file.
 const NAMESPACE_URL = /^http:\/\/www\.w3\.org\//;
 const ALLOWED_URLS = {
   html: [NAMESPACE_URL],
   css: [NAMESPACE_URL, /^https:\/\/tailwindcss\.com$/],
-  js: [NAMESPACE_URL, /^https:\/\/react\.dev\/errors\//],
+  js: [
+    NAMESPACE_URL,
+    /^https:\/\/react\.dev\/errors\//,
+    /^https?:\/\/json-schema\.org\/draft(?:\/2020-12|-07|-04)\/schema#?$/,
+    /^http:\/\/\[\$\{\w+\}\]$/,
+  ],
 };
 
 let outDir = '';
@@ -115,5 +123,28 @@ describe('production bundle', () => {
     expect(scripts).toHaveLength(1);
     expect(scripts[0]).toMatch(/\ssrc="\/assets\/[^"]+\.js"/);
     expect(page?.text).not.toMatch(/<script\b[^>]*>[^<]+<\/script>/);
+  });
+
+  it('contains the Spanish copy of the health page and the relative health route', () => {
+    const script = filesWith('.js')
+      .map((file) => file.text)
+      .join('\n');
+    for (const text of [
+      es.product,
+      es.health.heading,
+      ...Object.values(es.health.states),
+      es.health.version('x').replace(/x$/, ''),
+    ]) {
+      expect(script, text).toContain(text);
+    }
+    expect(script).toMatch(/["'`]\/health["'`]/);
+  });
+
+  it('names no API host or port anywhere in the built files', () => {
+    for (const file of files) {
+      for (const literal of ['127.0.0.1', 'localhost', ':3000']) {
+        expect(file.text, `${file.name} ${literal}`).not.toContain(literal);
+      }
+    }
   });
 });
