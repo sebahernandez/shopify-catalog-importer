@@ -16,4 +16,12 @@ export interface VariantRow {
   /** Set by the price rule; `undefined` when empty, untrusted or invalid. */
   readonly price?: Money | undefined;
   readonly compareAtPrice?: Money | undefined;
+  /** Set by the barcode rule; `undefined` when empty, untrusted or invalid. */
+  readonly barcode?: string | undefined;
+  /** Set by the inventory rule: the flag, with an empty flag and empty stock read as false. */
+  readonly manageInventory?: boolean | undefined;
+  /** Absolute quantity; `undefined` when empty, untrusted or invalid. */
+  readonly stock?: number | undefined;
+  /** One location name, trimmed; `undefined` when empty or untrusted. */
+  readonly location?: string | undefined;
 }
