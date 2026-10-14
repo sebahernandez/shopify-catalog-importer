@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { ApiError } from './api-error.js';
 
 describe('ApiError', () => {
-  it.each(['HOST_NOT_ALLOWED', 'ORIGIN_NOT_ALLOWED'])('accepts code %s', (code) => {
+  it.each([
+    'HOST_NOT_ALLOWED',
+    'ORIGIN_NOT_ALLOWED',
+    'WORKBOOK_FILE_REQUIRED',
+    'WORKBOOK_TOO_LARGE',
+    'WORKBOOK_UNSUPPORTED_MEDIA_TYPE',
+  ])('accepts code %s', (code) => {
     const body = { error: { code, message: 'Request rejected.' } };
     expect(ApiError.parse(body)).toEqual(body);
   });

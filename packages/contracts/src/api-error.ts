@@ -1,9 +1,15 @@
 import { z } from 'zod';
 
-/** Error body returned when the local request guard rejects a request. */
+/** Error body returned for a request the API rejects (local request guard, workbook upload). */
 export const ApiError = z.object({
   error: z.object({
-    code: z.enum(['HOST_NOT_ALLOWED', 'ORIGIN_NOT_ALLOWED']),
+    code: z.enum([
+      'HOST_NOT_ALLOWED',
+      'ORIGIN_NOT_ALLOWED',
+      'WORKBOOK_FILE_REQUIRED',
+      'WORKBOOK_TOO_LARGE',
+      'WORKBOOK_UNSUPPORTED_MEDIA_TYPE',
+    ]),
     message: z.string(),
   }),
 });
