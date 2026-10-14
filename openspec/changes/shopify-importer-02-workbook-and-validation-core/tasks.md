@@ -232,10 +232,10 @@ Satisfies: rules (Decimal prices through Money, Barcode and numeric identifier c
 
 Satisfies: rules (Image rules, Cross-sheet references, Determinism), validation-report (Severities, Fingerprint, Truncation, Rejected shape, No leak), file-safety (reader not called, No network and no writes), endpoint (Unexpected failures at use-case level). Design D12, D13, D14.
 
-- [ ] 11.1 RED: create `domain/rules/imagenes-rules.test.ts`: empty `orden` and `0`, `-1`, `1.5` give `IMAGE_ORDER_INVALID`, `2` accepted, duplicate order flags the second row `IMAGE_ORDER_DUPLICATE`, gaps allowed, `IMAGE_PATH_INVALID` carries the reason param, `ALT_TOO_LONG` over 512, `IMAGE_COUNT_HIGH` over 250, `variant_sku` unknown `VARIANT_SKU_UNKNOWN`, matching two variants `VARIANT_SKU_AMBIGUOUS`, one match accepted.
-- [ ] 11.2 GREEN: create `domain/image-row.ts` and `domain/rules/imagenes-rules.ts`; append codes and Spanish entries.
-- [ ] 11.3 RED: create `domain/rules/cross-sheet-rules.test.ts`: Variantes row 7 with key `ZZ` and an Imagenes row with an empty or unknown key give `PRODUCT_KEY_UNKNOWN` at their rows, a product without Variantes gives `PRODUCT_WITHOUT_VARIANTS`.
-- [ ] 11.4 GREEN: create `domain/rules/cross-sheet-rules.ts`.
+- [x] 11.1 RED: create `domain/rules/imagenes-rules.test.ts`: empty `orden` and `0`, `-1`, `1.5` give `IMAGE_ORDER_INVALID`, `2` accepted, duplicate order flags the second row `IMAGE_ORDER_DUPLICATE`, gaps allowed, `IMAGE_PATH_INVALID` carries the reason param, `ALT_TOO_LONG` over 512, `IMAGE_COUNT_HIGH` over 250, `variant_sku` unknown `VARIANT_SKU_UNKNOWN`, matching two variants `VARIANT_SKU_AMBIGUOUS`, one match accepted.
+- [x] 11.2 GREEN: create `domain/image-row.ts` and `domain/rules/imagenes-rules.ts`; append codes and Spanish entries.
+- [x] 11.3 RED: create `domain/rules/cross-sheet-rules.test.ts`: Variantes row 7 with key `ZZ` and an Imagenes row with an empty or unknown key give `PRODUCT_KEY_UNKNOWN` at their rows, a product without Variantes gives `PRODUCT_WITHOUT_VARIANTS`.
+- [x] 11.4 GREEN: create `domain/rules/cross-sheet-rules.ts`.
 - [ ] 11.5 RED: create `application/assemble-report.test.ts`: order file-level, sheet, row, column, only warnings is valid, one error and two warnings counts, 1,500 issues keep 1,000 with `truncated` and exact totals, 600 warnings before 600 errors keeps all errors, three defects in sheet then row order, same input gives identical lists, no tier B code, no Shopify claim.
 - [ ] 11.6 GREEN: create `application/assemble-report.ts`.
 - [ ] 11.7 RED: create `domain/catalog-draft.test.ts`: draft built only with zero errors, prices are `Money`, every element has `sourceRow`, the lowest `orden` image is the cover regardless of row order (3, 1, 2).
