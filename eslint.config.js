@@ -97,6 +97,17 @@ export default defineConfig(
     },
   },
   {
+    // Web tests run in Node (bundle scan, dev-server proxy), so they may use Node built-ins. The
+    // API import bans are repeated: the block above is replaced for these files, not merged.
+    files: ['apps/web/**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [API_PACKAGE, { group: ['**/apps/api/**'], message: 'No API code.' }] },
+      ],
+    },
+  },
+  {
     files: ['apps/api/src/shared-kernel/**/*.ts'],
     ignores: ['**/*.module.ts'],
     rules: {
