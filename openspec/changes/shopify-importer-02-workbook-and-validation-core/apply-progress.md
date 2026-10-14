@@ -400,3 +400,25 @@ Rules 145, test 137, variant-row 14: 296 lines after Prettier, plus 32 in the co
 - Rows are grouped by the trimmed productKey of the identity output; rows without one are skipped (U8 reports PRODUCT_KEY_UNKNOWN). A row with any untrusted option cell, or an incomplete pair, is left out of the consistency and duplicate checks to avoid cascades.
 - OPTIONS_INCONSISTENT compares names (matchKey, by position) with the first judged row of the product and flags each differing row; when that first row has no names and the product has two or more rows, only the second row is flagged. OPTION_COMBINATION_DUPLICATE compares matchKey values and points at the first row.
 - VARIANT_COUNT_HIGH is reported once per product at the 251st row (field null) with the total count. The 250 and 255 limits are constants in the rule, not yet configurable.
+
+## U7a Variantes price rules: complete (10.1 and 10.2); 10.3 to 10.7 move to U7b
+
+Branch: feat/workbook-u7-variantes-values (from develop at ca3c9f7). Strict TDD, Node 24. Stopped at the price boundary because the size budget would be exceeded. U7 was split in two by maintainer decision on 2026-10-14: U7a (this unit: price rules, the whole U7 catalog) and U7b (barcode and inventory rules, tasks 10.3 to 10.7).
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 10.1 variantes-price-rules test | Test file failed to import the missing module | 15 pass after 10.2 | Written first. |
+| 10.2 | n/a | pnpm check exit 0 (api 61 files, 3239 tests), contracts 7 files, 177 tests, web 193 | All 11 U7 codes were added to the catalog now, so later modules need no catalog change. |
+
+### Measured size
+
+Price rules 53, price test 104, variant-row 5: 162 lines, plus 71 in the contracts catalog (all 11 U7 codes): 233 lines. Nothing was trimmed.
+
+### Decisions
+
+- New catalog codes (no params; REQUIRED_FIELD_MISSING already existed): DECIMAL_AMBIGUOUS, DECIMAL_INVALID, DECIMAL_SCALE_EXCEEDED, DECIMAL_MAGNITUDE_EXCEEDED, PRICE_NEGATIVE, PRICE_ZERO (warning), COMPARE_AT_BELOW_PRICE (warning), BARCODE_MULTIPLE, BOOLEAN_INVALID, STOCK_INVALID, INVENTORY_FLAG_REQUIRED. The last four have no rule yet.
+- variantesPriceRules(rows, variants, sink) returns the VariantRow records extended with price and compareAtPrice (Money, undefined when empty, untrusted or invalid).
+- PRICE_ZERO is reported only for precio; a zero precio_comparacion is silent on its own and warns COMPARE_AT_BELOW_PRICE when precio is higher. An untrusted precio is not reported as missing.
+- Pending: 10.3 to 10.6 (barcode, inventory) and 10.7.
