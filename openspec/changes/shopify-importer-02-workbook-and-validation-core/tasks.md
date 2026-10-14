@@ -7,7 +7,7 @@
 | Estimated changed lines | ~4,100 hand-written (range 3,500 to 4,800; ~50% tests). Generated: lockfile only, plus the vendored SheetJS tarball if it wins (binary, not counted). Deletions negligible. |
 | 400-line budget risk | High for the change as a whole; every unit is planned within 400 and none needs a size exception. Watch U2 and U8 (~380, near the budget) and U3c (the spike outcome can add vendoring and measurement work) |
 | Chained PRs recommended | Yes |
-| Suggested split | 15 chained work units: U1a, U1b, U2, U3a, U3b1, U3b2, U3c, U4, U5, U6a, U6b, U7, U8, U9, U10, plus a final gate that rides on the U10 PR |
+| Suggested split | 16 chained work units: U1a, U1b, U2a, U2b, U2c, U3a, U3a2, U3b1, U3b2, U3c, U4, U5, U6a, U6b, U7, U8, U9, U10, plus a final gate that rides on the U10 PR |
 | Delivery strategy | ask-on-risk |
 | Chain strategy | feature-branch-chain (tracker branch: develop) |
 
@@ -25,7 +25,7 @@ Estimates keep the design's figures (about 30 percent uncertainty). They were no
 
 ### Chain bases (feature-branch-chain, tracker = develop)
 
-PR for U1a targets develop. Every later PR targets the branch of the previous unit in the order U1a, U1b, U2, U3a, U3b1, U3b2, U3c, U4, U5, U6a, U6b, U7, U8, U9, U10. If a child PR shows the previous unit's changes, its base is wrong and must be retargeted. Only the tracker merges onward.
+PR for U1a targets develop. Every later PR targets the branch of the previous unit in the order U1a, U1b, U2a, U2b, U2c, U3a, U3a2, U3b1, U3b2, U3c, U4, U5, U6a, U6b, U7, U8, U9, U10. If a child PR shows the previous unit's changes, its base is wrong and must be retargeted. Only the tracker merges onward.
 
 ### Size and scope per work unit
 
@@ -34,8 +34,9 @@ PR for U1a targets develop. Every later PR targets the branch of the previous un
 | U1a | `feat/workbook-u1a-schema-catalog` | Schema constants and issue catalog (split from U1 by user decision on 2026-10-14: U1 measured about 482 lines) | none (S0 archived) | ~340 |
 | U1b | `feat/workbook-u1b-report-api-errors` | Report model and ApiError codes | U1a | ~150 | workbook-contract: Sheet and column constants; validation-report: Issue model, Spanish catalog, Severities and counts (shape); endpoint: Request errors (codes) |
 | U2 | `feat/workbook-u2-domain-core` | Limits, cell model, matchKey, field parsers, image path, collector, lint D2 | U1b | ~380 | workbook-contract: name matching (matchKey), Cell value model, One barcode and comma tags (tags); file-safety: Configurable caps (defaults); rules: Image path syntax check, Tag checks (parser), Decimal/Inventory parsers; report: Truncation (collector) |
-| U3a | `feat/workbook-u3a-ooxml-writer` | Own ZIP and OOXML writer, fixture builder, test-support exclusion | U2 | ~330 | workbook-template: Identifier columns keep text, Usability aids (writer primitives) |
-| U3b1 | `feat/workbook-u3b1-zip-archive-checks` | ArchiveInspector port, ZIP archive checks (preflight steps 1 to 6: magic bytes, EOCD, entry count, central-directory walk, local-header overlap, bounded inflation with size, CRC and ratio) | U3a | ~230 | file-safety: Preflight before parsing (archive part), Configurable archive caps, Ambiguous and unsafe archives |
+| U3a | `feat/workbook-u3a-ooxml-writer` | Own ZIP and OOXML writer, test-support exclusion (tasks 3.1 to 3.5, 3.8, 3.9; the fixture builder was cut to U3a2 because the writer alone measured 315 lines) | U2 | ~315 | workbook-template: Identifier columns keep text, Usability aids (writer primitives) |
+| U3a2 | `feat/workbook-u3a2-fixture-builder` | Fixture builder and crafted ZIPs (tasks 3.6, 3.7, 3.10) | U3a | ~400 (may need a further split if the crafted cases do not fit) | Provides crafted-file fixtures for file-safety scenarios used by U3b1, U3b2, U3c, U4 |
+| U3b1 | `feat/workbook-u3b1-zip-archive-checks` | ArchiveInspector port, ZIP archive checks (preflight steps 1 to 6: magic bytes, EOCD, entry count, central-directory walk, local-header overlap, bounded inflation with size, CRC and ratio) | U3a2 | ~230 | file-safety: Preflight before parsing (archive part), Configurable archive caps, Ambiguous and unsafe archives |
 | U3b2 | `feat/workbook-u3b2-zip-content-checks` | Content checks (step 7: required parts, macros, external links, embedded objects, library-independent formula scan), the ArchiveInspector implementation | U3b1 | ~200 | file-safety: Preflight before parsing (content part, inspector-level spy), Macros/links/embedded, Formulas (package scan) |
 | U3c | `feat/workbook-u3c-library-spike` | Spike probes, findings, vendoring or pin | U3b2 | ~200 | none directly; settles the library for U4 (design D4) |
 | U4 | `feat/workbook-u4-reader-adapter` | WorkbookReader port, chosen adapter, contract suite, formula guard | U3c | ~320 | contract: Cell value model; file-safety: Formulas (reader), Sheet size caps; report: no-leak (reader failure) |
@@ -111,19 +112,19 @@ Satisfies: workbook-contract (matching, cell model, tags), file-safety (cap defa
 - [x] 2.14 GREEN: create `domain/issue-collector.ts` (`IssueCollector`).
 - [x] 2.15 Run the focused test command and `pnpm check`; record the measured lines (near budget: report, do not trim).
 
-## Phase 3: U3a OOXML writer and fixture builder
+## Phase 3: U3a OOXML writer and fixture builder (delivered as U3a: 3.1 to 3.5, 3.8, 3.9 and U3a2: 3.6, 3.7, 3.10)
 
 Satisfies: workbook-template (Identifier columns keep text, Usability aids: writer primitives only). Provides the crafted-file builder for U3b1, U3b2, U3c, U4. Design D5, D15.
 
-- [ ] 3.1 Verify on Node 24 that `zlib.crc32` and `deflateRawSync` exist (design item VS1, first half); record the result. Fallback: a small table-driven CRC-32 in the writer.
-- [ ] 3.2 RED: create `apps/api/src/catalog-workbook/infrastructure/ooxml/zip-writer.test.ts`: local headers, central directory and end record are well formed, CRC matches `zlib.crc32`, stored and deflated entries, same input gives identical bytes (stable SHA-256).
-- [ ] 3.3 GREEN: create `infrastructure/ooxml/zip-writer.ts`.
-- [ ] 3.4 RED: create `infrastructure/ooxml/package-writer.test.ts`: content types, workbook and relationship parts, text cells stored as strings (leading zero kept), text number format on chosen columns, a TRUE/FALSE list validation, frozen header, column widths, fixed document timestamps, aids can be switched off.
-- [ ] 3.5 GREEN: create `infrastructure/ooxml/sheet-xml.ts` and `package-writer.ts`.
+- [x] 3.1 Verify on Node 24 that `zlib.crc32` and `deflateRawSync` exist (design item VS1, first half); record the result. Fallback: a small table-driven CRC-32 in the writer.
+- [x] 3.2 RED: create `apps/api/src/catalog-workbook/infrastructure/ooxml/zip-writer.test.ts`: local headers, central directory and end record are well formed, CRC matches `zlib.crc32`, stored and deflated entries, same input gives identical bytes (stable SHA-256).
+- [x] 3.3 GREEN: create `infrastructure/ooxml/zip-writer.ts`.
+- [x] 3.4 RED: create `infrastructure/ooxml/package-writer.test.ts`: content types, workbook and relationship parts, text cells stored as strings (leading zero kept), text number format on chosen columns, a TRUE/FALSE list validation, frozen header, column widths, fixed document timestamps, aids can be switched off.
+- [x] 3.5 GREEN: create `infrastructure/ooxml/sheet-xml.ts` and `package-writer.ts`.
 - [ ] 3.6 RED: create `apps/api/src/catalog-workbook/test-support/workbook-fixture-builder.test.ts`: builds a valid workbook and each crafted case (not a ZIP, CFB header, ZIP64, multi-disk, encrypted flag, method 12, traversal name, absolute name, duplicate name, lying sizes, overlapping entries, CRC mismatch, ratio bomb, N entries, macro part, external link, embedding, plain, shared, array and text-result formulas, error, date and rich-text cells, hidden sheet, row and column, sparse rows, long cell).
 - [ ] 3.7 GREEN: create `test-support/workbook-fixture-builder.ts` and `test-support/crafted-zip.ts` on top of the writer.
-- [ ] 3.8 RED: modify `apps/api/src/local-security/no-test-route-ships.test.ts` to assert `src/**/test-support/**` is excluded in `tsconfig.build.json`.
-- [ ] 3.9 GREEN: modify `apps/api/tsconfig.build.json` to exclude `src/**/test-support/**`.
+- [x] 3.8 RED: modify `apps/api/src/local-security/no-test-route-ships.test.ts` to assert `src/**/test-support/**` is excluded in `tsconfig.build.json`.
+- [x] 3.9 GREEN: modify `apps/api/tsconfig.build.json` to exclude `src/**/test-support/**`.
 - [ ] 3.10 Run the focused test command, `pnpm build`, and confirm dist holds no test-support folder; record lines.
 
 ## Phase 4: U3b1 ZIP archive checks and U3b2 ZIP content checks
