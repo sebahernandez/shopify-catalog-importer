@@ -95,20 +95,20 @@ Satisfies: workbook-contract (Sheet and column constants), validation-report (Is
 
 Satisfies: workbook-contract (matching, cell model, tags), file-safety (cap defaults), workbook-validation-rules (image path syntax, parser policy), validation-report (truncation collector). Design D2, D3, D9, D14, D16.
 
-- [ ] 2.1 Modify `eslint.config.js`: add the catalog-workbook glob to `OTHER_MODULES` and a block forbidding `BUILT_INS`, `NEST`, `PRISMA` and `INFRASTRUCTURE` imports in the module's domain and application folders.
-- [ ] 2.2 Verify the negative gate: temporarily add a Node built-in import to a domain file, confirm `pnpm lint` fails naming it, then delete the temporary import.
-- [ ] 2.3 RED: create `apps/api/src/catalog-workbook/domain/workbook-limits.test.ts`: defaults (upload 20 MB, uncompressed 150 MB, 200 entries, ratio 100, 50,000 rows, 64 columns, 32,767 characters, 1,000 reported issues), frozen, override merge.
-- [ ] 2.4 GREEN: create `apps/api/src/catalog-workbook/domain/workbook-limits.ts` (`DEFAULT_WORKBOOK_LIMITS`).
-- [ ] 2.5 RED: create `domain/workbook-cell.test.ts` and `domain/match-key.test.ts`: `Imágenes` and padded variants match, case and accent folding, whitespace-only text is empty, number cell keeps raw text `19.9`, trimmed text.
-- [ ] 2.6 GREEN: create `domain/workbook-cell.ts` (cell model per design) and `domain/match-key.ts`.
+- [x] 2.1 Modify `eslint.config.js`: add the catalog-workbook glob to `OTHER_MODULES` and a block forbidding `BUILT_INS`, `NEST`, `PRISMA` and `INFRASTRUCTURE` imports in the module's domain and application folders.
+- [x] 2.2 Verify the negative gate: temporarily add a Node built-in import to a domain file, confirm `pnpm lint` fails naming it, then delete the temporary import.
+- [x] 2.3 RED: create `apps/api/src/catalog-workbook/domain/workbook-limits.test.ts`: defaults (upload 20 MB, uncompressed 150 MB, 200 entries, ratio 100, 50,000 rows, 64 columns, 32,767 characters, 1,000 reported issues), frozen, override merge.
+- [x] 2.4 GREEN: create `apps/api/src/catalog-workbook/domain/workbook-limits.ts` (`DEFAULT_WORKBOOK_LIMITS`).
+- [x] 2.5 RED: create `domain/workbook-cell.test.ts` and `domain/match-key.test.ts`: `Imágenes` and padded variants match, case and accent folding, whitespace-only text is empty, number cell keeps raw text `19.9`, trimmed text.
+- [x] 2.6 GREEN: create `domain/workbook-cell.ts` (cell model per design) and `domain/match-key.ts`.
 - [ ] 2.7 RED: create `domain/fields/decimal-field.test.ts` and `code-field.test.ts`: `1999.9999`, `19,99` comma, `1.12345` scale, `1000000000000` magnitude, `-1`, `0` warns, exponent, float artifact `19.989999999999998` is never rounded, number cell `0.1`; code field text kept, `12345` warns, 16 digits and `1.23457E+15` block, `00123` text clean.
 - [ ] 2.8 GREEN: create `domain/fields/decimal-field.ts` (adapts `Money`) and `domain/fields/code-field.ts`.
 - [ ] 2.9 RED: create `domain/fields/boolean-field.test.ts`, `integer-field.test.ts`, `barcode-field.test.ts`, `tags-field.test.ts`: spellings `Sí SI no Verdadero FALSO 1 0` and native boolean, `quizás` invalid; integers `3 -1 2.5 abc`, orden at least 1, stock 32-bit bound; barcode separators comma, semicolon, pipe, line break, inner space; tags ` verano, Verano ,, oferta ` gives verano and oferta, empty list, over 250 tags or a 256-character tag flagged.
 - [ ] 2.10 GREEN: create the four parsers under `domain/fields/`.
 - [ ] 2.11 RED: create `domain/fields/image-path.test.ts`: accepts `fotos/camisa 1.jpg` and `camisa.png`; rejects an absolute unix path, a drive path, a backslash traversal path, a URL and a trailing-separator path with the matching reason; control characters; purity under a file-system spy.
 - [ ] 2.12 GREEN: create `domain/fields/image-path.ts` (`checkImagePath`).
-- [ ] 2.13 RED: create `domain/issue-collector.test.ts`: counts stay exact above the cap, stores at most the cap per severity, errors kept before warnings, `truncated` flag, deterministic sort (file, sheet order, row, column, code).
-- [ ] 2.14 GREEN: create `domain/issue-collector.ts` (`IssueCollector`).
+- [x] 2.13 RED: create `domain/issue-collector.test.ts`: counts stay exact above the cap, stores at most the cap per severity, errors kept before warnings, `truncated` flag, deterministic sort (file, sheet order, row, column, code).
+- [x] 2.14 GREEN: create `domain/issue-collector.ts` (`IssueCollector`).
 - [ ] 2.15 Run the focused test command and `pnpm check`; record the measured lines (near budget: report, do not trim).
 
 ## Phase 3: U3a OOXML writer and fixture builder
