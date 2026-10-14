@@ -267,20 +267,20 @@ Satisfies: workbook-validate-endpoint (Request errors, Upload size limit, Conten
 - [x] 13.3 GREEN: create `infrastructure/http/bounded-body-reader.ts` (single-pass SHA-256 with `node:crypto`).
 - [x] 13.4 RED: create `infrastructure/http/workbook-validate.int.test.ts` on an ephemeral port: no body and zero bytes 400 `WORKBOOK_FILE_REQUIRED`, wrong media type 415, foreign origin 403 `ORIGIN_NOT_ALLOWED` and the file not processed, over 20 MB by header and by stream 413 `WORKBOOK_TOO_LARGE`, configured 1 KB limit versus 2 KB file 413, 1 MB valid file 200, valid workbook `valid` true, negative price 200 with `PRICE_NEGATIVE`, text file named `catalogo.xlsx` 200 with `FILE_NOT_XLSX` and null sheet, macro package 200 `MACROS_NOT_ALLOWED`, reader double that throws 200 `FILE_UNREADABLE` without a stack, same bytes twice equal reports with `fileSha256`, invalid then valid reports independent, no network, file or database double fires, no tier B code or Shopify claim, unmodified downloaded template 200 with only `EXAMPLE_PRODUCT` warnings.
 - [x] 13.5 GREEN: extend `infrastructure/http/workbook.controller.ts` with `POST api/workbook/validate`; create `infrastructure/http/workbook-exception.filter.ts` mapping request errors to `ApiError` bodies (400, 413, 415); wire the bounded body reader.
-- [ ] 13.6 RED then GREEN: create `infrastructure/http/validate-perf.int.test.ts`: a 5,000-variant workbook from the builder validates in at most 5 s; log the measured time.
-- [ ] 13.7 Run the focused test command and `pnpm check`; run the harness: boot the API, POST the downloaded template with `curl --fail`, confirm `valid` true and two `EXAMPLE_PRODUCT` warnings. Record lines and output.
+- [x] 13.6 RED then GREEN: create `infrastructure/http/validate-perf.int.test.ts`: a 5,000-variant workbook from the builder validates in at most 5 s; log the measured time.
+- [x] 13.7 Run the focused test command and `pnpm check`; run the harness: boot the API, POST the downloaded template with `curl --fail`, confirm `valid` true and two `EXAMPLE_PRODUCT` warnings. Record lines and output.
 
 ## Phase 14: Final verification gate (rides on the U10 PR)
 
 Docs: the design lists no README or documentation change for S1, so no README edit is made in this change.
 
-- [ ] 14.1 Confirm in the apply progress that design.md lists no docs changes and that no README or doc file was touched.
-- [ ] 14.2 Run `pnpm install --frozen-lockfile`; confirm exit 0 and the lockfile unchanged.
-- [ ] 14.3 Run `pnpm check` (typecheck, lint, format check, tests); confirm all exit 0.
-- [ ] 14.4 Run `pnpm build`; confirm exit 0 and that the API dist holds no `test-support` output and no probe files.
-- [ ] 14.5 Leftovers check: no `.only` or `.skip` in tests, no temporary lint-gate file from 2.2, no losing-candidate dependency or probe, no scratch downloads inside the repository, no unused vendor file, `vendor/**` ignored by lint and Prettier only if SheetJS won, no Spanish text in API source outside the contracts catalog and the template content, no Node built-in imports in the contracts workbook files.
-- [ ] 14.6 Confirm no task contacted Shopify and that runtime code of the module performs no network call or file write (search the module source).
-- [ ] 14.7 Walk the proposal success criteria and tick each with its evidence in the apply progress (spike findings, crafted rejections, rule fixtures, template round trip, endpoint 4xx versus 200, green gates).
+- [x] 14.1 Confirm in the apply progress that design.md lists no docs changes and that no README or doc file was touched.
+- [x] 14.2 Run `pnpm install --frozen-lockfile`; confirm exit 0 and the lockfile unchanged.
+- [x] 14.3 Run `pnpm check` (typecheck, lint, format check, tests); confirm all exit 0.
+- [x] 14.4 Run `pnpm build`; confirm exit 0 and that the API dist holds no `test-support` output and no probe files.
+- [x] 14.5 Leftovers check: no `.only` or `.skip` in tests, no temporary lint-gate file from 2.2, no losing-candidate dependency or probe, no scratch downloads inside the repository, no unused vendor file, `vendor/**` ignored by lint and Prettier only if SheetJS won, no Spanish text in API source outside the contracts catalog and the template content, no Node built-in imports in the contracts workbook files.
+- [x] 14.6 Confirm no task contacted Shopify and that runtime code of the module performs no network call or file write (search the module source).
+- [x] 14.7 Walk the proposal success criteria and tick each with its evidence in the apply progress (spike findings, crafted rejections, rule fixtures, template round trip, endpoint 4xx versus 200, green gates).
 
 ## Coverage Table (47 requirements, 122 scenarios)
 
