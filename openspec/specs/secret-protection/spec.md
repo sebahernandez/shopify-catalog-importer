@@ -1,6 +1,6 @@
-# Delta for Secret Protection
+# Secret Protection
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Authenticated encryption round-trip
 
@@ -48,13 +48,25 @@ Decryption MUST fail with an explicit error when the ciphertext was modified, tr
 
 ### Requirement: External key
 
-The key MUST be supplied from outside the database (environment variable or key file) and MUST NOT be persisted in SQLite or committed to version control. A missing key or a key of invalid length or encoding MUST fail startup of any component that needs `SecretBox`, with an error that does not reveal key material.
+The key MUST be supplied from outside the database, from a key file only. The key file path MUST be given by the `SECRET_KEY_FILE` variable, and no environment variable MUST carry key material. The key MUST NOT be persisted in SQLite or committed to version control. A key of invalid length or encoding MUST fail startup of any component that needs `SecretBox`, with an error that does not reveal key material. A missing key file MUST be handled as specified in the scenarios below, and no error MUST reveal key material.
 
-#### Scenario: Missing key
+#### Scenario: Missing key file at construction
 
-- GIVEN no key variable and no key file
-- WHEN `SecretBox` is constructed
-- THEN construction fails with an error naming the missing key source
+- GIVEN no key file at the `SECRET_KEY_FILE` path
+- WHEN `SecretBox` is constructed without a keyring
+- THEN construction fails with `KEY_MISSING` naming `SECRET_KEY_FILE`
+
+#### Scenario: Missing key file at boot with no stored key check
+
+- GIVEN no key file at the `SECRET_KEY_FILE` path and no key-check row in the database
+- WHEN the application boots
+- THEN a key is generated into the key file, the key-check row is written, and a one-time warning asks the operator to back up the key file
+
+#### Scenario: Missing key file at boot with a stored key check
+
+- GIVEN no key file at the `SECRET_KEY_FILE` path and a key-check row in the database
+- WHEN the application boots
+- THEN startup aborts with `KEY_FILE_REQUIRED` and no key is regenerated
 
 #### Scenario: Malformed key
 

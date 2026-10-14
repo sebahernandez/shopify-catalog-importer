@@ -26,7 +26,7 @@ Proposed defaults are not user decisions. Not covered by research, left to desig
 ### In Scope
 - pnpm workspace: `apps/api` (NestJS), `apps/web` (React, Vite, Tailwind), `packages/contracts`.
 - Strict TypeScript, lint, format, Vitest; development, build and test scripts.
-- Config module: pinned API version, loopback host and port; `.env.example` without secrets.
+- Config module: pinned API version, loopback host and port; `env.example` without secrets.
 - Logger with secret redaction.
 - `SecretBox`: encryption at rest, key held outside the database.
 - `Money` value object: canonical decimal strings, no floating point.
@@ -57,7 +57,7 @@ None. `openspec/specs/` is empty.
 
 ## Approach
 
-Option A from the exploration. Screaming modules inside `apps/api`, with `shared-kernel` holding `Money`, the logger and `SecretBox`. `apps/web` depends only on `packages/contracts`, so secrets cannot reach the browser bundle. `SecretBox` follows exploration section 4 (AES-256-GCM, key in an environment variable or key file); no credential is persisted in S0.
+Option A from the exploration. Screaming modules inside `apps/api`, with `shared-kernel` holding `Money`, the logger and `SecretBox`. `apps/web` depends only on `packages/contracts`, so secrets cannot reach the browser bundle. `SecretBox` follows exploration section 4 (AES-256-GCM, key in a key file); no credential is persisted in S0.
 
 Recommended delivery, not decided here: PR 0a repository and tooling, PR 0b skeletons and persistence. Under `ask-on-risk` the user is asked once the tasks forecast exists.
 
@@ -70,7 +70,7 @@ Recommended delivery, not decided here: PR 0a repository and tooling, PR 0b skel
 | `apps/api/prisma/` | New | Schema, baseline migration |
 | `apps/web/` | New | Vite, React, Tailwind shell |
 | `packages/contracts/` | New | Shared schemas |
-| `.env.example`, `README.md` | New | Configuration sample, Spanish quick start |
+| `env.example`, `README.md` | New | Configuration sample, Spanish quick start |
 
 ## Risks
 
@@ -99,13 +99,13 @@ S0 is additive on an empty repository. Revert the merge commits in reverse order
 
 ## Success Criteria
 
-- [ ] Frozen-lockfile install succeeds on Node 24.
-- [ ] Typecheck, lint, test and build scripts exit 0 from the root.
-- [ ] The baseline migration applies to an empty SQLite file.
-- [ ] The API listens on loopback only; `GET /health` returns 200.
-- [ ] A write request with a foreign `Origin` is rejected (test).
-- [ ] The logger redacts a seeded secret (test).
-- [ ] `SecretBox` round-trips and rejects tampered ciphertext (test).
-- [ ] `Money` preserves canonical decimal strings without float conversion (test).
-- [ ] `apps/web` declares no dependency on `apps/api`.
-- [ ] The app boots by following the README.
+- [x] Frozen-lockfile install succeeds on Node 24.
+- [x] Typecheck, lint, test and build scripts exit 0 from the root.
+- [x] The baseline migration applies to an empty SQLite file.
+- [x] The API listens on loopback only; `GET /health` returns 200.
+- [x] A write request with a foreign `Origin` is rejected (test).
+- [x] The logger redacts a seeded secret (test).
+- [x] `SecretBox` round-trips and rejects tampered ciphertext (test).
+- [x] `Money` preserves canonical decimal strings without float conversion (test).
+- [x] `apps/web` declares no dependency on `apps/api`.
+- [x] The app boots by following the README.
