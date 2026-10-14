@@ -46,7 +46,7 @@ The default host MUST be a loopback address and the port MUST have a documented 
 
 ### Requirement: Secret-free environment sample
 
-The repository MUST include an environment sample listing every variable with a placeholder or empty value, and MUST NOT include any real secret. The real environment file MUST be excluded from version control.
+The repository MUST include an environment sample named `env.example` that lists every configuration variable with its real default value; an empty value is a configuration error. Only `ALLOWED_ORIGINS` MUST be commented out. The sample MUST NOT include any real secret or machine-specific path. The real environment file MUST be excluded from version control.
 
 #### Scenario: Sample is complete
 

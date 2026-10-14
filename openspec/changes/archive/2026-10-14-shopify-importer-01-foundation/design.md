@@ -113,7 +113,7 @@ No variable is prefixed `VITE_`, so no environment value reaches the browser bun
 | Topic | Decision | Rejected |
 |---|---|---|
 | Bind | `listen(API_PORT, API_HOST)`, defaults `127.0.0.1:3000`; Vite `server.host = WEB_HOST`, default `127.0.0.1:5173`, strict port | Binding all interfaces by default |
-| Non-loopback opt-in | `ALLOW_NON_LOOPBACK=true` (the literal `true`; anything else is false). Loopback means `127.0.0.0/8`, `::1` or `localhost`. Without the opt-in, a non-loopback `API_HOST` or `WEB_HOST` aborts configuration with an error naming that variable. With it, boot logs one `warn` event `non_loopback_bind` carrying host and port and stating that the API has no authentication | A CLI flag (not visible in `.env.example`); silently honouring the host |
+| Non-loopback opt-in | `ALLOW_NON_LOOPBACK=true` (the literal `true`; any other value is a configuration error, not `false`). Loopback means `127.0.0.0/8`, `::1` or `localhost`. Without the opt-in, a non-loopback `API_HOST` or `WEB_HOST` aborts configuration with an error naming that variable. With it, boot logs one `warn` event `non_loopback_bind` carrying host and port and stating that the API has no authentication | A CLI flag (not visible in `env.example`); silently honouring the host |
 | CORS | Enabled with an exact-match allow-list: the `ALLOWED_ORIGINS` set, default `http://127.0.0.1:5173` and `http://localhost:5173`. Methods `GET, POST, PUT, PATCH, DELETE`; request header `Content-Type`; no credentials; no wildcard; `Vary: Origin`. Other origins receive no allow header **[VS]** | Wildcard; reflecting the request origin; no CORS at all (the first draft of this design, dropped because the spec requires an allow-list) |
 | Dev transport | Vite proxy forwards `/api` and `/health` to the API, so the web shell is same-origin in development **[VS]**. The CORS allow-list covers a direct cross-origin call | Relying on CORS alone |
 | Routes | Feature routes under the `/api` prefix; `/health` at the root **[VS]** | Stripping a prefix in the proxy |
@@ -192,7 +192,7 @@ Recommended: chain U1 to U7 as stacked PRs. U2 and U5 are over the budget on the
 .
 ├── package.json  pnpm-workspace.yaml  pnpm-lock.yaml
 ├── tsconfig.base.json  eslint.config.js  .prettierrc.json  .prettierignore
-├── .gitignore  .node-version  .env.example  README.md
+├── .gitignore  .node-version  env.example  README.md
 ├── packages/contracts/
 │   ├── package.json  tsconfig.json  vitest.config.ts
 │   └── src/  index.ts  health.ts  api-error.ts  money.ts  (+ tests)
@@ -205,7 +205,7 @@ Recommended: chain U1 to U7 as stacked PRs. U2 and U5 are over the budget on the
 │       ├── shared-kernel/
 │       │   ├── money/       money.ts
 │       │   ├── logging/     redact.ts  redacting-logger.ts
-│       │   └── secrets/     secret-box.port.ts  key-provider.port.ts  key-check-store.port.ts
+│       │   └── secret-box/  secret-box.port.ts  key-provider.port.ts  key-check-store.port.ts
 │       │                    secret-key-bootstrap.ts
 │       │                    infrastructure/  aes-gcm-secret-box.ts  file-key-provider.ts
 │       ├── persistence/     prisma.service.ts  prisma-key-check-store.ts  persistence.module.ts
@@ -276,7 +276,7 @@ sequenceDiagram
 | `package.json`, `pnpm-workspace.yaml` | Create | Scripts (D9), `engines.node >=24`, exact `packageManager`, build approval for `better-sqlite3` **[VS]** |
 | `tsconfig.base.json`, `eslint.config.js`, `.prettierrc.json`, `.prettierignore`, `.node-version` | Create | Tooling (D1, D2) |
 | `.gitignore` | Modify | Add `node_modules`, `dist`, `data/`, `.env`, `*.key`, `apps/api/src/generated/` |
-| `.env.example` | Create | Every variable in D6, no secrets |
+| `env.example` | Create | Every variable in D6, no secrets |
 | `README.md` | Create | Spanish quick start: prerequisites, install, migrate, run, test, key backup |
 | `packages/contracts/**` | Create | `HealthResponse`, `ApiError`, `MoneyString`, tests |
 | `apps/api/src/config/**` | Create | Schema, loader, path helper |
@@ -325,7 +325,7 @@ Frontend (`apps/web`): `useHealth()` fetches `/health`, parses it with `HealthRe
 | Unit | `Money` | Table of accepted and rejected inputs; canonical form including negative zero; `add` (`0.1` plus `0.2` is `0.3`); long-value and JSON round trips; immutability; `toFixed`; compare |
 | Unit | `AesGcmSecretBox` | Round trip; tamper with IV, ciphertext, tag, key id, context; wrong key; malformed envelope; IV differs per call |
 | Unit | `redact` and logger | Key names at depth; each value pattern; registered secret inside a longer string; `Error`; cycles; a seeded secret is absent from captured output bytes |
-| Unit | Config, `LocalRequestGuard`, contracts | Defaults, each failure, non-loopback opt-in, `.env.example` lists every schema variable; method, `Host`, `Origin` and `Sec-Fetch-Site` matrix; schema parse |
+| Unit | Config, `LocalRequestGuard`, contracts | Defaults, each failure, non-loopback opt-in, `env.example` lists every schema variable; method, `Host`, `Origin` and `Sec-Fetch-Site` matrix; schema parse |
 | Integration | Key file | Temp directory: generated with `0600`, loose permissions rejected, malformed rejected, never overwritten |
 | Integration | Persistence | Apply the committed `migration.sql` to an empty temp file, open through the adapter, write and read `app_setting`, assert WAL and `busy_timeout`; the four key-check states |
 | Integration | HTTP | App on an ephemeral loopback port with the test-only `POST` controller (D7): `/health` 200 and 503; foreign origin 403 with the handler not run; allowed origin and no-origin writes pass; preflight allows only allow-listed origins; foreign-origin `GET /health` runs with no allow header; bound address is loopback |
