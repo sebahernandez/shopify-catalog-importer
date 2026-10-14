@@ -624,3 +624,56 @@ Branch: feat/workbook-u10b-validate-route (from develop at 8a9d563, after U10a).
 ### Size
 
 Exception filter 23, controller +37 net (58 total), int test 307: about 370 hand-written lines. Contracts: 0.
+
+## U10c Perf test and final verification gate (13.6 and 14.1 to 14.7; 13.7 left to the orchestrator)
+
+Branch: feat/workbook-u10c-perf-final-gate (from develop at 9484154, after U10b). Node 24. The real app was not booted; 13.7 stays open for the orchestrator.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 13.6 perf int test | First build of the workbook reported 500 OPTIONS_INCONSISTENT errors (multi-variant products need the option columns), then 9,500 OPTION_COMBINATION_DUPLICATE errors from a wrong cell template; the errorCount assertion failed both times | 1 pass: 500 products x 10 variants, valid true, 0 errors | Test data fixed, not the assertions |
+
+### Perf measurement (13.6)
+
+5,000 variants (500 products, 10 variants each, 132,403 bytes), POST over loopback in process, measured from request start to parsed report. Three runs: 150 ms, 157 ms, 154 ms against a 5,000 ms budget. The test sets a 60 s per-test timeout; the whole file runs in about 0.4 s. The console line only shows with the silent option off in this environment.
+
+### Final gates
+
+- 14.1 done. design.md has no docs or README change listed (rg for docs, readme, documentation: no hits). The only markdown files changed since the S1 base 2b8fc29 are the four SDD artifacts under the change folder; no README or docs path touched.
+- 14.2 done. pnpm install --frozen-lockfile exit 0; git diff --quiet on pnpm-lock.yaml exit 0.
+- 14.3 done. pnpm check exit 0 (final run, after removing two unused imports the first run of the new test flagged in lint). contracts 195 tests in 7 files, web 193 in 13, api 3353 in 75.
+- 14.4 done. pnpm build exit 0; apps/api/dist has 198 js and d.ts files, none from test-support, none named probe, spike, fixture, test or spec.
+- 14.5 done, with notes. No focused tests: no only anywhere. The skip hits are all conditional (skipIf for win32 or root, one describe.skip on win32), none unconditional. No lint-gate temp file. No losing-candidate dependency (modern-xlsx, exceljs, read-excel-file, fflate, jszip and others: no hit in any manifest or the lockfile). The only probe files are the winner's, kept on purpose by task 5.12: spike/sheetjs-probe.int.test.ts and spike/vendor-integrity.int.test.ts; neither reaches dist. vendor/sheetjs holds exactly the tgz, its sha256 and the LICENSE. vendor is ignored by eslint (vendor/**) and by Prettier (vendor). No archive or scratch download elsewhere in the repository. No accented character in API source outside tests, template-content.ts and test-support. Spanish words found in non-test source are only workbook contract identifiers (sheet and column names precio, archivo, titulo, opcionN_nombre/valor and the structure kinds hoja, filas, columnas), which are the contract, not prose. User-facing Spanish lives in the contracts catalog. No Node built-in import in packages/contracts source (workbook-schema.ts included).
+- 14.6 done. No file in the module source outside tests and test-support matches fetch, http or https clients, net, dns, child_process, undici, axios, WebSocket, any file write or mkdir/unlink/rename, XLSX.writeFile, or the word shopify. No node fs, os or path import in the module runtime. The route test fires no file write, DNS lookup or database access (workbook-validate.int.test.ts, case on side effects). No task contacted Shopify: the change has no network code and tests ran on loopback only.
+- 14.7 done, walked below.
+
+### Proposal success criteria walk (14.7)
+
+- [x] Spike findings recorded; library chosen and pinned: spike-findings.md (SheetJS winner), vendored tgz with sha256 and vendor-integrity.int.test.ts, probe sheetjs-probe.int.test.ts; PRs of U3 and U4.
+- [x] Crafted bombs, macro, external-link and formula files rejected before parsing: zip-preflight.int.test.ts, content-scan.int.test.ts, crafted-zip.test.ts; endpoint level in workbook-validate.int.test.ts (MACROS_NOT_ALLOWED, FILE_NOT_XLSX).
+- [x] Every tier A rule has a passing fixture test: the rules tests under domain/rules (productos, variantes-identity, variantes-options, variantes-price, variantes-barcode, variantes-inventory, imagenes, cross-sheet) plus structure tests; PRs of U5 to U8.
+- [x] Downloaded template validates with only example warnings: ooxml-template-writer.int.test.ts (zero errors, one EXAMPLE_PRODUCT warning per example) and workbook-validate.int.test.ts (unmodified downloaded template accepted with only EXAMPLE_PRODUCT warnings). Note: the proposal says EJEMPLO- warnings; the shipped code is EXAMPLE_PRODUCT.
+- [x] Validate endpoint returns 4xx for request errors and 200 reports otherwise: workbook-validate.int.test.ts (400, 403, 413, 415 cases; 200 for content problems and valid files; PR 61).
+- [x] pnpm test, typecheck, lint and build exit 0: pnpm check exit 0 and pnpm build exit 0 (14.3 and 14.4). Pending only the orchestrator curl harness of 13.7.
+
+### Size
+
+validate-perf.int.test.ts: 87 hand-written lines. Contracts: 0.
+
+### U10c harness (task 13.7, run by the orchestrator)
+
+Booted from a temporary clone of the branch (commit 59884e6) under the session scratch directory, never from the real repository or the real HOME. Environment injected with env -i: HOME, DATA_DIR and SECRET_KEY_FILE inside the temporary directory (key directory mode 700), loopback 127.0.0.1, port 39518. Steps: frozen install and build in the clone, prisma migrate deploy with the same isolated environment, then node dist/main.js in the background. The temporary directory was removed afterwards.
+
+| Check | Result |
+|---|---|
+| GET health | 200 |
+| GET api/workbook/template then POST the downloaded bytes to api/workbook/validate with curl --fail | exit 0, 200, application/json, Cache-Control no-store |
+| Report | valid true, 0 errors, 2 warnings, truncated false, both warnings EXAMPLE_PRODUCT |
+| fileSha256 | equals the local SHA-256 of the downloaded template (first 12 characters ea816d262889) |
+| POST with an empty body | 400 |
+| POST with text/plain | 415 |
+| POST of a text file named as xlsx | 200, valid false, FILE_NOT_XLSX, sheet null |
+
+The process was stopped. No repo process, data directory, key file or database file remained in the real repository, and the real HOME has no importer folder.
