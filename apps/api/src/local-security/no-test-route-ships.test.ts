@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { ConfigModule } from '../config/config.module.js';
 import { parseEnv } from '../config/env.schema.js';
 import { HealthController } from '../health/health.controller.js';
+import { WorkbookController } from '../catalog-workbook/infrastructure/http/workbook.controller.js';
 import { LocalSecurityModule } from './local-security.module.js';
 
 const SRC = fileURLToPath(new URL('..', import.meta.url));
@@ -61,8 +62,11 @@ describe('the test-only write route does not ship', () => {
     const dynamic = AppModule.forRoot({ config: parseEnv({}), logger: { warn: () => undefined } });
     expect(dynamic.controllers ?? []).toEqual([]);
     const imports = (dynamic.imports ?? []) as { controllers?: unknown[] }[];
-    expect(imports).toHaveLength(4);
-    expect(imports.flatMap((imported) => imported.controllers ?? [])).toEqual([HealthController]);
+    expect(imports).toHaveLength(5);
+    expect(imports.flatMap((imported) => imported.controllers ?? [])).toEqual([
+      HealthController,
+      WorkbookController,
+    ]);
   });
 
   it('starts the program with no options, so no extra module and no environment switch', () => {
