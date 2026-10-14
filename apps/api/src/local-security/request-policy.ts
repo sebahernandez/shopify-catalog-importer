@@ -12,7 +12,11 @@ export interface RequestFacts {
   readonly secFetchSite: HeaderValue;
 }
 
-export type RejectionCode = ApiError['error']['code'];
+/** The codes the request guard can raise: the ApiError list also holds codes from other checks. */
+export type RejectionCode = Extract<
+  ApiError['error']['code'],
+  'HOST_NOT_ALLOWED' | 'ORIGIN_NOT_ALLOWED'
+>;
 
 export type GuardDecision =
   { readonly allowed: true } | { readonly allowed: false; readonly code: RejectionCode };

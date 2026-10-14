@@ -32,3 +32,28 @@ workbook-schema 59 + test 64, issue-catalog 168 + test 50, index 3 = 344. Within
 - The workbook-schema test imports `node:fs` (test file only) to check the source has no `node:` import.
 - The Spanish message text is a first draft and has not had a native-speaker review.
 - `ISSUE_CODES` is a closed zod enum: later units must append their codes together with their `ISSUE_PARAM_KEYS` and `ISSUE_MESSAGES_ES` entries; the totality tests fail otherwise.
+
+## U1b Report model and ApiError codes: done
+
+Branch: feat/workbook-u1b-report-api-errors (from feat/workbook-u1a-schema-catalog). Strict TDD, Node 24.21.0, pnpm 12.11.2.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 1.4 / 1.5 | Suite failed: cannot find module for validation-report | 15 tests pass | `valid` iff `errorCount` is 0, enforced with a zod refine. `ValidationIssue.sheet` is an enum of the three data sheets (not any string). |
+| 1.8 / 1.9 | 3 new ApiError cases failed (the enum rejected the codes) | 7 api-error tests pass | The two existing codes are still accepted. |
+| 1.10 | n/a | web 193 pass | Exports added. The api typecheck broke on the closed enum (see deviations). |
+| 1.11 | n/a | `pnpm check` exit 0 and `pnpm build` exit 0 | typecheck, lint, format:check, all tests. |
+
+### Test counts
+
+Before U1b: 3,296 (contracts 98, web 193, api 3,005). After: 3,317 (contracts 119, web 193, api 3,005).
+
+### Measured hand-written lines
+
+validation-report 37 + test 75, api-error +9 -2 and test +7 -1, index +5, request-policy +5 -1 = 141 changed lines. Within the 400 budget. U1a and U1b together are about 482, which is why U1 was split.
+
+### Deviations
+
+- `apps/api/src/local-security/request-policy.ts`: `RejectionCode` was `ApiError['error']['code']`, so widening the enum broke the api typecheck in the guard maps. It is now narrowed with `Extract` to the two guard codes (`HOST_NOT_ALLOWED`, `ORIGIN_NOT_ALLOWED`). This is outside the listed rollback boundary but the typecheck requires it.

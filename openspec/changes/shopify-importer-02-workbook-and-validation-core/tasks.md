@@ -82,14 +82,14 @@ Satisfies: workbook-contract (Sheet and column constants), validation-report (Is
 - [x] 1.1 Confirm names before coding: record in the apply progress that design.md was aligned to the specs (issue `field`, `suggestedAction`, `summary.errorCount` and `warningCount`, params may be string, number or boolean, codes `FILE_NOT_XLSX`, `FILE_UNREADABLE`, `ZIP_*`, `MACROS_NOT_ALLOWED`, `CELL_TEXT_TOO_LONG`, `SHEET_ROW_LIMIT_EXCEEDED`), that the specs win if any wording still differs, and that the design and U1 add a third ApiError code `WORKBOOK_UNSUPPORTED_MEDIA_TYPE` (415) that the endpoint spec does not list. No file edit.
 - [x] 1.2 RED: create `packages/contracts/src/workbook-schema.test.ts`: three data sheets plus `Instrucciones`, every column in spec order, required flags (product_key, handle, titulo; product_key, precio; product_key, archivo, orden), `EXAMPLE_PREFIX`, and the source has no `node:` import.
 - [x] 1.3 GREEN: create `packages/contracts/src/workbook-schema.ts` (`SHEETS`, `COLUMNS` with required flags, `EXAMPLE_PREFIX`).
-- [ ] 1.4 RED: create `packages/contracts/src/validation-report.test.ts`: cell-level issue (error, Variantes, row 4, field precio, product key, non-empty texts), file-level issue with null sheet/row/field, unknown code fails, flat params of string, number or boolean, `fileSha256` is 64 lowercase hex, `valid` true if and only if `errorCount` is 0, `truncated` boolean.
-- [ ] 1.5 GREEN: create `packages/contracts/src/validation-report.ts` (`ValidationIssue`, `ValidationReport` zod schemas).
+- [x] 1.4 RED: create `packages/contracts/src/validation-report.test.ts`: cell-level issue (error, Variantes, row 4, field precio, product key, non-empty texts), file-level issue with null sheet/row/field, unknown code fails, flat params of string, number or boolean, `fileSha256` is 64 lowercase hex, `valid` true if and only if `errorCount` is 0, `truncated` boolean.
+- [x] 1.5 GREEN: create `packages/contracts/src/validation-report.ts` (`ValidationIssue`, `ValidationReport` zod schemas).
 - [x] 1.6 RED: create `packages/contracts/src/issue-catalog.test.ts`: every code has a non-empty message and action, `DECIMAL_SCALE_EXCEEDED` with limit 4 and actual 5 shows both numbers, no `{` left after rendering with declared params, same input gives same text, every code declares its param keys.
 - [x] 1.7 GREEN: create `packages/contracts/src/issue-catalog.ts` with `ISSUE_CODES` (file-level and structure codes only: FILE_NOT_XLSX, FILE_ENCRYPTED_OR_LEGACY, FILE_UNREADABLE, ZIP_*, MACROS_NOT_ALLOWED, EXTERNAL_LINKS_NOT_ALLOWED, EMBEDDED_CONTENT_NOT_ALLOWED, FORMULA_NOT_ALLOWED, SHEET_*_LIMIT_EXCEEDED, CELL_TEXT_TOO_LONG, SHEET_MISSING, SHEET_DUPLICATE, HEADER_MISSING, HEADER_DUPLICATE, the warnings `HEADER_UNKNOWN` and `HIDDEN_CONTENT`), `ISSUE_PARAM_KEYS`, `ISSUE_MESSAGES_ES`, `renderIssue()`. Later units append their codes.
-- [ ] 1.8 RED: modify `packages/contracts/src/api-error.test.ts` to accept `WORKBOOK_FILE_REQUIRED`, `WORKBOOK_TOO_LARGE`, `WORKBOOK_UNSUPPORTED_MEDIA_TYPE` and still accept the two existing codes.
-- [ ] 1.9 GREEN: modify `packages/contracts/src/api-error.ts` with the three codes.
-- [ ] 1.10 Export the new modules from `packages/contracts/src/index.ts`; run `pnpm --filter @importer/web test` to confirm the closed enum change breaks nothing.
-- [ ] 1.11 Run the focused test command and `pnpm check`; record the measured lines.
+- [x] 1.8 RED: modify `packages/contracts/src/api-error.test.ts` to accept `WORKBOOK_FILE_REQUIRED`, `WORKBOOK_TOO_LARGE`, `WORKBOOK_UNSUPPORTED_MEDIA_TYPE` and still accept the two existing codes.
+- [x] 1.9 GREEN: modify `packages/contracts/src/api-error.ts` with the three codes.
+- [x] 1.10 Export the new modules from `packages/contracts/src/index.ts`; run `pnpm --filter @importer/web test` to confirm the closed enum change breaks nothing.
+- [x] 1.11 Run the focused test command and `pnpm check`; record the measured lines.
 
 ## Phase 2: U2 Domain core and lint
 
