@@ -222,11 +222,11 @@ Satisfies: rules (Decimal prices through Money, Barcode and numeric identifier c
 
 - [x] 10.1 RED: create `domain/rules/variantes-price-rules.test.ts`: `1999.9999` clean, `19,99` `DECIMAL_AMBIGUOUS`, `1.12345` `DECIMAL_SCALE_EXCEEDED`, `1000000000000` `DECIMAL_MAGNITUDE_EXCEEDED`, exponent and text `DECIMAL_INVALID`, `-1` `PRICE_NEGATIVE`, `0` `PRICE_ZERO` warning, empty `precio` `REQUIRED_FIELD_MISSING`, compare-at 8 below price 10 warns `COMPARE_AT_BELOW_PRICE`, numeric cell `0.1` parsed exactly, float artifact blocked not rounded.
 - [x] 10.2 GREEN: create `domain/rules/variantes-price-rules.ts`; append codes and Spanish entries.
-- [ ] 10.3 RED: create `domain/rules/variantes-barcode-rules.test.ts`: `7501,7502` `BARCODE_MULTIPLE` (also semicolon, pipe, line break, inner whitespace), number cell 16 digits and `1.23457E+15` `NUMERIC_IDENTIFIER_UNSAFE`, short number warns, text with leading zeros clean.
-- [ ] 10.4 GREEN: create `domain/rules/variantes-barcode-rules.ts`.
-- [ ] 10.5 RED: create `domain/rules/variantes-inventory-rules.test.ts`: spellings `Sí SI no Verdadero FALSO 1 0` and native true accepted, `quizás` `BOOLEAN_INVALID`, empty flag with stock 5 `INVENTORY_FLAG_REQUIRED`, empty flag and empty stock is false and silent, stock `3` accepted and `-1`, `2.5`, `abc` `STOCK_INVALID`, managed with empty stock `STOCK_INVALID`, managed without `ubicacion` `REQUIRED_FIELD_MISSING`, date cell in stock `CELL_TYPE_UNEXPECTED`.
-- [ ] 10.6 GREEN: create `domain/rules/variantes-inventory-rules.ts`; complete `domain/variant-row.ts`; append codes and Spanish entries.
-- [ ] 10.7 Run the focused test command and `pnpm check`; record lines.
+- [x] 10.3 RED: create `domain/rules/variantes-barcode-rules.test.ts`: `7501,7502` `BARCODE_MULTIPLE` (also semicolon, pipe, line break, inner whitespace), number cell 16 digits and `1.23457E+15` `NUMERIC_IDENTIFIER_UNSAFE`, short number warns, text with leading zeros clean.
+- [x] 10.4 GREEN: create `domain/rules/variantes-barcode-rules.ts`.
+- [x] 10.5 RED: create `domain/rules/variantes-inventory-rules.test.ts`: spellings `Sí SI no Verdadero FALSO 1 0` and native true accepted, `quizás` `BOOLEAN_INVALID`, empty flag with stock 5 `INVENTORY_FLAG_REQUIRED`, empty flag and empty stock is false and silent, stock `3` accepted and `-1`, `2.5`, `abc` `STOCK_INVALID`, managed with empty stock `STOCK_INVALID`, managed without `ubicacion` `REQUIRED_FIELD_MISSING`, date cell in stock `CELL_TYPE_UNEXPECTED`.
+- [x] 10.6 GREEN: create `domain/rules/variantes-inventory-rules.ts`; complete `domain/variant-row.ts`; append codes and Spanish entries.
+- [x] 10.7 Run the focused test command and `pnpm check`; record lines.
 
 ## Phase 11: U8 Images, cross-sheet rules, assembly, use case
 
