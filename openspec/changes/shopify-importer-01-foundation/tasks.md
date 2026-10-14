@@ -214,9 +214,9 @@ Satisfies: health-check (healthy, database down, no leakage, foreign origin read
 
 Satisfies: workspace-tooling (web isolated from API, depends on contracts only), health-check (bundle free of server code, shell builds).
 
-- [ ] 15.1 Verify scaffold item 9 and 12: pin React 19, Vite 8, Tailwind 4, the React Vite plugin and `@tailwindcss/vite`; confirm the Vite proxy leaves `Host` and `Origin` as the guard expects. Fallback: set `changeOrigin: false` and forward headers explicitly.
-- [ ] 15.2 RED: create `apps/web/src/bundle.int.test.ts`: after `pnpm build`, `apps/web/dist` contains neither `@importer/api` nor a seeded secret; and an SSR render of `App` returns without throwing.
-- [ ] 15.3 GREEN: create `apps/web/package.json` (depends on `@importer/contracts` only), `tsconfig.json`, `vite.config.ts` (proxy the /api prefix and the /health route, strict port, host from `WEB_HOST`), `index.html`, `src/main.tsx`, `src/styles.css`, `src/app/App.tsx` (placeholder shell). Note: Vite defaults mirror the API defaults and cannot import API config; keep them in one commented constant.
+- [x] 15.1 Verify scaffold item 9 and 12: pin React 19, Vite 8, Tailwind 4, the React Vite plugin and `@tailwindcss/vite`; confirm the Vite proxy leaves `Host` and `Origin` as the guard expects. Fallback: set `changeOrigin: false` and forward headers explicitly.
+- [x] 15.2 RED: create `apps/web/src/bundle.int.test.ts`: after `pnpm build`, `apps/web/dist` contains neither `@importer/api` nor a seeded secret; and an SSR render of `App` returns without throwing.
+- [x] 15.3 GREEN: create `apps/web/package.json` (depends on `@importer/contracts` only), `tsconfig.json`, `vite.config.ts` (proxy the /api prefix and the /health route, strict port, host from `WEB_HOST`), `index.html`, `src/main.tsx`, `src/styles.css`, `src/app/App.tsx` (placeholder shell). Note: Vite defaults mirror the API defaults and cannot import API config; keep them in one commented constant.
 
 ## Phase 16: U16 Health UI
 
