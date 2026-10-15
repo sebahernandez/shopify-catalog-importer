@@ -261,3 +261,38 @@ pnpm check exit 0 (after a Prettier write on the faults test). Tests: contracts 
 - The port and error type were not touched.
 - Public methods log the call and apply faults after one microtask, so the log order is call order but not synchronous with the call.
 - The fall-forward version defaults to a fixed constant (2099-01), which is never equal to a real requested version; a test or the contract suite can set another through the fault.
+
+## U7a URL builder and transport, part 1 (7.1 to 7.5)
+
+Branch: feat/stores-u7a-transport (from develop). Strict TDD, Node 24. Tasks 7.1 to 7.5 delivered. Tasks 7.6 to 7.9 NOT started: stopped at the pre-agreed cut after 7.5 because the transport (tests plus code, planned about 230 lines) would take the unit to about 520 lines against the 400 budget. The unit needs a second part (7.6 to 7.8) and then the 7.9 gate on its own.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 7.1 / 7.2 | Run failed on the missing module scripted-fetch.js (no tests ran) | 6 tests pass | Steps: response, streamed chunks (with hangAfter), throws, never. Calls record url, method, lowercased headers, body, init, pulledBytes and cancelled |
+| 7.3 (VS1) | Not applicable (verification) | 1 test passes | See VS1 |
+| 7.4 / 7.5 | Run failed on the missing module shopify-request.js (no tests ran) | 9 tests pass | Lint and typecheck forced small reshapes of scripted-fetch (exactOptionalPropertyTypes, promise-reject-errors) |
+
+### VS1 result
+
+Two real loopback servers on 127.0.0.1 with ephemeral ports. Node 24 fetch with method POST and redirect error, against a server answering 302 with a location pointing at the second server, rejects with a TypeError, and the second server received 0 requests. Recorded in redirect-refusal.int.test.ts.
+
+### VS2 and VS3
+
+Not yet verified: they belong to 7.6 to 7.8 (transport), which is not started.
+
+### Design notes
+
+- shopify-request.ts holds the private brand plus a WeakSet of issued requests; issueShopifyRequest is meant to be called only by shopify-urls.ts, and isShopifyRequest is the run-time check the transport must call before fetch.
+- shopifyUrls.graphql(domain, version) and shopifyUrls.token(domain) re-parse the domain at run time (it must parse to itself) and return a frozen request with a url member.
+- The version pattern was not duplicated: API_VERSION_PATTERN is now exported from config env.schema.ts and used by both the config schema and the URL builder (3 added lines, 1 changed in env.schema.ts). The pattern only admits quarterly releases (01, 04, 07, 10), so 2026-05 and latest are refused.
+- The scripted fetch signature is (url, init) returning a Response; the transport must use fetchFn with that shape.
+
+### Measured hand-written lines
+
+Code: scripted-fetch 75, shopify-request 20, shopify-urls 22, env.schema.ts change +3/-1 = 120. Tests: scripted-fetch test 77, redirect-refusal int test 36, shopify-urls test 56 = 169. Combined about 289 (budget 400, planned about 280 for the whole unit). Nothing was trimmed.
+
+### Gate (partial, not the 7.9 gate)
+
+Focused command (gateway and test-support): 3 files, 16 tests pass. pnpm check exit 0. Tests: contracts 263, web 193, api 3530.
