@@ -406,3 +406,29 @@ Tests were written before each module (modules absent at that point); no separat
 
 - `estimatedCost` and `retry` are optional inputs so U7b callers and tests stay valid; U9b passes them explicitly.
 - The tracker is keyed by `shopDomain` (design D15), the observer still receives `storeId`.
+
+## U9a Fixtures, queries, response schemas (Phase 12, tasks 12.1 to 12.7)
+
+All seven tasks done on `feat/stores-u8-throttle-retry` (single big PR 1; no per-unit split).
+
+### VS7 (12.1): reference pages for 2026-10, documentation only
+
+Fetched `https://shopify.dev/docs/api/admin-graphql/2026-10/...` pages and checked field names by text match. Matches: `Shop` has `currencyCode`, `myshopifyDomain`; `ShopPlan` has `publicDisplayName`, `partnerDevelopment`, `shopifyPlus`, and `displayName` (deprecated, not selected); `AccessScope` has `handle`; the `locations` query documents `includeInactive`, `nodes` and `pageInfo`; `Location` has `isActive` and `fulfillsOnlineOrders`. Differences: none found. Pages are JS-rendered, so only name presence was verified, not types, defaults or the required scope. Assumptions (real store, S7): maximum and default page size of `locations`, required scope for `locations`, plan value strings, scope handle strings, query costs.
+
+### What was built
+
+- Fixtures (all `hand-authored-from-documentation`): `fixture-meta.ts` (provenance type, `provenanceProblem`), `shop-info.ts`, `granted-scopes.ts`, `locations.ts` (empty, 3 active, inactive mix, `pagedLocations`, 251 over six pages), `error-bodies.ts` (200 THROTTLED, 200 ACCESS_DENIED, invalid key 401 and 200, MAX_COST_EXCEEDED, SOMETHING_NEW, HTML maintenance page, token endpoint bodies).
+- `graphql-operations.ts`: three documents with declared `estimatedCost` 2, 2, 52, no version literal. `response-schemas.ts`: zod schemas for the three responses.
+
+### VS8 (12.6)
+
+Parsed: healthy shop, scopes with a duplicate (3 entries kept; de-duplication is the gateway's job), empty `nodes`, 3 active locations, six pages of the 251-location set with `hasNextPage` true on pages 1 to 5 and `{ hasNextPage: false, endCursor: null }` on page 6. Failed as required: shop without `currencyCode`, shop with `id: 5`.
+
+### Tests
+
+Provenance test walks the fixtures folder (4 fixture files; bad tags proved with synthetic values); operations test 10 cases. Focused run: 3 files, 22 tests. `pnpm check` exit 0 on Node 24.21.0 (api 3653 tests).
+
+### Gate (12.7)
+
+Hand-written lines: code 205, tests 125, total 330 against plan about 240 (no budget in this single PR).
+
