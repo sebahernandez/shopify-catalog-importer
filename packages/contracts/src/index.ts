@@ -12,6 +12,17 @@ export {
   VerificationProblem,
   VerificationSnapshot,
 } from './store-verification.js';
+export {
+  AUTH_KINDS,
+  ClientCredentials,
+  CreateStoreBody,
+  CredentialsPayload,
+  ReplaceCredentialsBody,
+  STORE_STATUSES,
+  StaticTokenCredentials,
+  StoreSummary,
+} from './stores.js';
+export type { AuthKind, StoreStatus } from './stores.js';
 export { ValidationIssue, ValidationReport } from './validation-report.js';
 export { COLUMNS, DATA_SHEETS, EXAMPLE_PREFIX, SHEETS } from './workbook-schema.js';
 export type { DataSheet, WorkbookColumn } from './workbook-schema.js';

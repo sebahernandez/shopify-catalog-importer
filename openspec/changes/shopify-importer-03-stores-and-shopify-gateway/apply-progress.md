@@ -27,3 +27,27 @@ Code: shopify-scopes 16, shopify-errors 30, store-verification 72, index +9 (exp
 - VerificationProblem enforces that code equals kind, except the two special codes, each tied to its kind: API_VERSION_MISMATCH with VERSION_UNSUPPORTED, and CREDENTIALS_UNREADABLE with AUTH_FAILED. The task asked for the two special codes and did not ask for the kind tie.
 - Timestamps use z.iso.datetime() (UTC Z only, offsets rejected).
 - Extra exports beyond the task list: LOCATIONS_ALTERNATIVES, Capability, ExchangeFailureReason.
+
+## U1b Contracts: stores, credentials and ApiError codes (1.6 to 1.9, 1.12 to 1.15)
+
+Branch: feat/stores-u1b-stores-contracts (from develop at eaf0a8f, after U1a). Strict TDD, Node 24. Second of the two parts of U1; the code was written and verified together with U1a and split afterwards, so the RED observations below were made in the combined run.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 1.6 and 1.7 | Suite failed: cannot find module for stores | 12 tests pass | Strict payloads, trim then 1 to 512 characters, secrets minimum 8, extra fields rejected. |
+| 1.8 and 1.9 | stores tests failed (new exports undefined) | 17 tests pass | The summary imports the snapshot schema from store-verification (U1a). |
+| 1.12 and 1.13 | 5 new api-error cases failed (the enum rejected the new codes) | 14 tests pass | STORE_NOT_FOUND, STORE_DOMAIN_INVALID, STORE_ALREADY_EXISTS, STORE_CREDENTIALS_INVALID, STORE_REQUEST_INVALID. |
+| 1.14 | n/a | web 193 tests pass | No web file edited; the closed enum change breaks nothing there. |
+
+### Measured hand-written lines
+
+Code: stores 77, api-error +5, index +11 = 93. Tests: stores 85, stores-credentials 52, api-error test +5 = 142. Total 235. Nothing was trimmed.
+
+### Deviations and decisions for later units
+
+- CreateStoreBody.domain is a plain string: the domain guard in the API owns its validation and its reasons. shopDomain and displayName in the summary are plain strings.
+- displayName counts code points with a refine, because zod max counts UTF-16 units and an 80-emoji name would otherwise fail.
+- Extra exports beyond the task list: AuthKind, StoreStatus.
+- The U1 total across both parts is 542 hand-written lines (307 in U1a and 235 in U1b), against about 300 planned: the store-verification suite and prettier wrapping of long test expectations were the main drivers.

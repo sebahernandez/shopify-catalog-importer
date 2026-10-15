@@ -8,6 +8,11 @@ describe('ApiError', () => {
     'WORKBOOK_FILE_REQUIRED',
     'WORKBOOK_TOO_LARGE',
     'WORKBOOK_UNSUPPORTED_MEDIA_TYPE',
+    'STORE_NOT_FOUND',
+    'STORE_DOMAIN_INVALID',
+    'STORE_ALREADY_EXISTS',
+    'STORE_CREDENTIALS_INVALID',
+    'STORE_REQUEST_INVALID',
   ])('accepts code %s', (code) => {
     const body = { error: { code, message: 'Request rejected.' } };
     expect(ApiError.parse(body)).toEqual(body);
