@@ -455,3 +455,30 @@ Hand-written lines: code 114 (gateway 74, paging 40), tests 230 (gateway 110, lo
 - The over-the-cap scenario serves 400 locations over eight pages and asserts only six requests are made (paging stops once more than 250 are collected).
 - The page-count guard (50) is not in the spec; it only prevents an endless loop against a misbehaving server.
 
+## U10 Gateway contract suite (Phase 14, tasks 14.1 to 14.4)
+
+All four tasks done on `feat/stores-u8-throttle-retry`. This closes PR 1 (U9a, U9b, U10 on top of U8). CP5 decision applied as the task describes (see below).
+
+### What was built
+
+- `test-support/gateway-contract-suite.ts`: `runGatewayContractSuite(name, adapter)` and the `ContractAdapter` interface; the shared `retryOnRetryable` helper; the HTTP failure scripts per kind.
+- `infrastructure/gateway/gateway-contract.int.test.ts`: wires the simulator (faults) and the HTTP adapter (scripted fetch with fixtures; a host-routed fetch for the two-store case).
+- `SimulatedShop` gained an optional `id` so shop info can be equal across adapters (default unchanged).
+
+### Cases (per adapter, 9 each, 18 total)
+
+Healthy shop (shop info, scopes, locations equal); one case per failure kind `SCOPE_MISSING`, `AUTH_FAILED`, `SERVER_ERROR`, `NETWORK`, `TIMEOUT`, `INVALID_RESPONSE` (equal `kind`); throttled first attempt then success (HTTP retries internally with no visible failure; the simulator throws one retryable `THROTTLED` and succeeds on the second call through `retryOnRetryable`); two stores concurrently, each with its own result.
+
+### Mutation sanity (14.3)
+
+Mutation 1: the in-200 `THROTTLED` rule changed to `SCOPE_MISSING` in `classify-response.ts`: the HTTP throttled case failed (1 failure). Mutation 2: simulator shop name altered: 3 simulator cases failed. Both reverted (git shows no change to the classifier; simulator back to the intended `id` edit only). Note: the throttled scenario uses the Shopify-style HTTP 200 `THROTTLED`; a 429 mutation is covered by the classification unit tests, not by this suite.
+
+### Gate (14.4)
+
+`pnpm check` exit 0 on Node 24.21.0 (contracts 263, web 193, api 3688). Hand-written lines: code about 155 (suite 152, simulator 3), tests about 107, total about 262 against plan about 260.
+
+### Deviations and notes
+
+- The two-store HTTP case uses a host-routed fetch instead of an ordered script, because two stores interleave requests non-deterministically.
+- CP5: the throttled case is defined as in the task text (shared retry-on-retryable helper applied to both adapters; it asserts no visible failure for HTTP and exactly one retryable `THROTTLED` for the simulator).
+
