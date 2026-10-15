@@ -381,3 +381,104 @@ RED: the client suite failed on the missing module (classification suites were w
 
 - Over budget as a unit; split at the pre-agreed cut into two branches (two feat commits), so each PR is under 400.
 - `classifyResponse` returns a result object rather than throwing, so the client can read the cost block before deciding.
+
+## U8 Throttle tracker, retry policy, forced refresh (Phase 11, tasks 11.1 to 11.7)
+
+All seven tasks done on `feat/stores-u8-throttle-retry`, one unit, no split.
+
+### What was built
+
+- `createThrottleTracker({ nowMs })`: pure per-domain bucket model. `observe(domain, raw)` validates with the shared `ThrottleStatus` schema (malformed ignored); `waitTimeFor(domain, cost)` restores `restoreRate` per second capped at the maximum and rounds the wait up; never observed gives 0.
+- `withRetry(attempt, { retry, sleep, random })`: at most 3 attempts, only for `safe` reads and retryable kinds; wait after attempt n is `max(random() * 1000 * 2^(n-1), retryAfterMs)`; the last error is thrown unchanged.
+- `defaultGatewayRuntime` (`sleep`, `random`, `timeoutSignal`, `nowMs`) in `gateway-runtime.ts`.
+- `ThrottleStatus` schema moved to `throttle-status.ts` (the client no longer exports it).
+- Client: new inputs `estimatedCost` (default 0) and `retry` (absent means `none`); optional injected `sleep`, `random`, `tracker`. Sleeps the tracker advice (only when above 0) before each send, feeds every parsed cost block to the tracker and the observer, applies `withRetry`, and on `AUTH_FAILED` calls `refreshAfterRejection(token)` once per operation (outside the 3-attempt count) and resends with the new token; `null` (static) rethrows `AUTH_FAILED`.
+
+### TDD evidence
+
+Tests were written before each module (modules absent at that point); no separate failing run was captured for the tracker and retry suites. The client suite changes were run RED-by-design against the old client, then GREEN. Focused gateway run: 8 files, 87 tests pass (5 tracker, 14 retry, 8 new client).
+
+### Gate (11.7)
+
+`pnpm check` exit 0 on Node 24.21.0 (contracts 263, web 193, api 3637). Hand-written lines added: code 131 (tracker 28, status 8, retry 31, runtime 10, client 54), tests 242 (tracker 53, retry 84, client 105), total about 373 against budget 400 and plan about 300. Under budget, no split.
+
+### Deviations and notes
+
+- `estimatedCost` and `retry` are optional inputs so U7b callers and tests stay valid; U9b passes them explicitly.
+- The tracker is keyed by `shopDomain` (design D15), the observer still receives `storeId`.
+
+## U9a Fixtures, queries, response schemas (Phase 12, tasks 12.1 to 12.7)
+
+All seven tasks done on `feat/stores-u8-throttle-retry` (single big PR 1; no per-unit split).
+
+### VS7 (12.1): reference pages for 2026-10, documentation only
+
+Fetched `https://shopify.dev/docs/api/admin-graphql/2026-10/...` pages and checked field names by text match. Matches: `Shop` has `currencyCode`, `myshopifyDomain`; `ShopPlan` has `publicDisplayName`, `partnerDevelopment`, `shopifyPlus`, and `displayName` (deprecated, not selected); `AccessScope` has `handle`; the `locations` query documents `includeInactive`, `nodes` and `pageInfo`; `Location` has `isActive` and `fulfillsOnlineOrders`. Differences: none found. Pages are JS-rendered, so only name presence was verified, not types, defaults or the required scope. Assumptions (real store, S7): maximum and default page size of `locations`, required scope for `locations`, plan value strings, scope handle strings, query costs.
+
+### What was built
+
+- Fixtures (all `hand-authored-from-documentation`): `fixture-meta.ts` (provenance type, `provenanceProblem`), `shop-info.ts`, `granted-scopes.ts`, `locations.ts` (empty, 3 active, inactive mix, `pagedLocations`, 251 over six pages), `error-bodies.ts` (200 THROTTLED, 200 ACCESS_DENIED, invalid key 401 and 200, MAX_COST_EXCEEDED, SOMETHING_NEW, HTML maintenance page, token endpoint bodies).
+- `graphql-operations.ts`: three documents with declared `estimatedCost` 2, 2, 52, no version literal. `response-schemas.ts`: zod schemas for the three responses.
+
+### VS8 (12.6)
+
+Parsed: healthy shop, scopes with a duplicate (3 entries kept; de-duplication is the gateway's job), empty `nodes`, 3 active locations, six pages of the 251-location set with `hasNextPage` true on pages 1 to 5 and `{ hasNextPage: false, endCursor: null }` on page 6. Failed as required: shop without `currencyCode`, shop with `id: 5`.
+
+### Tests
+
+Provenance test walks the fixtures folder (4 fixture files; bad tags proved with synthetic values); operations test 10 cases. Focused run: 3 files, 22 tests. `pnpm check` exit 0 on Node 24.21.0 (api 3653 tests).
+
+### Gate (12.7)
+
+Hand-written lines: code 205, tests 125, total 330 against plan about 240 (no budget in this single PR).
+
+## U9b HTTP gateway operations (Phase 13, tasks 13.1 to 13.5)
+
+All five tasks done on `feat/stores-u8-throttle-retry`.
+
+### What was built
+
+- `createHttpShopifyGateway(client)` implements `ShopifyGateway` over `createShopifyGraphqlClient().execute`. Every read passes `estimatedCost` (2, 2, 52) and `retry: 'safe'` explicitly. `getShopInfo` maps `planName` from `plan.publicDisplayName`; `getGrantedScopes` de-duplicates keeping order.
+- `collectLocations` (`locations-paging.ts`): follows cursors until `hasNextPage` is false or more than 250 active locations were collected, filters inactive defensively, sorts by name then id, cuts at 250, `truncated` when a 251st exists. A next page without cursor, or more than 50 pages, gives `INVALID_RESPONSE`.
+- `test-support/gateway-test-helpers.ts`: connection builder, `okStep`, `gatewayOver(steps)` (client with injected sleep and random), shared by the gateway tests and the U10 suite.
+
+### Tests
+
+17 new tests (8 in the gateway file, 9 for locations). Focused gateway run: 11 files, 114 tests. `pnpm check` exit 0 on Node 24.21.0 (api 3670 tests).
+
+### Gate (13.5)
+
+Hand-written lines: code 114 (gateway 74, paging 40), tests 230 (gateway 110, locations 80, helpers 40), total 344 against plan about 200.
+
+### Deviations and notes
+
+- The over-the-cap scenario serves 400 locations over eight pages and asserts only six requests are made (paging stops once more than 250 are collected).
+- The page-count guard (50) is not in the spec; it only prevents an endless loop against a misbehaving server.
+
+## U10 Gateway contract suite (Phase 14, tasks 14.1 to 14.4)
+
+All four tasks done on `feat/stores-u8-throttle-retry`. This closes PR 1 (U9a, U9b, U10 on top of U8). CP5 decision applied as the task describes (see below).
+
+### What was built
+
+- `test-support/gateway-contract-suite.ts`: `runGatewayContractSuite(name, adapter)` and the `ContractAdapter` interface; the shared `retryOnRetryable` helper; the HTTP failure scripts per kind.
+- `infrastructure/gateway/gateway-contract.int.test.ts`: wires the simulator (faults) and the HTTP adapter (scripted fetch with fixtures; a host-routed fetch for the two-store case).
+- `SimulatedShop` gained an optional `id` so shop info can be equal across adapters (default unchanged).
+
+### Cases (per adapter, 9 each, 18 total)
+
+Healthy shop (shop info, scopes, locations equal); one case per failure kind `SCOPE_MISSING`, `AUTH_FAILED`, `SERVER_ERROR`, `NETWORK`, `TIMEOUT`, `INVALID_RESPONSE` (equal `kind`); throttled first attempt then success (HTTP retries internally with no visible failure; the simulator throws one retryable `THROTTLED` and succeeds on the second call through `retryOnRetryable`); two stores concurrently, each with its own result.
+
+### Mutation sanity (14.3)
+
+Mutation 1: the in-200 `THROTTLED` rule changed to `SCOPE_MISSING` in `classify-response.ts`: the HTTP throttled case failed (1 failure). Mutation 2: simulator shop name altered: 3 simulator cases failed. Both reverted (git shows no change to the classifier; simulator back to the intended `id` edit only). Note: the throttled scenario uses the Shopify-style HTTP 200 `THROTTLED`; a 429 mutation is covered by the classification unit tests, not by this suite.
+
+### Gate (14.4)
+
+`pnpm check` exit 0 on Node 24.21.0 (contracts 263, web 193, api 3688). Hand-written lines: code about 155 (suite 152, simulator 3), tests about 107, total about 262 against plan about 260.
+
+### Deviations and notes
+
+- The two-store HTTP case uses a host-routed fetch instead of an ordered script, because two stores interleave requests non-deterministically.
+- CP5: the throttled case is defined as in the task text (shared retry-on-retryable helper applied to both adapters; it asserts no visible failure for HTTP and exactly one retryable `THROTTLED` for the simulator).
+
