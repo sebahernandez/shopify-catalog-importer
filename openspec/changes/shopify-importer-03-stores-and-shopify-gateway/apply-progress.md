@@ -381,3 +381,28 @@ RED: the client suite failed on the missing module (classification suites were w
 
 - Over budget as a unit; split at the pre-agreed cut into two branches (two feat commits), so each PR is under 400.
 - `classifyResponse` returns a result object rather than throwing, so the client can read the cost block before deciding.
+
+## U8 Throttle tracker, retry policy, forced refresh (Phase 11, tasks 11.1 to 11.7)
+
+All seven tasks done on `feat/stores-u8-throttle-retry`, one unit, no split.
+
+### What was built
+
+- `createThrottleTracker({ nowMs })`: pure per-domain bucket model. `observe(domain, raw)` validates with the shared `ThrottleStatus` schema (malformed ignored); `waitTimeFor(domain, cost)` restores `restoreRate` per second capped at the maximum and rounds the wait up; never observed gives 0.
+- `withRetry(attempt, { retry, sleep, random })`: at most 3 attempts, only for `safe` reads and retryable kinds; wait after attempt n is `max(random() * 1000 * 2^(n-1), retryAfterMs)`; the last error is thrown unchanged.
+- `defaultGatewayRuntime` (`sleep`, `random`, `timeoutSignal`, `nowMs`) in `gateway-runtime.ts`.
+- `ThrottleStatus` schema moved to `throttle-status.ts` (the client no longer exports it).
+- Client: new inputs `estimatedCost` (default 0) and `retry` (absent means `none`); optional injected `sleep`, `random`, `tracker`. Sleeps the tracker advice (only when above 0) before each send, feeds every parsed cost block to the tracker and the observer, applies `withRetry`, and on `AUTH_FAILED` calls `refreshAfterRejection(token)` once per operation (outside the 3-attempt count) and resends with the new token; `null` (static) rethrows `AUTH_FAILED`.
+
+### TDD evidence
+
+Tests were written before each module (modules absent at that point); no separate failing run was captured for the tracker and retry suites. The client suite changes were run RED-by-design against the old client, then GREEN. Focused gateway run: 8 files, 87 tests pass (5 tracker, 14 retry, 8 new client).
+
+### Gate (11.7)
+
+`pnpm check` exit 0 on Node 24.21.0 (contracts 263, web 193, api 3637). Hand-written lines added: code 131 (tracker 28, status 8, retry 31, runtime 10, client 54), tests 242 (tracker 53, retry 84, client 105), total about 373 against budget 400 and plan about 300. Under budget, no split.
+
+### Deviations and notes
+
+- `estimatedCost` and `retry` are optional inputs so U7b callers and tests stay valid; U9b passes them explicitly.
+- The tracker is keyed by `shopDomain` (design D15), the observer still receives `storeId`.
