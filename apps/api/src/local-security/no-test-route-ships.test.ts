@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { ConfigModule } from '../config/config.module.js';
 import { parseEnv } from '../config/env.schema.js';
 import { HealthController } from '../health/health.controller.js';
+import { StoresController } from '../stores/infrastructure/http/stores.controller.js';
 import { WorkbookController } from '../catalog-workbook/infrastructure/http/workbook.controller.js';
 import { RedactingLogger } from '../shared-kernel/logging/redacting-logger.js';
 import { DeferredSecretBox } from '../shared-kernel/secret-box/deferred-secret-box.js';
@@ -58,8 +59,8 @@ describe('the test-only write route does not ship', () => {
     expect(Reflect.getMetadata('controllers', AppModule) ?? []).toEqual([]);
   });
 
-  // The health route (U14) is the one controller the application ships; it must stay the only one.
-  it('declares exactly one controller, the health route, in the graph AppModule.forRoot builds', async () => {
+  // The application ships exactly these controllers; the test-only write route is never among them.
+  it('declares exactly the health, workbook and stores controllers in the graph AppModule.forRoot builds', async () => {
     const { AppModule } = await import('../app.module.js');
     const dynamic = AppModule.forRoot({
       config: parseEnv({}),
@@ -68,10 +69,11 @@ describe('the test-only write route does not ship', () => {
     });
     expect(dynamic.controllers ?? []).toEqual([]);
     const imports = (dynamic.imports ?? []) as { controllers?: unknown[] }[];
-    expect(imports).toHaveLength(5);
+    expect(imports).toHaveLength(6);
     expect(imports.flatMap((imported) => imported.controllers ?? [])).toEqual([
       HealthController,
       WorkbookController,
+      StoresController,
     ]);
   });
 
