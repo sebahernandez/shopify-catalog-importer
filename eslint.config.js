@@ -26,6 +26,7 @@ const OTHER_MODULES = {
     '**/health/**',
     '**/config/**',
     '**/catalog-workbook/**',
+    '**/stores/**',
   ],
   message: 'The shared kernel must not depend on other modules.',
 };
@@ -135,6 +136,18 @@ export default defineConfig(
   {
     // The workbook domain and application layers stay pure; tests may use a file-system spy.
     files: ['apps/api/src/catalog-workbook/{domain,application}/**/*.ts'],
+    ignores: ['**/*.test.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [...BUILT_INS, NEST, PRISMA, INFRASTRUCTURE] },
+      ],
+    },
+  },
+
+  {
+    // The stores domain and application layers stay pure; tests may use Node built-ins.
+    files: ['apps/api/src/stores/{domain,application}/**/*.ts'],
     ignores: ['**/*.test.ts'],
     rules: {
       'no-restricted-imports': [
