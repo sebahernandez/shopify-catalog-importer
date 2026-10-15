@@ -3,7 +3,7 @@ import { registerSecret } from '../../../shared-kernel/logging/redact.js';
 import type { SecretBox } from '../../../shared-kernel/secret-box/secret-box.port.js';
 import type { CredentialsPayload } from '../../domain/credentials-payload.js';
 import type { CredentialVault } from '../../ports/credential-vault.port.js';
-import { CredentialsUnreadableError } from './credentials-unreadable.error.js';
+import { CredentialsUnreadableError } from '../../ports/credentials-unreadable.error.js';
 
 /** The context binds an envelope to its store, so it cannot be moved to another row. */
 const contextOf = (storeId: string): string => `store:${storeId.toLowerCase()}:credentials`;

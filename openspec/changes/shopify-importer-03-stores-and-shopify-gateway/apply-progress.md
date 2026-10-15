@@ -482,3 +482,56 @@ Mutation 1: the in-200 `THROTTLED` rule changed to `SCOPE_MISSING` in `classify-
 - The two-store HTTP case uses a host-routed fetch instead of an ordered script, because two stores interleave requests non-deterministically.
 - CP5: the throttled case is defined as in the task text (shared retry-on-retryable helper applied to both adapters; it asserts no visible failure for HTTP and exactly one retryable `THROTTLED` for the simulator).
 
+
+## U11 Verify store connection and D19 (Phase 15, tasks 15.1 to 15.8)
+
+All eight tasks done on `feat/stores-u11-u12-use-cases` (one branch and one PR for U11 and U12, agreed with the user; tests written alongside code, no separate RED and GREEN runs).
+
+### What was built
+
+- `application/stores.tokens.ts` (eight Symbols) and `application/store-errors.ts` (`StoreNotFoundError`); `application/store-id.ts` (`isStoreId`, UUID check so a malformed id is answered like an unknown one, before the repository).
+- `StoreRepository.recordVerification(id, expectedEnvelope, record)` with the Prisma adapter: one `updateMany WHERE id AND credentials_envelope`, returns whether a row changed (D19). `shopifyShopId` is only written when obtained; `updatedAt` is not touched by a verification.
+- `application/verification-result.ts`: pure `assembleVerification` (problems, scope union, version mismatch, status via the existing precedence) and `toSnapshot` (`locationCount` only).
+- `application/verify-store-connection.use-case.ts`: reads shop, scopes, locations in order with the configured version, stops at the first failure (a `SCOPE_MISSING` on `listLocations` keeps the earlier parts), maps `CredentialsUnreadableError` to `CREDENTIALS_UNREADABLE` with no outbound call, persists, and logs `store_verification_discarded` (fields `event`, `storeId`, `status` only) when zero rows changed.
+- `test-support/store-use-case-harness.ts`: in-memory repository, token-asking simulator wrapper, real vault and credential registry; shared with U12.
+
+### Tests added
+
+Assembler 10, use case 26 (13 kinds are one parameterized case each), repository int 6. Focused command: 3 files, 52 tests pass.
+
+### Deviations and notes
+
+- `CredentialsUnreadableError` moved from `infrastructure/credentials` to `ports/` (the registry port documents it and the lint rule forbids application importing adapters). Same class; imports updated.
+- The use case takes the credential registry (which opens the envelope through the vault) instead of the vault directly; the tests use the real vault and registry with a stub exchanger.
+- The result and the discard log are asserted free of the token, envelope and domain.
+- Root `pnpm lint` (`eslint .`) also scans the untracked `.claude/worktrees` copies left by other agents and reports thousands of unrelated errors; the gate was run as typecheck, `eslint apps packages`, format check and the full test run.
+
+### Gate (15.8)
+
+Typecheck, `eslint apps packages`, `prettier --check` and the full test run pass on Node 24.21.0. Hand-written lines: code about 300, tests about 470, shared harness about 180; the 400 budget is waived by the agreed process (one PR, no per-unit budget).
+
+## U12 Store use cases (Phase 16, tasks 16.1 to 16.11)
+
+All eleven tasks done on the same branch as U11 (one PR for both units; tests written alongside code).
+
+### What was built
+
+- `ports/id-generator.port.ts` and `infrastructure/random-uuid-id-generator.ts` (lower case UUID v4).
+- `application/create-store.use-case.ts`: checks in the order display name, domain, credentials (contracts zod plus `parseShopDomain`), seals under `store:<lower case id>:credentials`, inserts, maps `DuplicateShopDomainError` to `StoreAlreadyExistsError`. No gateway or fetch dependency.
+- `application/list-stores.use-case.ts`, `get-store.use-case.ts`, `store-summary.ts` (12 fields; `hasCredentials` is the only credential signal). Read only: no decrypt, no write.
+- `application/replace-credentials.use-case.ts` (seal, repository reset, `registry.forget(id)`, no outbound call) and `delete-store.use-case.ts` (hard delete, then `forget(id)`).
+- `store-errors.ts` gained `StoreRequestInvalidError` (display name or domain not a string), `StoreAlreadyExistsError`, `StoreDomainInvalidError` (carries the closed reason code only) and `StoreCredentialsInvalidError`; fixed messages, no echo.
+
+### Tests added
+
+Id generator 1, create 9, list and get 4, replace 4, delete 4: 22 new tests. Focused command (`src/stores/application` plus the id generator) passes; full `src/stores` 370 tests.
+
+### Deviations and notes
+
+- A malformed id is checked with `isStoreId` inside the use cases (not only in the future controller), so it never reaches the repository.
+- `StoreRequestInvalidError` is an addition: the spec says the display name is rejected before persistence without naming the error; it maps to `STORE_REQUEST_INVALID`.
+- While this work ran, a parallel agent branch also committed the same files and was merged into the branch; the history was flattened back to one feat and one docs commit per unit with the identical final tree.
+
+### Gate (16.11)
+
+Typecheck, `eslint apps packages`, prettier check on `apps packages openspec` and the full test run pass on Node 24.21.0 (contracts 263, web 193, api 3753). Hand-written lines: U12 code about 235 (use cases and errors, summary, id generator), tests about 380 (the shared harness is counted under U11); the 400 budget is waived by the agreed process.

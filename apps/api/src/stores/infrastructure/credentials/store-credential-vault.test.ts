@@ -8,7 +8,7 @@ import { DeferredSecretBox } from '../../../shared-kernel/secret-box/deferred-se
 import { AesGcmSecretBox } from '../../../shared-kernel/secret-box/infrastructure/aes-gcm-secret-box.js';
 import { SecretBoxError } from '../../../shared-kernel/secret-box/secret-box-error.js';
 import type { CredentialsPayload } from '../../domain/credentials-payload.js';
-import { CredentialsUnreadableError } from './credentials-unreadable.error.js';
+import { CredentialsUnreadableError } from '../../ports/credentials-unreadable.error.js';
 import { StoreCredentialVault } from './store-credential-vault.js';
 
 const keyring = { activeKeyId: 'k1', keys: new Map([['k1', Buffer.alloc(32, 0x44)]]) };
