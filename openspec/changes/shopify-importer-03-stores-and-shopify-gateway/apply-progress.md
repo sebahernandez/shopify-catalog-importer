@@ -432,3 +432,26 @@ Provenance test walks the fixtures folder (4 fixture files; bad tags proved with
 
 Hand-written lines: code 205, tests 125, total 330 against plan about 240 (no budget in this single PR).
 
+## U9b HTTP gateway operations (Phase 13, tasks 13.1 to 13.5)
+
+All five tasks done on `feat/stores-u8-throttle-retry`.
+
+### What was built
+
+- `createHttpShopifyGateway(client)` implements `ShopifyGateway` over `createShopifyGraphqlClient().execute`. Every read passes `estimatedCost` (2, 2, 52) and `retry: 'safe'` explicitly. `getShopInfo` maps `planName` from `plan.publicDisplayName`; `getGrantedScopes` de-duplicates keeping order.
+- `collectLocations` (`locations-paging.ts`): follows cursors until `hasNextPage` is false or more than 250 active locations were collected, filters inactive defensively, sorts by name then id, cuts at 250, `truncated` when a 251st exists. A next page without cursor, or more than 50 pages, gives `INVALID_RESPONSE`.
+- `test-support/gateway-test-helpers.ts`: connection builder, `okStep`, `gatewayOver(steps)` (client with injected sleep and random), shared by the gateway tests and the U10 suite.
+
+### Tests
+
+17 new tests (8 in the gateway file, 9 for locations). Focused gateway run: 11 files, 114 tests. `pnpm check` exit 0 on Node 24.21.0 (api 3670 tests).
+
+### Gate (13.5)
+
+Hand-written lines: code 114 (gateway 74, paging 40), tests 230 (gateway 110, locations 80, helpers 40), total 344 against plan about 200.
+
+### Deviations and notes
+
+- The over-the-cap scenario serves 400 locations over eight pages and asserts only six requests are made (paging stops once more than 250 are collected).
+- The page-count guard (50) is not in the spec; it only prevents an endless loop against a misbehaving server.
+
