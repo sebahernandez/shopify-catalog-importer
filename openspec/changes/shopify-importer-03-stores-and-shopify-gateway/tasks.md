@@ -200,11 +200,11 @@ Satisfies: secret-protection (injectable SecretBox, encrypted at rest per store)
 Branch `feat/stores-u6a-gateway-port`. Depends on: U2. Est ~180 lines. Focused: `pnpm --filter @importer/api exec vitest run src/stores/ports`.
 Satisfies: shopify-gateway (read-only port with three operations, typed error without raw data). Design D13.
 
-- [ ] 5.1 RED: create `apps/api/src/stores/ports/shopify-gateway-error.test.ts`: one error of each of the 13 kinds; `retryable` is true for exactly `THROTTLED`, `SERVER_ERROR`, `NETWORK`, `TIMEOUT`; `retryAfterMs` optional; `reason` only on `CREDENTIAL_EXCHANGE_FAILED`; two errors of one kind built from different bodies have identical messages; the error has no `cause`, no body, headers or URL, and its `JSON.stringify` and own properties contain neither a canary token nor the URL path; the constructor accepts no original error.
-- [ ] 5.2 GREEN: create `apps/api/src/stores/ports/shopify-gateway-error.ts`.
-- [ ] 5.3 RED: create `apps/api/src/stores/ports/shopify-gateway.port.test.ts` (type-level, checked by `pnpm typecheck`): the keys of `ShopifyGateway` are exactly `getShopInfo`, `getGrantedScopes`, `listLocations`; no mutation member exists; `StoreConnection` carries `storeId`, `shopDomain` (a `ShopDomain`, a raw string fails to compile), `apiVersion` and `credentials`; every read returns `GatewayRead` with `apiVersionUsed` string or null.
-- [ ] 5.4 GREEN: create `apps/api/src/stores/ports/shopify-gateway.port.ts` (`ShopInfo`, `Location`, `StoreConnection`, `GatewayRead`, `ShopifyGateway`).
-- [ ] 5.5 U6a gate: run the focused test command and `pnpm check`; measure hand-written lines (budget 400, planned ~180) and record them.
+- [x] 5.1 RED: create `apps/api/src/stores/ports/shopify-gateway-error.test.ts`: one error of each of the 13 kinds; `retryable` is true for exactly `THROTTLED`, `SERVER_ERROR`, `NETWORK`, `TIMEOUT`; `retryAfterMs` optional; `reason` only on `CREDENTIAL_EXCHANGE_FAILED`; two errors of one kind built from different bodies have identical messages; the error has no `cause`, no body, headers or URL, and its `JSON.stringify` and own properties contain neither a canary token nor the URL path; the constructor accepts no original error.
+- [x] 5.2 GREEN: create `apps/api/src/stores/ports/shopify-gateway-error.ts`.
+- [x] 5.3 RED: create `apps/api/src/stores/ports/shopify-gateway.port.test.ts` (type-level, checked by `pnpm typecheck`): the keys of `ShopifyGateway` are exactly `getShopInfo`, `getGrantedScopes`, `listLocations`; no mutation member exists; `StoreConnection` carries `storeId`, `shopDomain` (a `ShopDomain`, a raw string fails to compile), `apiVersion` and `credentials`; every read returns `GatewayRead` with `apiVersionUsed` string or null.
+- [x] 5.4 GREEN: create `apps/api/src/stores/ports/shopify-gateway.port.ts` (`ShopInfo`, `Location`, `StoreConnection`, `GatewayRead`, `ShopifyGateway`).
+- [x] 5.5 U6a gate: run the focused test command and `pnpm check`; measure hand-written lines (budget 400, planned ~180) and record them.
 
 ## Phase 6: U6b Simulator
 

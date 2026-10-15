@@ -201,3 +201,30 @@ Code: deferred-secret-box 34, main.ts 9, app.module.ts 5, eslint.config.js 2, cr
 ### U4 harness (checkpoint CP2, run by the orchestrator)
 
 Booted from a temporary clone of the branch (commit 60ab17f) under the session scratch directory, never from the real repository or the real HOME: env -i with HOME, DATA_DIR and SECRET_KEY_FILE inside the temporary directory (key directory mode 700), loopback 127.0.0.1, port 39519, migrated with prisma migrate deploy in the same isolated environment. Results: health 200 with shopifyApiVersion 2026-10, the template route 200, the generated key file has mode 0600, and the only warning logged was the expected key_file_generated event. The process was stopped and the temporary directory removed; no repo process, data directory, key file or database file remained in the real repository, and the real HOME has no importer folder. This confirms the boot order after the change in main.ts: the holder is created before the application, and bound after reconcileKey and registerKeyring with the same keyring.
+
+## U6a Gateway port and typed error (5.1 to 5.5)
+
+Branch: feat/stores-u6a-gateway-port (from develop at def998c, after U1 to U4). Strict TDD, Node 24. All five tasks delivered.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 5.1 / 5.2 | Test run failed on the missing module shopify-gateway-error.js (no tests ran) | 19 tests pass after the class; two further REDs were real assertion failures (own keys listed undefined reason and name) | Optional fields are declared with the declare modifier so an absent reason is not an own key; name stays an own key, as in the other error classes |
+| 5.3 / 5.4 | pnpm typecheck failed with TS2554 and TS2344 errors (module not found, expected types unresolved) | pnpm typecheck passes | The type test is checked only by typecheck |
+
+Type-level RED check after GREEN: three temporary mutations of the port, each reverted, each made tsc fail in the port test: shopDomain typed as string, an extra member added to ShopifyGateway, and apiVersionUsed typed without null. Final tsc: clean.
+
+### Measured hand-written lines
+
+Code: shopify-gateway-error 44, shopify-gateway.port 44 = 88. Tests: error test 61, port type test 40 = 101. Combined 189 (budget 400, planned 180). Nothing was trimmed.
+
+### Gate
+
+pnpm check exit 0. Tests: contracts 263, web 193, api 3493.
+
+### Deviations and decisions for later units
+
+- The retryable set comes from the contracts helper isRetryableKind (THROTTLED, SERVER_ERROR, NETWORK, TIMEOUT); it matches task 5.1, so no discrepancy.
+- The constructor is (kind, details) with details holding optional retryAfterMs and reason; a reason on any kind other than CREDENTIAL_EXCHANGE_FAILED throws a TypeError.
+- ShopInfo fields follow the spec: id, name, myshopifyDomain, currencyCode, planName, shopifyPlus, partnerDevelopment.
