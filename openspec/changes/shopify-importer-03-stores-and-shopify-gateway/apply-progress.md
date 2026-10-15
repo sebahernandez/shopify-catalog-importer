@@ -509,3 +509,29 @@ Assembler 10, use case 26 (13 kinds are one parameterized case each), repository
 ### Gate (15.8)
 
 Typecheck, `eslint apps packages`, `prettier --check` and the full test run pass on Node 24.21.0. Hand-written lines: code about 300, tests about 470, shared harness about 180; the 400 budget is waived by the agreed process (one PR, no per-unit budget).
+
+## U12 Store use cases (Phase 16, tasks 16.1 to 16.11)
+
+All eleven tasks done on the same branch as U11 (one PR for both units; tests written alongside code).
+
+### What was built
+
+- `ports/id-generator.port.ts` and `infrastructure/random-uuid-id-generator.ts` (lower case UUID v4).
+- `application/create-store.use-case.ts`: checks in the order display name, domain, credentials (contracts zod plus `parseShopDomain`), seals under `store:<lower case id>:credentials`, inserts, maps `DuplicateShopDomainError` to `StoreAlreadyExistsError`. No gateway or fetch dependency.
+- `application/list-stores.use-case.ts`, `get-store.use-case.ts`, `store-summary.ts` (12 fields; `hasCredentials` is the only credential signal). Read only: no decrypt, no write.
+- `application/replace-credentials.use-case.ts` (seal, repository reset, `registry.forget(id)`, no outbound call) and `delete-store.use-case.ts` (hard delete, then `forget(id)`).
+- `store-errors.ts` gained `StoreRequestInvalidError` (display name or domain not a string), `StoreAlreadyExistsError`, `StoreDomainInvalidError` (carries the closed reason code only) and `StoreCredentialsInvalidError`; fixed messages, no echo.
+
+### Tests added
+
+Id generator 1, create 9, list and get 4, replace 4, delete 4: 22 new tests. Focused command (`src/stores/application` plus the id generator) passes; full `src/stores` 370 tests.
+
+### Deviations and notes
+
+- A malformed id is checked with `isStoreId` inside the use cases (not only in the future controller), so it never reaches the repository.
+- `StoreRequestInvalidError` is an addition: the spec says the display name is rejected before persistence without naming the error; it maps to `STORE_REQUEST_INVALID`.
+- While this work ran, a parallel agent branch also committed the same files and was merged into the branch; the history was flattened back to one feat and one docs commit per unit with the identical final tree.
+
+### Gate (16.11)
+
+Typecheck, `eslint apps packages`, prettier check on `apps packages openspec` and the full test run pass on Node 24.21.0 (contracts 263, web 193, api 3753). Hand-written lines: U12 code about 235 (use cases and errors, summary, id generator), tests about 380 (the shared harness is counted under U11); the 400 budget is waived by the agreed process.
