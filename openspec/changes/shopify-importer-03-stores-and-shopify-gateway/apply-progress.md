@@ -561,3 +561,31 @@ Filter 14, controller 18, module 5, `no-test-route-ships` updated (six imports, 
 ### Gate (17.9)
 
 `pnpm check` on Node 24.21.0: exit 0 (api 3792 tests, 120 files). Budget waived by the agreed process.
+
+## U13b HTTP integration tests and the D21 decision (Phase 18, tasks 18.1 to 18.7)
+
+All seven tasks done (same branch and PR).
+
+### VS9 and the D21 decision (18.1, 18.4)
+
+- Observed on a stock Nest application and on the real one: a malformed JSON body fails inside the framework's body-parser middleware before routing. The error does NOT reach a controller-scoped filter (zero filter calls) and the framework answers 400 `{ message: "Expected double-quoted property name in JSON at position 42 ...", error: "Bad Request" }`, a parser message. No log line carried the body.
+- Rule applied: 18.4 was needed. `main.ts` creates the app with `bodyParser: false`; `infrastructure/http/bounded-json-body.ts` reads the store bodies (16 KB cap, JSON content type, strict UTF-8, any failure is `StoreRequestInvalidError`) through a `JsonBody` parameter decorator, so the error is thrown inside the route and reaches `StoresExceptionFilter`. The filter keeps its `entity.parse.failed` branch as a second line of defence.
+- Other routes: only the stores routes consume JSON; the workbook route already reads its own raw stream (a JSON content type there is refused with 415 before reading), so `bodyParser: false` changes nothing for it (full suite green).
+- `pnpm check` and `no-test-route-ships` already assert `main.ts` passes no option.
+
+### What was built
+
+- `test-support/store-app-harness.ts`: boots the real `bootstrap()` in a migrated sandbox on port 0 with the simulator (token-asking wrapper) and a `fetch` that always rejects, returns a `send` helper over `node:http` (so the `Host` header can be set) and the log lines.
+- `stores-body-parsing.int.test.ts` (4), `stores.int.test.ts` (20), `stores-boot.int.test.ts` (4), `bounded-json-body.test.ts` (10 cases).
+
+### 18.3
+
+No edit to `local-request.filter.ts` or its test was needed: the guard's 403 on a store route passes through `StoresExceptionFilter`, which delegates its body to `LocalRequestFilter` and adds `Cache-Control: no-store` (asserted for the Host rejection and the Origin rejections in `stores.int.test.ts`). The guard filter is unchanged, so the only edits outside the stores module so far remain `app.module.ts`, `main.ts` and `no-test-route-ships.test.ts`. The guard's 403 on non-store routes keeps its previous headers.
+
+### 18.6
+
+The boot test needed no wiring change beyond 18.4: a store is created and verified through the routes, the envelope opens after a restart with the same key file, a decrypted canary printed through the application logger prints `[REDACTED]`, and a baseline-only database aborts with `MIGRATION_REQUIRED` (checkpoint CP6 passed).
+
+### Gate (18.7)
+
+`pnpm check` on Node 24.21.0: exit 0 (api 3829 tests). Budget waived by the agreed process.
