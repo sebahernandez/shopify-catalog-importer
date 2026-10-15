@@ -228,3 +228,36 @@ pnpm check exit 0. Tests: contracts 263, web 193, api 3493.
 - The retryable set comes from the contracts helper isRetryableKind (THROTTLED, SERVER_ERROR, NETWORK, TIMEOUT); it matches task 5.1, so no discrepancy.
 - The constructor is (kind, details) with details holding optional retryAfterMs and reason; a reason on any kind other than CREDENTIAL_EXCHANGE_FAILED throws a TypeError.
 - ShopInfo fields follow the spec: id, name, myshopifyDomain, currencyCode, planName, shopifyPlus, partnerDevelopment.
+
+## U6b Simulated gateway with fault injection (6.1 to 6.5)
+
+Branch: feat/stores-u6b-simulator (from develop at 2772f79, after U1 to U4 and U6a). Strict TDD, Node 24. All five tasks delivered.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 6.1 / 6.2 | Run failed on the missing module simulated-shopify-gateway.js (no tests ran) | 9 tests pass | The source-purity test first covered only the gateway file; simulator-faults.ts was added to its list when the file existed |
+| 6.3 / 6.4 | 12 of 12 fault tests failed with TypeError reading on of undefined (no faults member) | 21 simulator tests pass | Lint then forced two reshapes of the private run helper (no unnecessary assertion, no non-Error rejection, no async without await) |
+
+### Fault-injection API
+
+- gateway.faults.on(operation, callNumber, fault): fault only that 1-based call of that operation (counts are per operation, and failed calls count).
+- gateway.faults.always(operation, fault): fault every call of the operation.
+- Fault shapes: kind alone for AUTH_FAILED, SCOPE_MISSING, NETWORK, TIMEOUT, SERVER_ERROR, INVALID_RESPONSE; THROTTLED takes an optional retryAfterMs; VERSION_UNSUPPORTED takes an optional apiVersionUsed (default 2099-01) and makes the call succeed with that version.
+- gateway.calls lists the operation names in call order; addShop(domain, shop) registers a shop keyed by canonical ShopDomain.
+- Faults are applied before the unknown-domain check.
+
+### Measured hand-written lines
+
+Code: simulated-shopify-gateway 83, simulator-faults 66 = 149. Tests: gateway test 117, faults test 103 = 220. Combined 369 (budget 400, planned 240). Nothing was trimmed.
+
+### Gate
+
+pnpm check exit 0 (after a Prettier write on the faults test). Tests: contracts 263, web 193, api 3514.
+
+### Deviations and decisions for later units
+
+- The port and error type were not touched.
+- Public methods log the call and apply faults after one microtask, so the log order is call order but not synchronous with the call.
+- The fall-forward version defaults to a fixed constant (2099-01), which is never equal to a real requested version; a test or the contract suite can set another through the fault.
