@@ -27,8 +27,10 @@ const simulator = (): SimulatedShopifyGateway => {
   });
   return gateway;
 };
-const invoke = (gateway: SimulatedShopifyGateway, operation: SimulatorOperation) =>
-  gateway[operation](connection());
+const invoke = (
+  gateway: SimulatedShopifyGateway,
+  operation: Exclude<SimulatorOperation, 'createProduct'>,
+) => gateway[operation](connection());
 
 describe('SimulatedShopifyGateway faults', () => {
   it('throttles call 2 of getShopInfo only', async () => {

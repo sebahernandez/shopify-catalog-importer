@@ -159,6 +159,7 @@ describe('VerifyStoreConnectionUseCase', () => {
       getShopInfo: throwing,
       getGrantedScopes: throwing,
       listLocations: throwing,
+      createProduct: throwing,
     };
     const result = await build(h, gateway).useCase.execute(ID_1);
     expect(result.ok).toBe(false);

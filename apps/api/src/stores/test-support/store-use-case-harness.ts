@@ -11,7 +11,11 @@ import {
   type StoreRepository,
   type VerificationRecord,
 } from '../ports/store-repository.port.js';
-import type { ShopifyGateway, StoreConnection } from '../ports/shopify-gateway.port.js';
+import type {
+  CreateProductInput,
+  ShopifyGateway,
+  StoreConnection,
+} from '../ports/shopify-gateway.port.js';
 
 export const ID_1 = '11111111-1111-4111-8111-111111111111';
 export const ID_2 = '22222222-2222-4222-8222-222222222222';
@@ -95,6 +99,10 @@ export class TokenAskingGateway implements ShopifyGateway {
   async listLocations(c: StoreConnection) {
     await c.credentials.accessToken();
     return this.inner.listLocations(c);
+  }
+  async createProduct(c: StoreConnection, input: CreateProductInput) {
+    await c.credentials.accessToken();
+    return this.inner.createProduct(c, input);
   }
 }
 

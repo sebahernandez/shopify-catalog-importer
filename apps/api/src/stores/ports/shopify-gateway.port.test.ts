@@ -11,9 +11,9 @@ import type {
 
 // Checked by `pnpm typecheck`: vitest only runs the (empty) bodies.
 describe('ShopifyGateway port (type level)', () => {
-  it('exposes exactly the three read operations', () => {
+  it('exposes the three reads and the product write', () => {
     expectTypeOf<keyof ShopifyGateway>().toEqualTypeOf<
-      'getShopInfo' | 'getGrantedScopes' | 'listLocations'
+      'getShopInfo' | 'getGrantedScopes' | 'listLocations' | 'createProduct'
     >();
   });
 

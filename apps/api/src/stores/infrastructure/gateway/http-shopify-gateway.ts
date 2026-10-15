@@ -1,5 +1,7 @@
 import type { createShopifyGraphqlClient } from './shopify-graphql-client.js';
 import type {
+  CreateProductInput,
+  CreateProductResult,
   GatewayRead,
   Location,
   ShopInfo,
@@ -9,14 +11,21 @@ import type {
 import {
   GRANTED_SCOPES_OPERATION,
   LOCATIONS_OPERATION,
+  PRODUCT_SET_OPERATION,
   SHOP_INFO_OPERATION,
 } from './graphql-operations.js';
 import { collectLocations } from './locations-paging.js';
-import { grantedScopesSchema, locationsPageSchema, shopInfoSchema } from './response-schemas.js';
+import { productSetVariables, toCreateProductResult } from './product-set-mapping.js';
+import {
+  grantedScopesSchema,
+  locationsPageSchema,
+  productSetSchema,
+  shopInfoSchema,
+} from './response-schemas.js';
 
 type GraphqlClient = Pick<ReturnType<typeof createShopifyGraphqlClient>, 'execute'>;
 
-/** The Admin GraphQL implementation of the read-only port; every read is retry-safe. */
+/** The Admin GraphQL implementation of the port: reads are retry-safe, the write is never retried. */
 export const createHttpShopifyGateway = (client: GraphqlClient): ShopifyGateway => ({
   async getShopInfo(connection: StoreConnection): Promise<GatewayRead<ShopInfo>> {
     const read = await client.execute({
@@ -70,5 +79,20 @@ export const createHttpShopifyGateway = (client: GraphqlClient): ShopifyGateway 
       const { nodes, pageInfo } = read.value.locations;
       return { value: { nodes, ...pageInfo }, apiVersionUsed: read.apiVersionUsed };
     });
+  },
+
+  async createProduct(
+    connection: StoreConnection,
+    input: CreateProductInput,
+  ): Promise<GatewayRead<CreateProductResult>> {
+    const read = await client.execute({
+      connection,
+      query: PRODUCT_SET_OPERATION.query,
+      variables: productSetVariables(input),
+      schema: productSetSchema,
+      estimatedCost: PRODUCT_SET_OPERATION.estimatedCost,
+      retry: 'none',
+    });
+    return { value: toCreateProductResult(read.value), apiVersionUsed: read.apiVersionUsed };
   },
 });

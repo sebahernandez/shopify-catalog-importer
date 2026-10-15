@@ -68,6 +68,7 @@ describe('StoresModule.forRoot', () => {
     const gateway = factoryOf(providerOf(dynamic, SHOPIFY_GATEWAY)) as (f: unknown) => object;
     expect(gateway(fetchFn)).not.toBeInstanceOf(SimulatedShopifyGateway);
     expect(Object.keys(gateway(fetchFn)).sort()).toEqual([
+      'createProduct',
       'getGrantedScopes',
       'getShopInfo',
       'listLocations',

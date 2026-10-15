@@ -15,6 +15,7 @@ describe('fixture provenance', () => {
       'error-bodies.ts',
       'granted-scopes.ts',
       'locations.ts',
+      'product-set.ts',
       'shop-info.ts',
     ]);
   });

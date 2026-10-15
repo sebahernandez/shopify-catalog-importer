@@ -1,8 +1,12 @@
 import { describe } from 'vitest';
 import { parseShopDomain } from '../../domain/shop-domain.js';
 import {
+  CREATE_PRODUCT_SCRIPT,
   FAILURE_SCRIPTS,
+  HANDLE_TAKEN_SCRIPT,
   HEALTHY_SCRIPT,
+  SAMPLE_PRODUCT,
+  THROTTLED_CREATE_SCRIPT,
   THROTTLED_ONCE_SCRIPT,
   runGatewayContractSuite,
   type ContractAdapter,
@@ -11,7 +15,7 @@ import {
 import { threeActiveBody } from '../../test-support/fixtures/locations.js';
 import { grantedScopesBody } from '../../test-support/fixtures/granted-scopes.js';
 import { healthyShopBody } from '../../test-support/fixtures/shop-info.js';
-import { gatewayOver } from '../../test-support/gateway-test-helpers.js';
+import { connectionFor, gatewayOver } from '../../test-support/gateway-test-helpers.js';
 import { createHttpShopifyGateway } from './http-shopify-gateway.js';
 import { createShopifyGraphqlClient } from './shopify-graphql-client.js';
 import {
@@ -43,9 +47,20 @@ const simulator = (shops: Record<string, SimulatedShop>) => {
 const simulatorAdapter: ContractAdapter = {
   retriesInternally: false,
   healthy: () => simulator({ 'mystore.myshopify.com': HEALTHY_SHOP }),
-  failing: (kind: FailureKind) => {
+  failing: (kind: FailureKind, operation = 'getShopInfo') => {
     const gateway = simulator({ 'mystore.myshopify.com': HEALTHY_SHOP });
-    gateway.faults.always('getShopInfo', { kind });
+    gateway.faults.always(operation, { kind });
+    return gateway;
+  },
+  creating: () => simulator({ 'mystore.myshopify.com': HEALTHY_SHOP }),
+  creatingWithTakenHandle: () => {
+    const gateway = simulator({ 'mystore.myshopify.com': HEALTHY_SHOP });
+    void gateway.createProduct(connectionFor('mystore.myshopify.com', 't'), SAMPLE_PRODUCT);
+    return gateway;
+  },
+  throttledCreate: () => {
+    const gateway = simulator({ 'mystore.myshopify.com': HEALTHY_SHOP });
+    gateway.faults.on('createProduct', 1, { kind: 'THROTTLED' });
     return gateway;
   },
   throttledOnce: () => {
@@ -86,6 +101,9 @@ const httpAdapter: ContractAdapter = {
   retriesInternally: true,
   healthy: () => gatewayOver(HEALTHY_SCRIPT).gateway,
   failing: (kind) => gatewayOver(FAILURE_SCRIPTS[kind]).gateway,
+  creating: () => gatewayOver(CREATE_PRODUCT_SCRIPT).gateway,
+  creatingWithTakenHandle: () => gatewayOver(HANDLE_TAKEN_SCRIPT).gateway,
+  throttledCreate: () => gatewayOver(THROTTLED_CREATE_SCRIPT).gateway,
   throttledOnce: () => gatewayOver(THROTTLED_ONCE_SCRIPT).gateway,
   twoStores: () =>
     createHttpShopifyGateway(
