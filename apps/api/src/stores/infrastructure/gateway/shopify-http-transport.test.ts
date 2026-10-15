@@ -55,6 +55,15 @@ describe('ShopifyHttpTransport', () => {
     expect(result.body).toEqual({ kind: 'json', value: { a: 1 } });
   });
 
+  it('sends a form post with an explicit content type and a url-encoded string body', async () => {
+    const { transport, calls } = setup([{ status: 200, headers: JSON_HEADERS, body: '{}' }]);
+    await transport.postForm(request, { grant_type: 'client_credentials', a: 'x y&z' });
+    expect(calls[0]?.method).toBe('POST');
+    expect(calls[0]?.headers['content-type']).toBe('application/x-www-form-urlencoded');
+    expect(calls[0]?.body).toBe('grant_type=client_credentials&a=x+y%26z');
+    expect(calls[0]?.init.redirect).toBe('error');
+  });
+
   it('refuses a forged request before fetch is called', async () => {
     const { transport, calls } = setup([]);
     const forged = { url: 'https://evil.example/' } as unknown as typeof request;
