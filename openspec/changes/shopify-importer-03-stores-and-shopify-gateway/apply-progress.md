@@ -336,3 +336,26 @@ Hand-written lines: code 60 (exchanger 53, transport +7), tests 161 (two exchang
 
 - The transport discards non-JSON bodies, so `SHOP_NOT_PERMITTED` is detected on `JSON.stringify` of the parsed JSON body. A `text/plain` rejection body would classify as `UNKNOWN`. If real Shopify answers that error in plain text, the transport needs a text-preserving path (U7b or later); the response format stays [A] (Q-R5).
 - `postForm` uses `this.post`, so it must be called as a method of the transport object.
+
+## U5b Token cache, single-flight, registry (Phase 9, tasks 9.1 to 9.6)
+
+Branch `feat/stores-u5b-token-cache-registry`. All six tasks done.
+
+### What was built
+
+- `CredentialProviderRegistry` port (`forStore(record: Store)`, `forget(storeId)`).
+- `ClientCredentialsProvider`: in-memory `{ accessToken, expiresAtMs }` cache, 60 s margin, one shared in-flight promise (success and failure shared, failure never cached). `refreshAfterRejection(rejected)` returns a fresh cached token that differs from `rejected`, joins an in-flight exchange, or drops the cache and exchanges once.
+- `DefaultCredentialProviderRegistry({ vault, exchanger, now })`: one client-credentials provider per store id, reused while the envelope is unchanged (a changed envelope opens the vault again and builds a new provider with an empty cache); static tokens get a new `StaticTokenProvider` per call; `forget(id)` drops the entry. Unreadable or swapped envelopes throw `CredentialsUnreadableError` from the vault before any exchange.
+
+### TDD evidence
+
+RED: both new suites failed on the missing modules. GREEN: focused run 6 files, 36 tests pass (10 provider, 7 registry new). `pnpm check` exit 0 on Node 24.21.0 (contracts 263, web 193, api 3574).
+
+### Gate (9.6)
+
+Hand-written lines: code 130 (port 10, provider 67, registry 53), tests 244 (provider 118, registry 126), total 374 against budget 400 and plan about 240. Over the plan by about 134 lines, inside the budget; nothing trimmed, no split.
+
+### Deviations and notes
+
+- The margin comparison is inclusive (`now <= expiresAtMs - 60 s`). The requirement text says "earlier than expiry minus 60 s", but its scenarios (86399 s token reused at T+86339 s, exchanged at T+86340 s) only hold with an inclusive bound.
+- The "no fs/db writes" test spies on `node:fs` write functions (default import); there is no database dependency in these classes.
