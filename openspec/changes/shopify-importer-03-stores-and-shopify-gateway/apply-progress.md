@@ -312,3 +312,27 @@ Code: scripted-fetch 75, shopify-request 20, shopify-urls 22, env.schema.ts chan
 ### Gate (partial, not the 7.9 gate)
 
 Focused command (gateway and test-support): 3 files, 16 tests pass. pnpm check exit 0. Tests: contracts 263, web 193, api 3530.
+
+## U5a Client-credentials exchanger (Phase 8, tasks 8.1 to 8.5)
+
+Branch `feat/stores-u5a-client-credentials-exchanger`. All five tasks done.
+
+### What was built
+
+- `createShopifyHttpTransport(...).postForm(request, fields)`: form POST with `content-type: application/x-www-form-urlencoded` and a url-encoded string body; delegates to `post`, so redirect refusal, the 15 s signal and the TIMEOUT/NETWORK-only throws are unchanged.
+- `createClientCredentialsExchanger({ transport, now }).exchange({ domain, clientId, clientSecret })` returns `{ accessToken, expiresAtMs }` (`now() + expires_in * 1000`). The token is registered with `registerSecret` before return. Zod accepts `access_token` non-empty and `expires_in` positive integer; other fields (including `scope`) are ignored.
+- Failures: 5xx `SERVER_ERROR`, 429 `THROTTLED`, NETWORK and TIMEOUT from the transport, everything else (non-2xx, unparseable, non-JSON, bad shape) `CREDENTIAL_EXCHANGE_FAILED` with reason `SHOP_NOT_PERMITTED` when the body text contains `shop_not_permitted`, else `UNKNOWN`. Errors are the fixed-message `ShopifyGatewayError` with no cause.
+
+### TDD evidence
+
+RED: transport test (1 failing) and both exchanger suites failed on the missing module. GREEN: focused run 3 files, 27 tests pass. After the first GREEN run one test used an `shpat_` token that the default redactor already masks; the fixture token was changed to an opaque value.
+
+### Gate (8.5)
+
+`pnpm check` exit 0 on Node 24.21.0 (contracts 263, web 193, api 3557 tests).
+Hand-written lines: code 60 (exchanger 53, transport +7), tests 161 (two exchanger suites 152, transport test +9), total 221 against budget 400 and plan about 220. No overrun, no split.
+
+### Deviations and notes
+
+- The transport discards non-JSON bodies, so `SHOP_NOT_PERMITTED` is detected on `JSON.stringify` of the parsed JSON body. A `text/plain` rejection body would classify as `UNKNOWN`. If real Shopify answers that error in plain text, the transport needs a text-preserving path (U7b or later); the response format stays [A] (Q-R5).
+- `postForm` uses `this.post`, so it must be called as a method of the transport object.
