@@ -4,6 +4,8 @@ import type { LogLevel } from '../shared-kernel/logging/redacting-logger.js';
 
 /** The pinned Shopify Admin GraphQL API version. The one place this literal lives. */
 export const DEFAULT_SHOPIFY_API_VERSION = '2026-10';
+/** Quarterly Shopify API release, shared with the gateway URL builder. */
+export const API_VERSION_PATTERN = /^\d{4}-(01|04|07|10)$/;
 
 /** Raw configuration input. The caller decides where it comes from; this module never reads it. */
 export type RawEnv = Readonly<Record<string, string | undefined>>;
@@ -174,7 +176,7 @@ const schemas = {
   flag: text
     .refine((v) => v === 'true' || v === 'false', 'must be exactly true or false')
     .transform((v) => v === 'true'),
-  apiVersion: text.regex(/^\d{4}-(01|04|07|10)$/, 'must look like 2026-10 (quarterly release)'),
+  apiVersion: text.regex(API_VERSION_PATTERN, 'must look like 2026-10 (quarterly release)'),
   path,
   busyTimeout: text
     .regex(/^[1-9]\d*$/, 'must be a positive integer written as plain digits')
