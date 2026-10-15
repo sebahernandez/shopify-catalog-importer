@@ -33,6 +33,13 @@ const isJsonContentType = (value: string | null): boolean =>
   /^application\/json\s*(;|$)/i.test(value ?? '');
 
 export const createShopifyHttpTransport = (options: ShopifyHttpTransportOptions) => ({
+  /** A form POST: explicit url-encoded content type and a string body. Same failure rules as `post`. */
+  postForm(request: ShopifyRequest, fields: Record<string, string>): Promise<TransportResponse> {
+    return this.post(request, {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(fields).toString(),
+    });
+  },
   /** POST only. Throws only TIMEOUT and NETWORK; everything else is returned for classification. */
   async post(
     request: ShopifyRequest,
