@@ -9,3 +9,4 @@ export const STORES_SECRET_BOX = Symbol('STORES_SECRET_BOX');
 export const STORES_CONFIG = Symbol('STORES_CONFIG');
 export const STORES_LOGGER = Symbol('STORES_LOGGER');
 export const STORES_FETCH = Symbol('STORES_FETCH');
+export const WORKBOOK_VALIDATOR = Symbol('WORKBOOK_VALIDATOR');
