@@ -15,6 +15,8 @@ const MAX_LOCATIONS = 250;
 export type { SimulatorOperation };
 
 export interface SimulatedShop {
+  /** Defaults to `gid://shopify/Shop/<domain>`. */
+  readonly id?: string;
   readonly name: string;
   readonly currencyCode: string;
   readonly planName: string;
@@ -41,7 +43,7 @@ export class SimulatedShopifyGateway implements ShopifyGateway {
 
   getShopInfo(connection: StoreConnection): Promise<GatewayRead<ShopInfo>> {
     return this.run('getShopInfo', connection, (domain, shop) => ({
-      id: `gid://shopify/Shop/${domain}`,
+      id: shop.id ?? `gid://shopify/Shop/${domain}`,
       name: shop.name,
       myshopifyDomain: domain,
       currencyCode: shop.currencyCode,
