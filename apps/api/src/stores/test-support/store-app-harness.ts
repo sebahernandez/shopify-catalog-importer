@@ -40,7 +40,12 @@ export interface StoreApp {
   send(
     method: string,
     path: string,
-    options?: { headers?: Record<string, string>; body?: string; json?: unknown; host?: string },
+    options?: {
+      headers?: Record<string, string>;
+      body?: string | Buffer;
+      json?: unknown;
+      host?: string;
+    },
   ): Promise<Reply>;
   close(): Promise<void>;
 }
@@ -110,7 +115,8 @@ export async function bootStoreApp(
   const { port } = handle.address;
   const send: StoreApp['send'] = (method, path, opts = {}) =>
     new Promise((resolve, reject) => {
-      const body = opts.json === undefined ? opts.body : JSON.stringify(opts.json);
+      const body: string | Buffer | undefined =
+        opts.json === undefined ? opts.body : JSON.stringify(opts.json);
       const headers: Record<string, string> = { host: opts.host ?? ALLOWED_HOST, ...opts.headers };
       if (body !== undefined) {
         headers['content-type'] ??= 'application/json';

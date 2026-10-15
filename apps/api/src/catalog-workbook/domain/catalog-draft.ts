@@ -10,6 +10,12 @@ export interface DraftProduct {
   readonly productKey: string;
   readonly handle: string;
   readonly title: string;
+  /** Raw `descripcion_html` text, sent as-is; `undefined` when the cell is empty. */
+  readonly descriptionHtml: string | undefined;
+  /** `marca`. */
+  readonly vendor: string | undefined;
+  /** `tipo`. */
+  readonly productType: string | undefined;
   readonly tags: readonly string[];
   readonly options: readonly DraftOption[];
   readonly variants: readonly DraftVariant[];
@@ -41,7 +47,9 @@ export interface DraftVariant {
 
 export interface DraftImage {
   readonly sourceRow: number;
+  /** An http(s) URL as written, or a relative path with `/` separators. */
   readonly path: string;
+  readonly kind: 'url' | 'local';
   /** The row's `orden`. */
   readonly position: number;
   readonly cover: boolean;

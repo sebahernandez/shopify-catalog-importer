@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import type { DynamicModule, Provider } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
 import { ConfigModule } from '../config/config.module.js';
+import { CatalogWorkbookModule } from '../catalog-workbook/catalog-workbook.module.js';
 import { PersistenceModule } from '../persistence/persistence.module.js';
 import { RedactingLogger } from '../shared-kernel/logging/redacting-logger.js';
 import { DeferredSecretBox } from '../shared-kernel/secret-box/deferred-secret-box.js';
@@ -20,6 +21,7 @@ import { StoresModule } from './stores.module.js';
 
 const config = ConfigModule.forRoot({ env: {} });
 const persistence = PersistenceModule.forRoot(config);
+const workbook = CatalogWorkbookModule.forRoot();
 const logger = new RedactingLogger({ sink: () => undefined });
 
 const providerOf = (dynamic: DynamicModule, token: unknown): Provider | undefined =>
@@ -32,7 +34,7 @@ const factoryOf = (provider: Provider | undefined): (() => unknown) =>
 
 describe('StoresModule.forRoot', () => {
   it('registers the controller and the six use cases', () => {
-    const dynamic = StoresModule.forRoot(config, persistence, {
+    const dynamic = StoresModule.forRoot(config, persistence, workbook, {
       secretBox: new DeferredSecretBox(),
       logger,
     });
@@ -52,14 +54,14 @@ describe('StoresModule.forRoot', () => {
   it('provides the given box itself as a value', () => {
     const secretBox = new DeferredSecretBox();
     const provider = providerOf(
-      StoresModule.forRoot(config, persistence, { secretBox, logger }),
+      StoresModule.forRoot(config, persistence, workbook, { secretBox, logger }),
       STORES_SECRET_BOX,
     );
     expect((provider as { useValue: unknown }).useValue).toBe(secretBox);
   });
 
   it('defaults to the HTTP gateway and the global fetch', () => {
-    const dynamic = StoresModule.forRoot(config, persistence, {
+    const dynamic = StoresModule.forRoot(config, persistence, workbook, {
       secretBox: new DeferredSecretBox(),
       logger,
     });
@@ -68,6 +70,7 @@ describe('StoresModule.forRoot', () => {
     const gateway = factoryOf(providerOf(dynamic, SHOPIFY_GATEWAY)) as (f: unknown) => object;
     expect(gateway(fetchFn)).not.toBeInstanceOf(SimulatedShopifyGateway);
     expect(Object.keys(gateway(fetchFn)).sort()).toEqual([
+      'createProduct',
       'getGrantedScopes',
       'getShopInfo',
       'listLocations',
@@ -77,7 +80,7 @@ describe('StoresModule.forRoot', () => {
   it('lets an override replace the gateway and the fetch function', () => {
     const simulator = new SimulatedShopifyGateway();
     const fetchFn = () => Promise.reject(new Error('no network'));
-    const dynamic = StoresModule.forRoot(config, persistence, {
+    const dynamic = StoresModule.forRoot(config, persistence, workbook, {
       secretBox: new DeferredSecretBox(),
       logger,
       overrides: { gateway: simulator, fetchFn },

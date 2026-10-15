@@ -8,11 +8,17 @@ import {
   Param,
   Post,
   Put,
+  Req,
   UseFilters,
 } from '@nestjs/common';
-import type { StoreSummary, StoreVerification } from '@importer/contracts';
+import type { ImportResponse, StoreSummary, StoreVerification } from '@importer/contracts';
+import { WORKBOOK_LIMITS } from '../../../catalog-workbook/application/catalog-workbook.tokens.js';
+import type { WorkbookLimits } from '../../../catalog-workbook/domain/workbook-limits.js';
+import type { BodySource } from '../../../catalog-workbook/infrastructure/http/bounded-body-reader.js';
+import { readWorkbookUpload } from '../../../catalog-workbook/infrastructure/http/read-workbook-upload.js';
 import { CreateStoreUseCase } from '../../application/create-store.use-case.js';
 import { DeleteStoreUseCase } from '../../application/delete-store.use-case.js';
+import { ImportCatalogUseCase } from '../../application/import-catalog.use-case.js';
 import { GetStoreUseCase } from '../../application/get-store.use-case.js';
 import { ListStoresUseCase } from '../../application/list-stores.use-case.js';
 import { ReplaceCredentialsUseCase } from '../../application/replace-credentials.use-case.js';
@@ -47,6 +53,8 @@ export class StoresController {
     @Inject(VerifyStoreConnectionUseCase) private readonly verifier: VerifyStoreConnectionUseCase,
     @Inject(ReplaceCredentialsUseCase) private readonly replacer: ReplaceCredentialsUseCase,
     @Inject(DeleteStoreUseCase) private readonly remover: DeleteStoreUseCase,
+    @Inject(ImportCatalogUseCase) private readonly importer: ImportCatalogUseCase,
+    @Inject(WORKBOOK_LIMITS) private readonly limits: WorkbookLimits,
   ) {}
 
   @Post()
@@ -79,6 +87,22 @@ export class StoresController {
   replaceCredentials(@Param('id') id: string, @JsonBody() body: unknown): Promise<StoreSummary> {
     const valid = checked(id);
     return this.replacer.execute(valid, parseReplaceCredentialsRequest(body));
+  }
+
+  /**
+   * Imports a workbook (raw xlsx body, like `workbook/validate`) into a connected store. The id is
+   * checked before the body is read; the file is validated again by the use case.
+   */
+  @Post(':id/import')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  async importCatalog(
+    @Param('id') id: string,
+    @Req() request: BodySource,
+  ): Promise<ImportResponse> {
+    const valid = checked(id);
+    const { bytes, sha256 } = await readWorkbookUpload(request, this.limits.maxUploadBytes);
+    return this.importer.execute(valid, bytes, sha256);
   }
 
   @Delete(':id')

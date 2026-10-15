@@ -2,6 +2,16 @@ export { ApiError } from './api-error.js';
 export { HealthResponse } from './health.js';
 export { ISSUE_CODES, ISSUE_MESSAGES_ES, ISSUE_PARAM_KEYS, renderIssue } from './issue-catalog.js';
 export type { IssueCode } from './issue-catalog.js';
+export {
+  IMPORT_FAILURE_CODES,
+  IMPORT_MEDIA_STATUSES,
+  ImportProductCreated,
+  ImportProductFailed,
+  ImportProductResult,
+  ImportRejected,
+  ImportResponse,
+} from './import.js';
+export type { ImportFailureCode, ImportMediaStatus } from './import.js';
 export { MoneyString } from './money.js';
 export { LOCATIONS_ALTERNATIVES, REQUIRED_CAPABILITIES } from './shopify-scopes.js';
 export type { Capability } from './shopify-scopes.js';

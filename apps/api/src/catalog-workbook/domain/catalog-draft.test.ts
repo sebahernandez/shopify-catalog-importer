@@ -10,6 +10,9 @@ const product: ProductRow = {
   productKey: 'P1',
   handle: 'remera',
   title: 'Remera',
+  descriptionHtml: '<p>Hola</p>',
+  vendor: 'Marca',
+  productType: 'Ropa',
   tags: ['verano'],
 };
 
@@ -31,6 +34,7 @@ const image = (sourceRow: number, order: number): ImageRow => ({
   sourceRow,
   productKey: 'P1',
   path: `fotos/${order}.jpg`,
+  kind: 'local',
   order,
   alt: undefined,
   variantSku: undefined,
@@ -57,6 +61,17 @@ describe('buildCatalogDraft', () => {
       quantity: 4,
       location: 'Depósito',
     });
+  });
+
+  it('carries description, vendor, product type and the image source kind', () => {
+    const [first] =
+      build([{ ...image(2, 1), path: 'https://x.test/a.jpg', kind: 'url' }])?.products ?? [];
+    expect(first).toMatchObject({
+      descriptionHtml: '<p>Hola</p>',
+      vendor: 'Marca',
+      productType: 'Ropa',
+    });
+    expect(first?.images[0]).toMatchObject({ path: 'https://x.test/a.jpg', kind: 'url' });
   });
 
   it('keeps prices as Money', () => {

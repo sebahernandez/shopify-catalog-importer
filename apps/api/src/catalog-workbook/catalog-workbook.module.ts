@@ -48,7 +48,7 @@ export class CatalogWorkbookModule {
           inject: [TEMPLATE_WRITER],
         },
       ],
-      exports: [ValidateWorkbookUseCase, GenerateTemplateUseCase],
+      exports: [ValidateWorkbookUseCase, GenerateTemplateUseCase, WORKBOOK_LIMITS],
     };
   }
 }

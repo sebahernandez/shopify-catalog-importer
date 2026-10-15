@@ -1,6 +1,7 @@
 import { ShopifyGatewayError } from '../../ports/shopify-gateway-error.js';
 
-export type SimulatorOperation = 'getShopInfo' | 'getGrantedScopes' | 'listLocations';
+export type SimulatorOperation =
+  'getShopInfo' | 'getGrantedScopes' | 'listLocations' | 'createProduct';
 
 /** A fault that makes the call throw a `ShopifyGatewayError` of `kind`. */
 export type ThrowingFault =

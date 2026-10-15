@@ -1,3 +1,4 @@
+import type { ValidationReport } from '@importer/contracts';
 import type { ShopDomainReason } from '../domain/shop-domain.js';
 
 /** The store does not exist (or its id is malformed). Fixed message: nothing is echoed. */
@@ -45,5 +46,32 @@ export class StoreRequestInvalidError extends Error {
   constructor() {
     super('The request is not valid.');
     this.name = 'StoreRequestInvalidError';
+  }
+}
+
+/** The store exists but is not `CONNECTED` (or its stored credentials cannot be read). */
+export class StoreNotConnectedError extends Error {
+  constructor() {
+    super('The store is not connected.');
+    this.name = 'StoreNotConnectedError';
+  }
+}
+
+/**
+ * The workbook has errors, so nothing was sent to Shopify. It carries the validation report,
+ * which holds issue codes and row numbers, never cell contents beyond the product key.
+ */
+export class WorkbookInvalidError extends Error {
+  constructor(readonly report: ValidationReport) {
+    super('The workbook has errors.');
+    this.name = 'WorkbookInvalidError';
+  }
+}
+
+/** A Shopify read needed before any product was sent failed. Nothing was created. */
+export class ShopifyRequestFailedError extends Error {
+  constructor() {
+    super('Shopify could not be reached.');
+    this.name = 'ShopifyRequestFailedError';
   }
 }

@@ -10,6 +10,9 @@ const product = (sourceRow: number, productKey: string | undefined): ProductRow 
   productKey,
   handle: undefined,
   title: undefined,
+  descriptionHtml: undefined,
+  vendor: undefined,
+  productType: undefined,
   tags: undefined,
 });
 const variant = (sourceRow: number, productKey: string | undefined): VariantRow => ({
@@ -21,6 +24,7 @@ const image = (sourceRow: number, productKey: string | undefined): ImageRow => (
   sourceRow,
   productKey,
   path: undefined,
+  kind: undefined,
   order: undefined,
   alt: undefined,
   variantSku: undefined,

@@ -14,11 +14,9 @@ import { WORKBOOK_LIMITS } from '../../application/catalog-workbook.tokens.js';
 import { GenerateTemplateUseCase } from '../../application/generate-template.use-case.js';
 import { ValidateWorkbookUseCase } from '../../application/validate-workbook.use-case.js';
 import type { WorkbookLimits } from '../../domain/workbook-limits.js';
-import { readBoundedBody, UploadRejection, type BodySource } from './bounded-body-reader.js';
+import type { BodySource } from './bounded-body-reader.js';
+import { readWorkbookUpload, XLSX_TYPE } from './read-workbook-upload.js';
 import { WorkbookExceptionFilter } from './workbook-exception.filter.js';
-
-const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-const UPLOAD_TYPES: ReadonlySet<string> = new Set([XLSX_TYPE, 'application/octet-stream']);
 
 /**
  * The workbook routes, thin adapters over the use cases. `GET template` reads no request input.
@@ -47,12 +45,7 @@ export class WorkbookController {
   @Header('Cache-Control', 'no-store')
   @UseFilters(WorkbookExceptionFilter)
   async validate(@Req() request: BodySource): Promise<ValidationReport> {
-    // A missing type is read as octet-stream (RFC 9110), so an empty request is 400, not 415.
-    const type = request.headers['content-type']?.split(';')[0]?.trim().toLowerCase();
-    if (type !== undefined && !UPLOAD_TYPES.has(type)) {
-      throw new UploadRejection('WORKBOOK_UNSUPPORTED_MEDIA_TYPE', true);
-    }
-    const { bytes, sha256 } = await readBoundedBody(request, this.limits.maxUploadBytes);
+    const { bytes, sha256 } = await readWorkbookUpload(request, this.limits.maxUploadBytes);
     return (await this.validator.execute(bytes, sha256)).report;
   }
 }

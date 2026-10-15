@@ -13,6 +13,9 @@ describe('ApiError', () => {
     'STORE_ALREADY_EXISTS',
     'STORE_CREDENTIALS_INVALID',
     'STORE_REQUEST_INVALID',
+    'STORE_NOT_CONNECTED',
+    'WORKBOOK_INVALID',
+    'SHOPIFY_REQUEST_FAILED',
   ])('accepts code %s', (code) => {
     const body = { error: { code, message: 'Request rejected.' } };
     expect(ApiError.parse(body)).toEqual(body);

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { ShopifyGatewayError } from '../ports/shopify-gateway-error.js';
-import type { ShopifyGateway, StoreConnection } from '../ports/shopify-gateway.port.js';
+import type {
+  CreateProductInput,
+  ShopifyGateway,
+  StoreConnection,
+} from '../ports/shopify-gateway.port.js';
 import {
   accessDenied200Body,
   htmlMaintenancePage,
@@ -9,6 +13,7 @@ import {
 } from './fixtures/error-bodies.js';
 import { grantedScopesBody } from './fixtures/granted-scopes.js';
 import { threeActiveBody } from './fixtures/locations.js';
+import { createdProductBody, handleTakenBody } from './fixtures/product-set.js';
 import { healthyShopBody } from './fixtures/shop-info.js';
 import { connectionFor } from './gateway-test-helpers.js';
 import type { ScriptStep } from './scripted-fetch.js';
@@ -23,6 +28,27 @@ const json = (body: unknown, status = 200): ScriptStep => ({
 const healthy = [json(healthyShopBody), json(grantedScopesBody), json(threeActiveBody)];
 const repeat = (n: number, step: ScriptStep): ScriptStep[] => Array.from({ length: n }, () => step);
 
+/** The product the contract suite creates; one variant, one image. */
+export const SAMPLE_PRODUCT: CreateProductInput = {
+  title: 'Camiseta',
+  handle: 'camiseta',
+  descriptionHtml: '<p>Hola</p>',
+  vendor: 'Marca',
+  productType: 'Ropa',
+  tags: ['a', 'b'],
+  options: [{ name: 'Talla', values: ['S'] }],
+  variants: [
+    {
+      optionValues: [{ optionName: 'Talla', name: 'S' }],
+      price: '10.00',
+      sku: 'SKU-1',
+      tracked: true,
+      inventory: { locationId: threeActiveBody.data.locations.nodes[0]?.id ?? '', quantity: 5 },
+    },
+  ],
+  images: [{ url: 'https://example.com/a.jpg', alt: 'Foto' }],
+};
+
 export type FailureKind =
   'SCOPE_MISSING' | 'AUTH_FAILED' | 'SERVER_ERROR' | 'NETWORK' | 'TIMEOUT' | 'INVALID_RESPONSE';
 
@@ -32,8 +58,14 @@ export interface ContractAdapter {
   readonly retriesInternally: boolean;
   /** A gateway whose shop `mystore.myshopify.com` is healthy. */
   healthy(): ShopifyGateway;
-  /** A gateway whose first read fails the way `kind` describes on every attempt. */
-  failing(kind: FailureKind): ShopifyGateway;
+  /** A gateway whose first `operation` fails the way `kind` describes on every attempt. */
+  failing(kind: FailureKind, operation?: 'getShopInfo' | 'createProduct'): ShopifyGateway;
+  /** A healthy gateway where `SAMPLE_PRODUCT` can be created. */
+  creating(): ShopifyGateway;
+  /** A gateway where the handle of `SAMPLE_PRODUCT` is already taken. */
+  creatingWithTakenHandle(): ShopifyGateway;
+  /** A gateway whose first `createProduct` is throttled; a second call would succeed. */
+  throttledCreate(): ShopifyGateway;
   /** A gateway whose first `getShopInfo` is throttled once, then everything succeeds. */
   throttledOnce(): ShopifyGateway;
   /** Two shops, `alpha` and `beta`, with different names. */
@@ -52,6 +84,12 @@ export const FAILURE_SCRIPTS: Record<FailureKind, ScriptStep[]> = {
   ],
 };
 export const HEALTHY_SCRIPT = healthy;
+export const CREATE_PRODUCT_SCRIPT: ScriptStep[] = [json(createdProductBody)];
+export const HANDLE_TAKEN_SCRIPT: ScriptStep[] = [json(handleTakenBody)];
+export const THROTTLED_CREATE_SCRIPT: ScriptStep[] = [
+  json(throttled200Body),
+  json(createdProductBody),
+];
 export const THROTTLED_ONCE_SCRIPT: ScriptStep[] = [json(throttled200Body), ...healthy];
 
 export const connectionOf = (host = HOST): StoreConnection => connectionFor(host, 'token');
@@ -134,6 +172,50 @@ export const runGatewayContractSuite = (name: string, adapter: ContractAdapter):
       } else {
         expect(failures.map((f) => [f.kind, f.retryable])).toEqual([['THROTTLED', true]]);
       }
+    });
+
+    describe('createProduct', () => {
+      it('creates the product and reports ids, the stored handle and media statuses', async () => {
+        const read = await adapter.creating().createProduct(connectionOf(), SAMPLE_PRODUCT);
+        expect(read.value).toEqual({
+          kind: 'created',
+          product: {
+            id: 'gid://shopify/Product/1',
+            handle: 'camiseta',
+            variants: [{ id: 'gid://shopify/ProductVariant/1', sku: 'SKU-1' }],
+            media: [{ id: 'gid://shopify/MediaImage/1', status: 'UPLOADED' }],
+          },
+          userErrors: [],
+        });
+      });
+
+      it('answers a taken handle with a rejection, not an error', async () => {
+        const read = await adapter
+          .creatingWithTakenHandle()
+          .createProduct(connectionOf(), SAMPLE_PRODUCT);
+        expect(read.value).toEqual({
+          kind: 'rejected',
+          userErrors: [{ field: ['input', 'handle'], code: 'TAKEN' }],
+        });
+      });
+
+      it.each(FAILURE_KINDS)('failure %s throws that kind', async (kind) => {
+        const error: unknown = await adapter
+          .failing(kind, 'createProduct')
+          .createProduct(connectionOf(), SAMPLE_PRODUCT)
+          .catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(ShopifyGatewayError);
+        expect((error as ShopifyGatewayError).kind).toBe(kind);
+      });
+
+      it('is never retried: a throttled first attempt is an error even though a second would pass', async () => {
+        const error: unknown = await adapter
+          .throttledCreate()
+          .createProduct(connectionOf(), SAMPLE_PRODUCT)
+          .catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(ShopifyGatewayError);
+        expect((error as ShopifyGatewayError).kind).toBe('THROTTLED');
+      });
     });
 
     it('two stores at once each get their own result', async () => {
