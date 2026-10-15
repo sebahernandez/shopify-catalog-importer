@@ -4,7 +4,7 @@ import { AesGcmSecretBox } from '../../../shared-kernel/secret-box/infrastructur
 import type { CredentialsPayload } from '../../domain/credentials-payload.js';
 import { parseShopDomain } from '../../domain/shop-domain.js';
 import type { Store } from '../../domain/store.js';
-import { CredentialsUnreadableError } from './credentials-unreadable.error.js';
+import { CredentialsUnreadableError } from '../../ports/credentials-unreadable.error.js';
 import { DefaultCredentialProviderRegistry } from './default-credential-provider-registry.js';
 import { StaticTokenProvider } from './static-token-provider.js';
 import { StoreCredentialVault } from './store-credential-vault.js';

@@ -7,6 +7,7 @@ import { replaceCredentials } from '../../domain/store-rules.js';
 import {
   DuplicateShopDomainError,
   type StoreRepository,
+  type VerificationRecord,
 } from '../../ports/store-repository.port.js';
 import { toStore } from './store-mapper.js';
 
@@ -82,6 +83,28 @@ export class PrismaStoreRepository implements StoreRepository {
         throw failed();
       });
     return updated;
+  }
+
+  async recordVerification(
+    id: string,
+    expectedEnvelope: string,
+    record: VerificationRecord,
+  ): Promise<boolean> {
+    const result = await this.prisma.client.store
+      .updateMany({
+        where: { id, credentialsEnvelope: expectedEnvelope },
+        data: {
+          status: record.status,
+          lastVerifiedAt: new Date(record.lastVerifiedAt),
+          ...(record.shopifyShopId === null ? {} : { shopifyShopId: record.shopifyShopId }),
+          apiVersion: record.apiVersion,
+          lastVerification: JSON.stringify(record.snapshot),
+        },
+      })
+      .catch(() => {
+        throw failed();
+      });
+    return result.count > 0;
   }
 
   async delete(id: string): Promise<boolean> {

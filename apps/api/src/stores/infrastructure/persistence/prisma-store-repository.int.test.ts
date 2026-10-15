@@ -9,7 +9,10 @@ import { AesGcmSecretBox } from '../../../shared-kernel/secret-box/infrastructur
 import { parseShopDomain } from '../../domain/shop-domain.js';
 import type { Store } from '../../domain/store.js';
 import { newStore } from '../../domain/store-rules.js';
-import { DuplicateShopDomainError } from '../../ports/store-repository.port.js';
+import {
+  DuplicateShopDomainError,
+  type VerificationRecord,
+} from '../../ports/store-repository.port.js';
 import { PrismaStoreRepository } from './prisma-store-repository.js';
 
 const T0 = '2026-10-15T10:00:00.000Z';
@@ -170,5 +173,89 @@ describe('PrismaStoreRepository', () => {
       JSON.stringify(rows, (_k, v: unknown) => (typeof v === 'bigint' ? v.toString() : v)),
     ).not.toContain(CANARY);
     expect(rows[0]?.['credentials_envelope']).toBe(envelope);
+  });
+
+  describe('recordVerification (D19)', () => {
+    const record = (over: Partial<VerificationRecord> = {}): VerificationRecord => ({
+      status: 'CONNECTED',
+      lastVerifiedAt: T0,
+      shopifyShopId: 'gid://shopify/Shop/9',
+      apiVersion: '2026-10',
+      snapshot: SNAPSHOT,
+      ...over,
+    });
+
+    it('updates only a row whose envelope still matches and reports it', async () => {
+      await repository.insert(make('s1', 'demo.myshopify.com'));
+      expect(await repository.recordVerification('s1', 'env-s1', record())).toBe(true);
+      const stored = await repository.findById('s1');
+      expect(stored).toMatchObject({
+        status: 'CONNECTED',
+        lastVerifiedAt: T0,
+        shopifyShopId: 'gid://shopify/Shop/9',
+        apiVersion: '2026-10',
+        lastVerification: SNAPSHOT,
+        displayName: 'Shop s1',
+        shopDomain: 'demo.myshopify.com',
+        credentialsEnvelope: 'env-s1',
+      });
+    });
+
+    it('changes zero rows for a replaced envelope or a deleted store', async () => {
+      await repository.insert(make('s1', 'demo.myshopify.com'));
+      await repository.replaceCredentials('s1', {
+        authKind: 'static_token',
+        credentialsEnvelope: 'env-new',
+      });
+      expect(await repository.recordVerification('s1', 'env-s1', record())).toBe(false);
+      expect((await repository.findById('s1'))?.status).toBe('UNVERIFIED');
+      await repository.delete('s1');
+      expect(await repository.recordVerification('s1', 'env-new', record())).toBe(false);
+    });
+
+    it('stores the snapshot as JSON TEXT without any location name or id', async () => {
+      await repository.insert(make('s1', 'demo.myshopify.com'));
+      await repository.recordVerification('s1', 'env-s1', record());
+      const rows = await service.client.$queryRawUnsafe<
+        { type: string; text: string; count: number }[]
+      >(
+        `SELECT typeof(last_verification) AS type, last_verification AS text FROM store WHERE id = 's1'`,
+      );
+      expect(rows[0]?.type).toBe('text');
+      const parsed = JSON.parse(rows[0]?.text ?? '') as Record<string, unknown>;
+      expect(parsed['locationCount']).toBe(2);
+      expect(parsed).not.toHaveProperty('locations');
+    });
+
+    it('persists a failure and keeps shopifyShopId when none was obtained', async () => {
+      await repository.insert({ ...make('s1', 'demo.myshopify.com'), shopifyShopId: 'gid://keep' });
+      await repository.recordVerification(
+        's1',
+        'env-s1',
+        record({ status: 'AUTH_FAILED', shopifyShopId: null }),
+      );
+      expect(await repository.findById('s1')).toMatchObject({
+        status: 'AUTH_FAILED',
+        lastVerifiedAt: T0,
+        shopifyShopId: 'gid://keep',
+      });
+    });
+
+    it('records the given api version, for example a fall-forward', async () => {
+      await repository.insert(make('s1', 'demo.myshopify.com'));
+      await repository.recordVerification('s1', 'env-s1', record({ apiVersion: '2027-01' }));
+      expect((await repository.findById('s1'))?.apiVersion).toBe('2027-01');
+    });
+
+    it('clears the snapshot when credentials are replaced', async () => {
+      await repository.insert(make('s1', 'demo.myshopify.com'));
+      await repository.recordVerification('s1', 'env-s1', record());
+      const next = { authKind: 'static_token', credentialsEnvelope: 'env-2' } as const;
+      await repository.replaceCredentials('s1', next);
+      expect(await repository.findById('s1')).toMatchObject({
+        lastVerification: null,
+        lastVerifiedAt: null,
+      });
+    });
   });
 });
