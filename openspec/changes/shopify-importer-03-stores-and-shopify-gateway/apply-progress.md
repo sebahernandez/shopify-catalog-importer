@@ -667,3 +667,14 @@ canaries 11, log fields 16, canary int 13, leak surfaces 8, source scan 20, READ
 - [x] Foreign `Origin` on every write route returns 403 and the handler does not run: `stores.int.test.ts`.
 - [x] `pnpm test`, typecheck, lint and build exit 0: 20.3 and 20.4.
 - Not verified (by design): real response bodies and statuses, client-credentials errors, scope strings, plan values, `locations` limits, rename redirects. Success here means the code matches the documentation, not that it works against Shopify.
+
+## 20.9 Orchestrator smoke test (run on develop f198db7)
+
+Run from a temporary clone with `env -i`, a temporary HOME, a mode 700 data directory and key directory, a migrated database, loopback and a fixed high port. `verify` was never called.
+
+- `GET /health` gave 200 `ok`, database up.
+- Create gave 201 `UNVERIFIED`; list and get gave 200; a foreign Origin gave 403 `ORIGIN_NOT_ALLOWED`; malformed JSON gave 400 `STORE_REQUEST_INVALID` with no parser message; replace gave 200; delete gave 204; get after delete gave 404.
+- The stored envelope starts with `sb1.`.
+- Both canary tokens had zero hits in the captured log and in the data directory bytes. The scanner was validated by finding the clear-text shop domain in the database and store lines in the log.
+- A database at the baseline migration only made startup abort with exit 1 and `MIGRATION_REQUIRED`.
+- Notes: the data directory must be mode 700 (the app refuses otherwise), and `health` is outside the `api` prefix.
