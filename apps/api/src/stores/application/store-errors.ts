@@ -39,3 +39,11 @@ export class StoreDisplayNameInvalidError extends Error {
     this.name = 'StoreDisplayNameInvalidError';
   }
 }
+
+/** The request body is not the expected shape (unknown field, wrong type, missing member). */
+export class StoreRequestInvalidError extends Error {
+  constructor() {
+    super('The request is not valid.');
+    this.name = 'StoreRequestInvalidError';
+  }
+}

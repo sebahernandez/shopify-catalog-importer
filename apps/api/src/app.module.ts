@@ -7,6 +7,7 @@ import { LocalSecurityModule } from './local-security/local-security.module.js';
 import { PersistenceModule } from './persistence/persistence.module.js';
 import type { LoggerPort } from './shared-kernel/logging/logger.port.js';
 import type { SecretBox } from './shared-kernel/secret-box/secret-box.port.js';
+import { StoresModule, type StoresOverrides } from './stores/stores.module.js';
 
 export interface AppModuleOptions {
   /** The configuration `bootstrap()` already validated. The modules share this one object. */
@@ -20,6 +21,11 @@ export interface AppModuleOptions {
    * `main.ts` never does, and no environment variable can add one.
    */
   readonly extraModules?: NonNullable<ModuleMetadata['imports']>;
+  /**
+   * Replaces the store gateway and its `fetch` function. Only tests pass this (like
+   * `extraModules`); `main.ts` never does.
+   */
+  readonly storeOverrides?: StoresOverrides;
 }
 
 /**
@@ -46,6 +52,11 @@ export class AppModule {
         HealthModule.forRoot(config, persistence),
         LocalSecurityModule.forRoot(config, { logger: options.logger }),
         CatalogWorkbookModule.forRoot(),
+        StoresModule.forRoot(config, persistence, {
+          secretBox: options.secretBox,
+          logger: options.logger,
+          ...(options.storeOverrides !== undefined && { overrides: options.storeOverrides }),
+        }),
         ...(options.extraModules ?? []),
       ],
     };

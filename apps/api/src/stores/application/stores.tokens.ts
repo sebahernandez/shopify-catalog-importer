@@ -7,3 +7,5 @@ export const STORES_CLOCK = Symbol('STORES_CLOCK');
 export const ID_GENERATOR = Symbol('ID_GENERATOR');
 export const STORES_SECRET_BOX = Symbol('STORES_SECRET_BOX');
 export const STORES_CONFIG = Symbol('STORES_CONFIG');
+export const STORES_LOGGER = Symbol('STORES_LOGGER');
+export const STORES_FETCH = Symbol('STORES_FETCH');

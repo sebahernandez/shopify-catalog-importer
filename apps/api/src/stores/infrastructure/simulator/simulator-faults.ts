@@ -26,7 +26,9 @@ export type SimulatorFault = ThrowingFault | VersionFallForward;
 /** The outcome of one call: success with the version served, or a thrown error. */
 export type FaultOutcome = { readonly apiVersionUsed: string };
 
-const FALL_FORWARD_VERSION = '2099-01';
+/** A later version than the requested one (same month, next year), as a fall-forward would serve. */
+const fallForwardOf = (requested: string): string =>
+  `${Number(requested.slice(0, 4)) + 1}${requested.slice(4)}`;
 
 /** Scripted faults, keyed by operation and 1-based call number (per operation). */
 export class SimulatorFaults {
@@ -54,7 +56,7 @@ export class SimulatorFaults {
     const fault = this.scripted.get(`${operation}#${call}`) ?? this.standing.get(operation);
     if (fault === undefined) return { apiVersionUsed: requestedVersion };
     if (fault.kind === 'VERSION_UNSUPPORTED') {
-      return { apiVersionUsed: fault.apiVersionUsed ?? FALL_FORWARD_VERSION };
+      return { apiVersionUsed: fault.apiVersionUsed ?? fallForwardOf(requestedVersion) };
     }
     throw new ShopifyGatewayError(
       fault.kind,

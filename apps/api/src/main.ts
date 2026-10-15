@@ -20,6 +20,7 @@ import { DeferredSecretBox } from './shared-kernel/secret-box/deferred-secret-bo
 import { FileKeyProvider } from './shared-kernel/secret-box/infrastructure/file-key-provider.js';
 import { AesGcmSecretBox } from './shared-kernel/secret-box/infrastructure/aes-gcm-secret-box.js';
 import type { KeyCheckStore } from './shared-kernel/secret-box/key-check-store.port.js';
+import type { StoresOverrides } from './stores/stores.module.js';
 
 // Compile-time check, carried over from the logger unit: the kernel cannot import NestJS, so this
 // is the one place that proves `RedactingLogger` is still assignable to Nest's `LoggerService`.
@@ -49,6 +50,8 @@ export interface BootstrapOptions {
   readonly port?: number;
   /** Test seam: modules to add to the application. `main.ts` never passes any. */
   readonly extraModules?: NonNullable<ModuleMetadata['imports']>;
+  /** Test seam: replaces the store gateway and `fetch`. `main.ts` never passes one. */
+  readonly storeOverrides?: StoresOverrides;
   /** Test seam: the holder `bootstrap()` binds, so a test can observe it. `main.ts` never passes one. */
   readonly secretBox?: DeferredSecretBox;
   /** Test seam: replaces the `listen(port, host)` call. */
@@ -137,8 +140,15 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<BootHan
       logger,
       secretBox,
       ...(options.extraModules !== undefined && { extraModules: options.extraModules }),
+      ...(options.storeOverrides !== undefined && { storeOverrides: options.storeOverrides }),
     }),
-    { logger, abortOnError: false },
+    {
+      logger,
+      abortOnError: false,
+      // Design D21: the framework's JSON parser raises errors the controller filter never sees
+      // and whose messages can quote the body, so the store routes read their own bounded body.
+      bodyParser: false,
+    },
   );
 
   try {
