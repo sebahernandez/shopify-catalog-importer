@@ -16,7 +16,9 @@ import type { PrismaService } from './persistence/prisma.service.js';
 import { isMainModule, reportFailure } from './process-exit.js';
 import { BootError } from './shared-kernel/boot-error.js';
 import { RedactingLogger } from './shared-kernel/logging/redacting-logger.js';
+import { DeferredSecretBox } from './shared-kernel/secret-box/deferred-secret-box.js';
 import { FileKeyProvider } from './shared-kernel/secret-box/infrastructure/file-key-provider.js';
+import { AesGcmSecretBox } from './shared-kernel/secret-box/infrastructure/aes-gcm-secret-box.js';
 import type { KeyCheckStore } from './shared-kernel/secret-box/key-check-store.port.js';
 
 // Compile-time check, carried over from the logger unit: the kernel cannot import NestJS, so this
@@ -47,6 +49,8 @@ export interface BootstrapOptions {
   readonly port?: number;
   /** Test seam: modules to add to the application. `main.ts` never passes any. */
   readonly extraModules?: NonNullable<ModuleMetadata['imports']>;
+  /** Test seam: the holder `bootstrap()` binds, so a test can observe it. `main.ts` never passes one. */
+  readonly secretBox?: DeferredSecretBox;
   /** Test seam: replaces the `listen(port, host)` call. */
   readonly listen?: ListenFunction;
 }
@@ -99,10 +103,10 @@ async function listenOrFail(
  * 1. Load and validate the configuration, before any application exists.
  * 2. Build the redacting logger with the parsed log level.
  * 3. Read the key file (a bad file stops here) and register a key that already exists.
- * 4. Create the application with the logger. `abortOnError: false` turns a Nest failure into a
+ * 4. Create the application with the logger and an unbound secret box (design D4). `abortOnError: false` turns a Nest failure into a
  *    thrown error; by default Nest would abort the process.
  * 5. Connect the database, then reconcile the key against its check record, then register the
- *    key (a generated one included) with the redactor.
+ *    key (a generated one included) with the redactor, and bind the box with that same keyring.
  * 6. Apply CORS and the global prefix, then listen on the configured host and port.
  * 7. Read the bound address back from the server and refuse a non-loopback one without opt-in.
  *
@@ -126,10 +130,12 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<BootHan
   const existingKey = loadKeyring(keyProvider);
   if (existingKey) registerKeyring(existingKey);
 
+  const secretBox = options.secretBox ?? new DeferredSecretBox();
   const app = await NestFactory.create(
     AppModule.forRoot({
       config,
       logger,
+      secretBox,
       ...(options.extraModules !== undefined && { extraModules: options.extraModules }),
     }),
     { logger, abortOnError: false },
@@ -142,6 +148,7 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<BootHan
       app.get<KeyCheckStore>(KEY_CHECK_STORE),
     );
     registerKeyring(keyring);
+    secretBox.bind(new AesGcmSecretBox(keyring));
     if (outcome === 'generated') {
       logger.warn({
         event: 'key_file_generated',

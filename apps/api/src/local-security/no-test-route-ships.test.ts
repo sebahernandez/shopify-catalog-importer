@@ -7,6 +7,8 @@ import { ConfigModule } from '../config/config.module.js';
 import { parseEnv } from '../config/env.schema.js';
 import { HealthController } from '../health/health.controller.js';
 import { WorkbookController } from '../catalog-workbook/infrastructure/http/workbook.controller.js';
+import { RedactingLogger } from '../shared-kernel/logging/redacting-logger.js';
+import { DeferredSecretBox } from '../shared-kernel/secret-box/deferred-secret-box.js';
 import { LocalSecurityModule } from './local-security.module.js';
 
 const SRC = fileURLToPath(new URL('..', import.meta.url));
@@ -59,7 +61,11 @@ describe('the test-only write route does not ship', () => {
   // The health route (U14) is the one controller the application ships; it must stay the only one.
   it('declares exactly one controller, the health route, in the graph AppModule.forRoot builds', async () => {
     const { AppModule } = await import('../app.module.js');
-    const dynamic = AppModule.forRoot({ config: parseEnv({}), logger: { warn: () => undefined } });
+    const dynamic = AppModule.forRoot({
+      config: parseEnv({}),
+      logger: new RedactingLogger({ sink: () => undefined }),
+      secretBox: new DeferredSecretBox(),
+    });
     expect(dynamic.controllers ?? []).toEqual([]);
     const imports = (dynamic.imports ?? []) as { controllers?: unknown[] }[];
     expect(imports).toHaveLength(5);

@@ -22,12 +22,15 @@ import {
 } from 'vitest';
 import { ConfigError } from './config/env.schema.js';
 import { EnvFileError } from './config/load-config.js';
+import { AppModule } from './app.module.js';
 import { bootstrap, type BootHandle, type BootstrapOptions, type ListenFunction } from './main.js';
 import { databaseFilePath } from './persistence/database-location.js';
 import { PersistenceError } from './persistence/persistence-error.js';
 import { applyMigrations } from './persistence/test-support/apply-migrations.js';
 import { BootError } from './shared-kernel/boot-error.js';
 import { clearRegisteredSecretsForTests } from './shared-kernel/logging/redact.js';
+import { DeferredSecretBox } from './shared-kernel/secret-box/deferred-secret-box.js';
+import { AesGcmSecretBox } from './shared-kernel/secret-box/infrastructure/aes-gcm-secret-box.js';
 
 // The test-only write route of design D7 (task 13.2). S0 has no state-changing endpoint, so these
 // controllers are declared here, registered only in the module this file builds and hands to
@@ -582,6 +585,49 @@ describe('key handling at boot', () => {
     } finally {
       db.close();
     }
+  });
+});
+
+describe('the secret box binding', () => {
+  const CANARY = 'synthetic-canary-value-0004';
+
+  it('hands the holder to AppModule.forRoot and binds it once, with the registered keyring', async () => {
+    const seeded = Buffer.alloc(32, 6);
+    seedKey(sb, seeded);
+    const holder = new DeferredSecretBox();
+    const bind = vi.spyOn(holder, 'bind');
+    const forRoot = vi.spyOn(AppModule, 'forRoot');
+    await boot({}, { secretBox: holder });
+    expect(forRoot.mock.calls[0]?.[0].secretBox).toBe(holder);
+    expect(bind).toHaveBeenCalledTimes(1);
+    const reference = new AesGcmSecretBox({ activeKeyId: 'k1', keys: new Map([['k1', seeded]]) });
+    expect(holder.decrypt(reference.encrypt(CANARY, 'ctx'), 'ctx')).toBe(CANARY);
+    // The key bound to the box is the one hidden from the logs.
+    probeForms = formsOf(seeded);
+    const handle = handles[handles.length - 1];
+    await send(handle?.address.port ?? 0, 'GET', '/api/probe/log');
+    for (const form of probeForms) expect(lines.join('\n')).not.toContain(form);
+  });
+
+  it('creates its own holder when none is passed, and binds the key this start generated', async () => {
+    const forRoot = vi.spyOn(AppModule, 'forRoot');
+    await boot();
+    const box = forRoot.mock.calls[0]?.[0].secretBox;
+    expect(box).toBeInstanceOf(DeferredSecretBox);
+    expect(box?.decrypt(box.encrypt(CANARY, 'ctx'), 'ctx')).toBe(CANARY);
+  });
+
+  it('never binds the holder when the key does not match the database', async () => {
+    const first = await boot();
+    await first.close();
+    handles.pop();
+    seedKey(sb, Buffer.alloc(32, 9));
+    const holder = new DeferredSecretBox();
+    const bind = vi.spyOn(holder, 'bind');
+    const error = await failure(() => boot({}, { secretBox: holder }));
+    expect(error).toMatchObject({ code: 'KEY_MISMATCH' });
+    expect(bind).not.toHaveBeenCalled();
+    expect(() => holder.encrypt(CANARY, 'ctx')).toThrow(/not ready/);
   });
 });
 
