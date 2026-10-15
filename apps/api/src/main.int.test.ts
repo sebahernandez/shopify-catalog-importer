@@ -23,8 +23,9 @@ import {
 import { ConfigError } from './config/env.schema.js';
 import { EnvFileError } from './config/load-config.js';
 import { bootstrap, type BootHandle, type BootstrapOptions, type ListenFunction } from './main.js';
-import { databaseFilePath, prepareDatabaseFile } from './persistence/database-location.js';
+import { databaseFilePath } from './persistence/database-location.js';
 import { PersistenceError } from './persistence/persistence-error.js';
+import { applyMigrations } from './persistence/test-support/apply-migrations.js';
 import { BootError } from './shared-kernel/boot-error.js';
 import { clearRegisteredSecretsForTests } from './shared-kernel/logging/redact.js';
 
@@ -119,7 +120,6 @@ interface Reply {
 }
 
 const ALLOWED = 'http://localhost:5173';
-const SQL = new URL('../prisma/migrations/20261013180211_baseline/migration.sql', import.meta.url);
 
 // Everything a boot touches lives inside one fresh folder under the OS temp directory.
 async function makeSandbox(migrate = true): Promise<Sandbox> {
@@ -131,15 +131,7 @@ async function makeSandbox(migrate = true): Promise<Sandbox> {
     home: join(root, 'home'),
   };
   mkdirSync(box.home);
-  if (migrate) {
-    prepareDatabaseFile(box.dataDir);
-    const db = new Database(databaseFilePath(box.dataDir));
-    try {
-      db.exec(readFileSync(SQL, 'utf8'));
-    } finally {
-      db.close();
-    }
-  }
+  if (migrate) expect(applyMigrations(root).status).toBe(0);
   return box;
 }
 

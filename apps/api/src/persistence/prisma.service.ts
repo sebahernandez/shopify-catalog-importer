@@ -3,6 +3,7 @@ import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 import { PrismaClient } from '../generated/prisma/client.js';
 import { verifyConnectionSettings, type ConnectionSettings } from './connection-settings.js';
 import { databaseFilePath, databaseUrl, prepareDatabaseFile } from './database-location.js';
+import { EXPECTED_TABLES } from './expected-tables.js';
 import { PersistenceError } from './persistence-error.js';
 
 export interface PrismaServiceOptions {
@@ -26,7 +27,7 @@ async function pragma(client: PrismaClient, statement: string): Promise<unknown>
  *
  * `connect()` creates the data directory and the file when absent, opens the file through the
  * explicit better-sqlite3 driver adapter (one connection, which holds the settings below), and
- * then refuses to continue unless the baseline migration has been applied. It never migrates.
+ * then refuses to continue unless every table of `EXPECTED_TABLES` exists. It never migrates.
  */
 export class PrismaService {
   readonly #options: PrismaServiceOptions;
@@ -65,10 +66,11 @@ export class PrismaService {
         },
         expected,
       );
-      const baseline = await client.$queryRawUnsafe(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'app_setting'",
+      const names = EXPECTED_TABLES.map((name) => `'${name}'`).join(', ');
+      const present = await client.$queryRawUnsafe(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${names})`,
       );
-      if (!Array.isArray(baseline) || baseline.length === 0) {
+      if (!Array.isArray(present) || present.length < EXPECTED_TABLES.length) {
         throw new PersistenceError(
           'MIGRATION_REQUIRED',
           `The database has not been migrated yet. ${MIGRATE_HINT}`,

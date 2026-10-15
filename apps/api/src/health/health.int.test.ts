@@ -17,8 +17,9 @@ import { ApiError, HealthResponse } from '@importer/contracts';
 import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { bootstrap, type BootHandle } from '../main.js';
-import { databaseFilePath, prepareDatabaseFile } from '../persistence/database-location.js';
+import { databaseFilePath } from '../persistence/database-location.js';
 import { PrismaService } from '../persistence/prisma.service.js';
+import { applyMigrations } from '../persistence/test-support/apply-migrations.js';
 import { clearRegisteredSecretsForTests } from '../shared-kernel/logging/redact.js';
 
 // Task 14.1: the health route over real HTTP. Each test boots the real application (AppModule, no
@@ -39,10 +40,6 @@ interface Reply {
 }
 
 const PINNED_VERSION = '2031-07';
-const SQL = new URL(
-  '../../prisma/migrations/20261013180211_baseline/migration.sql',
-  import.meta.url,
-);
 
 async function makeSandbox(): Promise<Sandbox> {
   const root = await mkdtemp(join(tmpdir(), 'importer-health-'));
@@ -53,13 +50,7 @@ async function makeSandbox(): Promise<Sandbox> {
     home: join(root, 'home'),
   };
   mkdirSync(box.home);
-  prepareDatabaseFile(box.dataDir);
-  const db = new Database(databaseFilePath(box.dataDir));
-  try {
-    db.exec(readFileSync(SQL, 'utf8'));
-  } finally {
-    db.close();
-  }
+  expect(applyMigrations(root).status).toBe(0);
   return box;
 }
 
