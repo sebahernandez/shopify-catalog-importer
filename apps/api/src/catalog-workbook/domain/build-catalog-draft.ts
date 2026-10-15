@@ -61,6 +61,7 @@ function buildImages(rows: readonly ImageRow[]): readonly DraftImage[] {
   return ordered.map(({ row, position }, index) => ({
     sourceRow: row.sourceRow,
     path: required(row.path),
+    kind: required(row.kind),
     position,
     cover: index === 0,
     alt: row.alt,
@@ -83,6 +84,9 @@ export function buildCatalogDraft(
       productKey: required(product.productKey),
       handle: required(product.handle),
       title: required(product.title),
+      descriptionHtml: product.descriptionHtml,
+      vendor: product.vendor,
+      productType: product.productType,
       tags: product.tags ?? [],
       options: buildOptions(own),
       variants: own.map(buildVariant),

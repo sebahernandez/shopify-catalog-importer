@@ -29,6 +29,23 @@ function run(...rows: SourceRow[]) {
 }
 
 describe('productosRules', () => {
+  it('reads descripcion_html, marca and tipo, trimmed, and leaves empty ones undefined', () => {
+    const { products, issues } = run(
+      row(2, { ...valid, descripcion_html: '<p>Hola</p>', marca: ' Acme ', tipo: '' }),
+    );
+    expect(issues).toEqual([]);
+    expect(products[0]).toMatchObject({
+      descriptionHtml: '<p>Hola</p>',
+      vendor: 'Acme',
+      productType: undefined,
+    });
+  });
+
+  it('ignores untrusted descripcion_html', () => {
+    const { products } = run(row(2, { ...valid, descripcion_html: '=1+1' }, ['descripcion_html']));
+    expect(products[0]?.descriptionHtml).toBeUndefined();
+  });
+
   it('reports an empty titulo as REQUIRED_FIELD_MISSING with sheet, row and field', () => {
     const { issues } = run(row(5, { ...valid, titulo: '' }));
     expect(issues).toEqual([

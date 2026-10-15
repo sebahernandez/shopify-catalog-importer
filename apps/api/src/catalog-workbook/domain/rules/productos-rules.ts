@@ -77,6 +77,23 @@ export function productosRules(rows: readonly SourceRow[], sink: IssueCollector)
       }
     }
 
-    return { sourceRow: source.sourceRow, productKey, handle, title, tags };
+    const optionalText = (field: string) => {
+      const value = read(field)?.trim();
+      return value === undefined || value === '' ? undefined : value;
+    };
+    const descriptionHtml = optionalText('descripcion_html');
+    const vendor = optionalText('marca');
+    const productType = optionalText('tipo');
+
+    return {
+      sourceRow: source.sourceRow,
+      productKey,
+      handle,
+      title,
+      descriptionHtml,
+      vendor,
+      productType,
+      tags,
+    };
   });
 }

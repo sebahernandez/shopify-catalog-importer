@@ -5,5 +5,9 @@ export interface ProductRow {
   readonly productKey: string | undefined;
   readonly handle: string | undefined;
   readonly title: string | undefined;
+  /** Raw cell text; `undefined` when empty or untrusted. */
+  readonly descriptionHtml: string | undefined;
+  readonly vendor: string | undefined;
+  readonly productType: string | undefined;
   readonly tags: readonly string[] | undefined;
 }
