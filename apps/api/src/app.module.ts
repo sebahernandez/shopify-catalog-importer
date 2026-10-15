@@ -6,12 +6,15 @@ import { HealthModule } from './health/health.module.js';
 import { LocalSecurityModule } from './local-security/local-security.module.js';
 import { PersistenceModule } from './persistence/persistence.module.js';
 import type { LoggerPort } from './shared-kernel/logging/logger.port.js';
+import type { SecretBox } from './shared-kernel/secret-box/secret-box.port.js';
 
 export interface AppModuleOptions {
   /** The configuration `bootstrap()` already validated. The modules share this one object. */
   readonly config: AppConfig;
-  /** Receives the guard's rejection warnings. */
-  readonly logger: Pick<LoggerPort, 'warn'>;
+  /** Receives the guard's rejection warnings and the stores module's events. */
+  readonly logger: LoggerPort;
+  /** The holder `bootstrap()` binds after the key is reconciled; modules resolve it at call time. */
+  readonly secretBox: SecretBox;
   /**
    * Further modules to import. Only tests pass this (the test-only write route lives in one);
    * `main.ts` never does, and no environment variable can add one.

@@ -117,7 +117,8 @@ export default defineConfig(
   },
   {
     files: ['apps/api/src/shared-kernel/**/*.ts'],
-    ignores: ['**/*.module.ts'],
+    // The VS6 test needs a minimal Nest module to prove the holder survives creation (task 4.3).
+    ignores: ['**/*.module.ts', '**/deferred-secret-box.int.test.ts'],
     rules: {
       'no-restricted-imports': ['error', { patterns: [NEST, PRISMA, OTHER_MODULES] }],
     },

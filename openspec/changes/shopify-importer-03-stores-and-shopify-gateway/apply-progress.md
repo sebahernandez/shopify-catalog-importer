@@ -161,3 +161,43 @@ Code: port 25, repository 93, mapper 57 = 175. Tests: int test 174. Total 349 (U
 - Every non-unique driver error is replaced by a fixed message with no cause, because Prisma errors can quote bound values such as the envelope. The mapper rejects an unknown status or auth_kind with a fixed message, and a corrupt last_verification yields the single warning event store.last_verification.corrupt with no fields.
 - Replace is a read then an update (no transaction); a concurrent delete between them would surface as the generic failure.
 - Isolation: every test database lives in a temporary sandbox through the shared helper. No data directory, key file or db file exists in the repository, and the real home has no importer folder.
+
+## U4 SecretBox binding, vault, static provider (4.1 to 4.10)
+
+Branch: feat/stores-u4-secretbox-vault (from develop at c594517, after U1 to U3). Strict TDD, Node 24. All ten tasks delivered in one part; the pre-agreed cut after 4.5 was not needed (running total 198 after 4.5).
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 4.1 and 4.2 | Suite failed: cannot find module deferred-secret-box | 4 tests pass | KEY_MISSING before bind, a second bind throws KEY_MISSING with a fixed message, delegate resolved on every call. |
+| 4.3 | n/a (verification) | 1 test passes | See VS6 below. |
+| 4.4 and 4.5 | 2 of 3 failed: the options passed to AppModule.forRoot had no secretBox (undefined) | 3 pass; main, local-security and secret-box suites 15 files, 2366 tests pass | The third test (mismatch never binds) passed before the code because nothing bound anything yet; it guards the ordering. |
+| 4.6 and 4.7 | Suite failed: cannot find module credentials-unreadable.error | 4 tests pass | One envelope per store, context store:lowercase id:credentials. |
+| 4.8 and 4.9 | Suite failed: cannot find module static-token-provider | 2 tests pass | A typecheck error in the test (the class method takes no argument) was fixed by typing the instance as the port. |
+| 4.10 | n/a | Focused command: 8 files, 224 tests pass; pnpm check exit 0: contracts 263, web 193, api 3471 tests | Check first failed on lint (see deviations), then passed. |
+
+### VS6 (Nest useValue keeps the holder that boot binds later)
+
+Confirmed. A minimal module provides one DeferredSecretBox with useValue under a Symbol token and a consumer injects it. After NestFactory.createApplicationContext, the consumer holds the same instance (toBe), a call before bind throws, and after bind the consumer encrypts and decrypts through the bound box. The same-instance guarantee is also exercised by main.int.test.ts, where the spy on AppModule.forRoot sees the holder that is later bound.
+
+### AppModule.forRoot callers edited
+
+- apps/api/src/main.ts (production caller): passes secretBox.
+- apps/api/src/local-security/no-test-route-ships.test.ts (the only other caller, found with rg): passes a RedactingLogger with a no-op sink and a new DeferredSecretBox. The expected import count (five) and controllers are unchanged, because StoresModule arrives in U13a.
+
+### Measured hand-written lines
+
+Code: deferred-secret-box 34, main.ts 9, app.module.ts 5, eslint.config.js 2, credential-vault port 10, unreadable error 11, vault 45, static provider 17 = 133. Tests: deferred unit 59, VS6 int 39, main.int 46, no-test-route-ships 7, vault 79, static provider 24 = 254. Combined 387 (budget 400, planned 340). Nothing was trimmed.
+
+### Deviations and decisions for later units
+
+- The VS6 test uses NestFactory.createApplicationContext, because @nestjs/testing is not a dependency and none was added. A rule in eslint.config.js bars NestJS imports in the kernel, so the kernel block ignores that one test file by name (two lines).
+- The boot test seam is BootstrapOptions.secretBox (a DeferredSecretBox). bootstrap() creates its own when none is passed. The "decrypted canary" case is proved by decrypting, through the bound holder, an envelope made with a box over the seeded key, plus the existing proof that every form of that key is redacted.
+- A second bind throws SecretBoxError KEY_MISSING (the code set has no better fit); use before bind is KEY_MISSING, as the task says.
+- The vault port is synchronous (the SecretBox is). seal takes the domain payload and stores only its fields (no kind); open takes the authKind read from the row and validates with the contracts schema (strict, so an extra or missing field is unreadable). seal encrypts first and registers afterwards, so an unbound box registers nothing.
+- AppModule does not consume secretBox yet: StoresModule.forRoot, which provides it under SECRET_BOX, arrives in U13a.
+
+### U4 harness (checkpoint CP2, run by the orchestrator)
+
+Booted from a temporary clone of the branch (commit 60ab17f) under the session scratch directory, never from the real repository or the real HOME: env -i with HOME, DATA_DIR and SECRET_KEY_FILE inside the temporary directory (key directory mode 700), loopback 127.0.0.1, port 39519, migrated with prisma migrate deploy in the same isolated environment. Results: health 200 with shopifyApiVersion 2026-10, the template route 200, the generated key file has mode 0600, and the only warning logged was the expected key_file_generated event. The process was stopped and the temporary directory removed; no repo process, data directory, key file or database file remained in the real repository, and the real HOME has no importer folder. This confirms the boot order after the change in main.ts: the holder is created before the application, and bound after reconcileKey and registerKeyring with the same keyring.
