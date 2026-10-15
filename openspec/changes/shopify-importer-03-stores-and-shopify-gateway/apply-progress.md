@@ -278,9 +278,25 @@ Branch: feat/stores-u7a-transport (from develop). Strict TDD, Node 24. Tasks 7.1
 
 Two real loopback servers on 127.0.0.1 with ephemeral ports. Node 24 fetch with method POST and redirect error, against a server answering 302 with a location pointing at the second server, rejects with a TypeError, and the second server received 0 requests. Recorded in redirect-refusal.int.test.ts.
 
-### VS2 and VS3
+### VS2 result
 
-Not yet verified: they belong to 7.6 to 7.8 (transport), which is not started.
+Observed under Vitest on Node 24.21.0: `AbortSignal.timeout(5)` aborts with a DOMException named `TimeoutError`; a manual `AbortController.abort()` gives `AbortError`. The transport classifies both names as TIMEOUT (any other failure is NETWORK). An injected `timeoutSignal` that aborts while the fetch never resolves gives TIMEOUT, and one that aborts mid-body (second chunk hanging) also gives TIMEOUT. Real `AbortSignal.timeout` through the transport also gives TIMEOUT.
+
+### VS3 result
+
+`readCappedBody` counts bytes per chunk. A body of exactly 2,097,152 bytes is read and parsed (pulledBytes = 2,097,152, stream not cancelled). With a stream of 40 chunks of 65,536 bytes where chunk 32 carries one extra byte (total crosses the cap at 2,097,153), the body is flagged OVERSIZE, the stream is cancelled, and pulledBytes stays within the cap plus one chunk and well below the full 40 chunks.
+
+### TDD evidence (7.6 / 7.7)
+
+RED: run failed on the missing modules (no tests ran). GREEN: shopify-http-transport.test.ts 13 tests pass; gateway plus test-support focused run 4 files, 29 tests pass.
+
+### Transport shape (for U7b)
+
+`createShopifyHttpTransport({ fetchFn, timeoutSignal? }).post(request, { headers, body })` returns `{ status, headers: Headers, body }` where body is `{ kind: 'json', value }` or `{ kind: 'flagged', reason: 'OVERSIZE' | 'NOT_JSON' | 'UNPARSEABLE' }`. It throws only ShopifyGatewayError TIMEOUT or NETWORK (no cause), plus a TypeError for a forged request before fetch. Limits live in transport-limits.ts (REQUEST_TIMEOUT_MS, MAX_BODY_BYTES).
+
+### U7a gate (7.9)
+
+Part 2 hand-written lines: transport 70, capped-body-reader 33, transport-limits 5 (code 108) plus test 178 = 286. Unit total with part 1 (289) is about 575 against a budget of 400 and a plan of about 280: OVERRUN of about 175 lines over budget, driven mostly by the 13-case transport test (178). Nothing was trimmed. Focused tests: 4 files, 29 tests pass. pnpm check exit 0 on Node 24.21.0 (contracts 263, web 193, api 3543). Note: the shell default was Node 22, which breaks better-sqlite3 (NODE_MODULE_VERSION 127 vs 137); the repo requires Node >= 24.
 
 ### Design notes
 
