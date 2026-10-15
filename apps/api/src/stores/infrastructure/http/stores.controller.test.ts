@@ -11,12 +11,18 @@ import { GetStoreUseCase } from '../../application/get-store.use-case.js';
 import { ListStoresUseCase } from '../../application/list-stores.use-case.js';
 import { ReplaceCredentialsUseCase } from '../../application/replace-credentials.use-case.js';
 import {
+  ShopifyRequestFailedError,
   StoreCredentialsInvalidError,
   StoreDisplayNameInvalidError,
   StoreDomainInvalidError,
+  StoreNotConnectedError,
+  WorkbookInvalidError,
 } from '../../application/store-errors.js';
+import { ImportCatalogUseCase } from '../../application/import-catalog.use-case.js';
 import { STORES_LOGGER } from '../../application/stores.tokens.js';
 import { VerifyStoreConnectionUseCase } from '../../application/verify-store-connection.use-case.js';
+import { WORKBOOK_LIMITS } from '../../../catalog-workbook/application/catalog-workbook.tokens.js';
+import { withLimits } from '../../../catalog-workbook/domain/workbook-limits.js';
 import { parseShopDomain } from '../../domain/shop-domain.js';
 import { StoresController } from './stores.controller.js';
 import { StoresExceptionFilter } from './stores-exception.filter.js';
@@ -54,6 +60,21 @@ const createFake = {
   },
 };
 
+/** What the next import call does; the tests set it before sending. */
+let importBehaviour: (id: string, bytes: Uint8Array, sha256: string) => Promise<unknown> = () =>
+  Promise.resolve(IMPORTED);
+const IMPORTED = {
+  totals: { products: 0, created: 0, failed: 0 },
+  stoppedEarly: false,
+  results: [],
+};
+const importFake = {
+  execute: (id: string, bytes: Uint8Array, sha256: string) => {
+    calls.push({ name: 'import', args: [id, bytes.byteLength, sha256] });
+    return importBehaviour(id, bytes, sha256);
+  },
+};
+
 let app: INestApplication | undefined;
 
 async function boot(): Promise<string> {
@@ -68,6 +89,8 @@ async function boot(): Promise<string> {
       { provide: VerifyStoreConnectionUseCase, useValue: record('verify', VERIFICATION) },
       { provide: ReplaceCredentialsUseCase, useValue: record('replace', SUMMARY) },
       { provide: DeleteStoreUseCase, useValue: record('delete', undefined) },
+      { provide: ImportCatalogUseCase, useValue: importFake },
+      { provide: WORKBOOK_LIMITS, useValue: withLimits({ maxUploadBytes: 64 }) },
     ],
   })
   class TestModule {}
@@ -81,6 +104,7 @@ async function boot(): Promise<string> {
 afterEach(async () => {
   calls.length = 0;
   logged.length = 0;
+  importBehaviour = () => Promise.resolve(IMPORTED);
   await app?.close();
   app = undefined;
 });
@@ -231,5 +255,99 @@ describe('ids', () => {
       expect(response.headers.get('cache-control')).toBe('no-store');
     }
     expect(calls).toEqual([]);
+  });
+});
+
+describe('POST :id/import', () => {
+  const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  const upload = (body: Uint8Array | string, type: string | undefined = XLSX): RequestInit => ({
+    method: 'POST',
+    ...(type !== undefined && { headers: { 'content-type': type } }),
+    body,
+  });
+
+  it('answers 200 with the use case result, no-store, and hands over the bytes and their hash', async () => {
+    const response = await fetch(`${await boot()}/${ID}/import`, upload('workbook-bytes'));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(await response.json()).toEqual(IMPORTED);
+    expect(calls).toEqual([
+      {
+        name: 'import',
+        args: [ID, 14, '977ae00c34126a1c073815f483d1869ee09894533641771199f8803ff0967cc1'],
+      },
+    ]);
+  });
+
+  it('accepts octet-stream and a missing content type', async () => {
+    const url = `${await boot()}/${ID}/import`;
+    expect((await fetch(url, upload('x', 'application/octet-stream'))).status).toBe(200);
+    expect((await fetch(url, upload('x', undefined))).status).toBe(200);
+  });
+
+  it('answers a malformed id as an unknown store, before reading the body', async () => {
+    const response = await fetch(`${await boot()}/not-an-id/import`, upload('x'));
+    expect(response.status).toBe(404);
+    expect(await codeOf(response)).toBe('STORE_NOT_FOUND');
+    expect(calls).toEqual([]);
+  });
+
+  it('answers 415 for a JSON body without reaching the use case', async () => {
+    const response = await fetch(`${await boot()}/${ID}/import`, upload('{}', 'application/json'));
+    expect(response.status).toBe(415);
+    expect(await codeOf(response)).toBe('WORKBOOK_UNSUPPORTED_MEDIA_TYPE');
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(calls).toEqual([]);
+  });
+
+  it('answers 400 for an empty body and 413 for a body over the limit', async () => {
+    const url = `${await boot()}/${ID}/import`;
+    const empty = await fetch(url, { method: 'POST' });
+    expect([empty.status, await codeOf(empty)]).toEqual([400, 'WORKBOOK_FILE_REQUIRED']);
+    const large = await fetch(url, upload(new Uint8Array(65)));
+    expect([large.status, await codeOf(large)]).toEqual([413, 'WORKBOOK_TOO_LARGE']);
+    expect(calls).toEqual([]);
+  });
+
+  it('answers 422 with the report when the workbook has errors', async () => {
+    const report = {
+      valid: false,
+      fileSha256: 'a'.repeat(64),
+      summary: { errorCount: 1, warningCount: 0 },
+      truncated: false,
+      issues: [],
+    };
+    importBehaviour = () => Promise.reject(new WorkbookInvalidError(report));
+    const response = await fetch(`${await boot()}/${ID}/import`, upload('x'));
+    expect(response.status).toBe(422);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    expect(await response.json()).toEqual({
+      error: {
+        code: 'WORKBOOK_INVALID',
+        message: 'The workbook has errors. Nothing was sent to Shopify.',
+      },
+      report,
+    });
+  });
+
+  it.each([
+    [new StoreNotConnectedError(), 409, 'STORE_NOT_CONNECTED'],
+    [new ShopifyRequestFailedError(), 502, 'SHOPIFY_REQUEST_FAILED'],
+  ])('maps %s to its status and code', async (error, status, code) => {
+    importBehaviour = () => Promise.reject(error);
+    const response = await fetch(`${await boot()}/${ID}/import`, upload('x'));
+    expect(response.status).toBe(status);
+    expect(await codeOf(response)).toBe(code);
+  });
+
+  it('answers an unexpected error with the generic 500 and logs only its name', async () => {
+    importBehaviour = () =>
+      Promise.reject(new TypeError('boom shpat_SECRET_VALUE_1234 https://shop.example/x'));
+    const response = await fetch(`${await boot()}/${ID}/import`, upload('x'));
+    const text = await response.text();
+    expect(response.status).toBe(500);
+    expect(text).toBe('{"statusCode":500,"message":"Internal server error"}');
+    expect(JSON.stringify(logged)).not.toContain('SECRET');
+    expect(logged).toEqual([{ event: 'store_request_failed', errorName: 'TypeError' }]);
   });
 });

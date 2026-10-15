@@ -44,6 +44,8 @@ export class AppModule {
       exports: [APP_CONFIG],
     };
     const persistence = PersistenceModule.forRoot(config);
+    // One instance, shared: the stores module re-validates workbooks through its use case.
+    const workbook = CatalogWorkbookModule.forRoot();
     return {
       module: AppModule,
       imports: [
@@ -51,8 +53,8 @@ export class AppModule {
         persistence,
         HealthModule.forRoot(config, persistence),
         LocalSecurityModule.forRoot(config, { logger: options.logger }),
-        CatalogWorkbookModule.forRoot(),
-        StoresModule.forRoot(config, persistence, {
+        workbook,
+        StoresModule.forRoot(config, persistence, workbook, {
           secretBox: options.secretBox,
           logger: options.logger,
           ...(options.storeOverrides !== undefined && { overrides: options.storeOverrides }),

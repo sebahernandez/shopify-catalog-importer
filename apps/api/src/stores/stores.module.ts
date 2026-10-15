@@ -8,8 +8,10 @@ import type { SecretBox } from '../shared-kernel/secret-box/secret-box.port.js';
 import { SystemClock } from '../shared-kernel/time/system-clock.js';
 import type { Clock } from '../shared-kernel/time/clock.port.js';
 import { CreateStoreUseCase } from './application/create-store.use-case.js';
+import { ValidateWorkbookUseCase } from '../catalog-workbook/application/validate-workbook.use-case.js';
 import { DeleteStoreUseCase } from './application/delete-store.use-case.js';
 import { GetStoreUseCase } from './application/get-store.use-case.js';
+import { ImportCatalogUseCase } from './application/import-catalog.use-case.js';
 import { ListStoresUseCase } from './application/list-stores.use-case.js';
 import { ReplaceCredentialsUseCase } from './application/replace-credentials.use-case.js';
 import {
@@ -22,6 +24,7 @@ import {
   STORES_LOGGER,
   STORES_SECRET_BOX,
   STORE_REPOSITORY,
+  WORKBOOK_VALIDATOR,
 } from './application/stores.tokens.js';
 import { VerifyStoreConnectionUseCase } from './application/verify-store-connection.use-case.js';
 import { createClientCredentialsExchanger } from './infrastructure/credentials/client-credentials-exchanger.js';
@@ -39,6 +42,7 @@ import type { CredentialVault } from './ports/credential-vault.port.js';
 import type { IdGenerator } from './ports/id-generator.port.js';
 import type { ShopifyGateway } from './ports/shopify-gateway.port.js';
 import type { StoreRepository } from './ports/store-repository.port.js';
+import type { WorkbookValidator } from './ports/workbook-validator.port.js';
 
 /** The `fetch` shape the transport needs. */
 export type StoresFetch = (url: string, init: RequestInit) => Promise<Response>;
@@ -65,7 +69,7 @@ const defaultFetch: StoresFetch = (url, init) => globalThis.fetch(url, init);
 
 /**
  * Wires the stores module (design D1, D4, D8): the repository over the shared Prisma service, the
- * vault over the injected box, the credential registry, the gateway and the six use cases. It
+ * vault over the injected box, the credential registry, the gateway and the seven use cases. It
  * reads no environment: the API version comes from the validated configuration the caller passes.
  */
 @Module({})
@@ -73,12 +77,13 @@ export class StoresModule {
   static forRoot(
     config: DynamicModule,
     persistence: DynamicModule,
+    workbook: DynamicModule,
     options: StoresModuleOptions,
   ): DynamicModule {
     const fetchFn = options.overrides?.fetchFn ?? defaultFetch;
     return {
       module: StoresModule,
-      imports: [config, persistence],
+      imports: [config, persistence, workbook],
       controllers: [StoresController],
       providers: [
         { provide: STORES_SECRET_BOX, useValue: options.secretBox },
@@ -182,6 +187,40 @@ export class StoresModule {
             vault: CredentialVault,
             registry: CredentialProviderRegistry,
           ) => new ReplaceCredentialsUseCase({ repository, vault, registry }),
+        },
+        {
+          provide: WORKBOOK_VALIDATOR,
+          inject: [ValidateWorkbookUseCase],
+          useFactory: (validate: ValidateWorkbookUseCase): WorkbookValidator => ({
+            validate: (bytes, sha256) => validate.execute(bytes, sha256),
+          }),
+        },
+        {
+          provide: ImportCatalogUseCase,
+          inject: [
+            STORE_REPOSITORY,
+            CREDENTIAL_PROVIDER_REGISTRY,
+            SHOPIFY_GATEWAY,
+            WORKBOOK_VALIDATOR,
+            APP_CONFIG,
+            STORES_LOGGER,
+          ],
+          useFactory: (
+            repository: StoreRepository,
+            registry: CredentialProviderRegistry,
+            gateway: ShopifyGateway,
+            validator: WorkbookValidator,
+            appConfig: AppConfig,
+            logger: LoggerPort,
+          ) =>
+            new ImportCatalogUseCase({
+              repository,
+              registry,
+              gateway,
+              validator,
+              apiVersion: appConfig.shopifyApiVersion,
+              logger,
+            }),
         },
         {
           provide: DeleteStoreUseCase,

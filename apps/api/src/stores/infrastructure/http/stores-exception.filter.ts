@@ -1,5 +1,6 @@
 import { Catch, Inject, type ArgumentsHost, type ExceptionFilter } from '@nestjs/common';
 import type { ApiError } from '@importer/contracts';
+import { UploadRejection } from '../../../catalog-workbook/infrastructure/http/bounded-body-reader.js';
 import { LocalRequestFilter } from '../../../local-security/local-request.filter.js';
 import { LocalRequestRejection } from '../../../local-security/local-request-rejection.js';
 import type { LoggerPort } from '../../../shared-kernel/logging/logger.port.js';
@@ -8,8 +9,11 @@ import {
   StoreCredentialsInvalidError,
   StoreDisplayNameInvalidError,
   StoreDomainInvalidError,
+  ShopifyRequestFailedError,
+  StoreNotConnectedError,
   StoreNotFoundError,
   StoreRequestInvalidError,
+  WorkbookInvalidError,
 } from '../../application/store-errors.js';
 import { STORES_LOGGER } from '../../application/stores.tokens.js';
 
@@ -36,6 +40,17 @@ const MAPPED: readonly { status: number; code: ApiErrorCode; message: string }[]
   },
   { status: 400, code: 'STORE_CREDENTIALS_INVALID', message: 'The credentials are not valid.' },
   { status: 400, code: 'STORE_REQUEST_INVALID', message: 'The request is not valid.' },
+  { status: 409, code: 'STORE_NOT_CONNECTED', message: 'The store is not connected.' },
+  {
+    status: 422,
+    code: 'WORKBOOK_INVALID',
+    message: 'The workbook has errors. Nothing was sent to Shopify.',
+  },
+  {
+    status: 502,
+    code: 'SHOPIFY_REQUEST_FAILED',
+    message: 'Shopify could not be reached. Nothing was created.',
+  },
 ];
 const byCode = (code: ApiErrorCode) => MAPPED.find((entry) => entry.code === code)!;
 
@@ -47,6 +62,9 @@ const codeOf = (error: unknown): ApiErrorCode | undefined => {
   if (error instanceof StoreRequestInvalidError || error instanceof StoreDisplayNameInvalidError) {
     return 'STORE_REQUEST_INVALID';
   }
+  if (error instanceof StoreNotConnectedError) return 'STORE_NOT_CONNECTED';
+  if (error instanceof WorkbookInvalidError) return 'WORKBOOK_INVALID';
+  if (error instanceof ShopifyRequestFailedError) return 'SHOPIFY_REQUEST_FAILED';
   return undefined;
 };
 
@@ -78,6 +96,20 @@ export class StoresExceptionFilter implements ExceptionFilter {
     if (error instanceof LocalRequestRejection) {
       // A controller filter shadows the global one, so the guard's 403 is delegated.
       new LocalRequestFilter().catch(error, host);
+      return;
+    }
+    if (error instanceof UploadRejection) {
+      // The upload rejection carries a fixed message per code (workbook upload contract).
+      if (error.closeConnection) reply.setHeader('Connection', 'close');
+      const body: ApiError = { error: { code: error.code, message: error.message } };
+      reply.status(error.status).json(body);
+      return;
+    }
+    if (error instanceof WorkbookInvalidError) {
+      const { status, message } = byCode('WORKBOOK_INVALID');
+      reply
+        .status(status)
+        .json({ error: { code: 'WORKBOOK_INVALID', message }, report: error.report });
       return;
     }
     const code = codeOf(error) ?? (isBodyParserError(error) ? 'STORE_REQUEST_INVALID' : undefined);
