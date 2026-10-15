@@ -71,7 +71,7 @@ async function boot(): Promise<string> {
     ],
   })
   class TestModule {}
-  app = await NestFactory.create(TestModule, { logger: false });
+  app = await NestFactory.create(TestModule, { logger: false, bodyParser: false });
   app.setGlobalPrefix('api');
   await app.listen(0, '127.0.0.1');
   const { port } = (app.getHttpServer() as Server).address() as AddressInfo;
@@ -200,8 +200,8 @@ describe('request validation', () => {
       headers: { 'content-type': 'application/json' },
       body: '{"displayName": "canary-json-5e1"',
     });
-    // Whether the framework routes the parser error here is verified in the int suite (VS9).
-    expect([400]).toContain(response.status);
+    expect(response.status).toBe(400);
+    expect(await codeOf(response)).toBe('STORE_REQUEST_INVALID');
     expect(calls).toEqual([]);
   });
 

@@ -142,7 +142,13 @@ export async function bootstrap(options: BootstrapOptions = {}): Promise<BootHan
       ...(options.extraModules !== undefined && { extraModules: options.extraModules }),
       ...(options.storeOverrides !== undefined && { storeOverrides: options.storeOverrides }),
     }),
-    { logger, abortOnError: false },
+    {
+      logger,
+      abortOnError: false,
+      // Design D21: the framework's JSON parser raises errors the controller filter never sees
+      // and whose messages can quote the body, so the store routes read their own bounded body.
+      bodyParser: false,
+    },
   );
 
   try {

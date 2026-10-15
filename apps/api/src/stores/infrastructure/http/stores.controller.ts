@@ -1,5 +1,4 @@
 import {
-  Body,
   Controller,
   Delete,
   Get,
@@ -20,6 +19,7 @@ import { ReplaceCredentialsUseCase } from '../../application/replace-credentials
 import { StoreNotFoundError } from '../../application/store-errors.js';
 import { isStoreId } from '../../application/store-id.js';
 import { VerifyStoreConnectionUseCase } from '../../application/verify-store-connection.use-case.js';
+import { JsonBody } from './bounded-json-body.js';
 import {
   parseCreateStoreRequest,
   parseReplaceCredentialsRequest,
@@ -51,7 +51,7 @@ export class StoresController {
 
   @Post()
   @Header('Cache-Control', 'no-store')
-  createStore(@Body() body: unknown): Promise<StoreSummary> {
+  createStore(@JsonBody() body: unknown): Promise<StoreSummary> {
     return this.create.execute(parseCreateStoreRequest(body));
   }
 
@@ -76,7 +76,7 @@ export class StoresController {
 
   @Put(':id/credentials')
   @Header('Cache-Control', 'no-store')
-  replaceCredentials(@Param('id') id: string, @Body() body: unknown): Promise<StoreSummary> {
+  replaceCredentials(@Param('id') id: string, @JsonBody() body: unknown): Promise<StoreSummary> {
     const valid = checked(id);
     return this.replacer.execute(valid, parseReplaceCredentialsRequest(body));
   }
