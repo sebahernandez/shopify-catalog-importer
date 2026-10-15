@@ -1,9 +1,8 @@
 import 'reflect-metadata';
-import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 import { NestFactory } from '@nestjs/core';
 import { Inject, Injectable, Module } from '@nestjs/common';
@@ -16,19 +15,12 @@ import { PersistenceError } from './persistence-error.js';
 import { PrismaClient } from '../generated/prisma/client.js';
 import { PersistenceModule, PRISMA_SERVICE } from './persistence.module.js';
 import { PrismaService } from './prisma.service.js';
+import { applyMigrations } from './test-support/apply-migrations.js';
 
 // Every database lives in a fresh temporary directory created here and removed afterwards. The
 // data directory and the busy timeout are passed explicitly; nothing falls back to ./data. The
 // timeout is deliberately not the SQLite or driver default (5000), so a missing setting shows.
 const BUSY_TIMEOUT_MS = 1234;
-const migrationsDir = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '..',
-  '..',
-  'prisma',
-  'migrations',
-);
-
 let sandbox: string;
 let dataDir: string;
 const opened: PrismaService[] = [];
@@ -53,16 +45,17 @@ function newService(options: { dataDir?: string; busyTimeoutMs?: number } = {}):
   return service;
 }
 
-/** Creates the database file and applies the committed baseline SQL to it, as `db:migrate` does. */
+/** Applies every committed migration to the sandbox database, as `db:migrate` does. */
 function migrateDirectly(): void {
-  const [name] = readdirSync(migrationsDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name);
-  const sql = readFileSync(join(migrationsDir, name ?? '', 'migration.sql'), 'utf8');
-  prepareDatabaseFile(dataDir);
+  expect(applyMigrations(sandbox).status).toBe(0);
+}
+
+/** Runs one statement directly on the sandbox database and returns the schema afterwards. */
+function schemaAfter(statement?: string): unknown[] {
   const db = new Database(databaseFilePath(dataDir));
   try {
-    db.exec(sql);
+    if (statement) db.exec(statement);
+    return db.prepare('SELECT type, name, sql FROM sqlite_master ORDER BY name').all();
   } finally {
     db.close();
   }
@@ -99,13 +92,34 @@ describe('PrismaService connection', () => {
     expect(await service.isReachable()).toBe(false);
   });
 
-  it('connects to a migrated database whose table holds no rows', async () => {
+  it('refuses a database at the baseline, leaves it unchanged and reveals no data', async () => {
+    expect(applyMigrations(sandbox, { baselineOnly: true }).status).toBe(0);
+    const before = schemaAfter("INSERT INTO app_setting (key, value) VALUES ('k', 'CANARY-ROW')");
+
+    const error = await rejection(newService().connect());
+
+    expect(error.code).toBe('MIGRATION_REQUIRED');
+    expect(error.message).not.toContain('CANARY-ROW');
+    expect(schemaAfter()).toEqual(before);
+  });
+
+  it('refuses a database without app_setting', async () => {
+    migrateDirectly();
+    schemaAfter('DROP TABLE app_setting');
+
+    const error = await rejection(newService().connect());
+
+    expect(error.code).toBe('MIGRATION_REQUIRED');
+  });
+
+  it('connects to a fully migrated database whose tables hold no rows', async () => {
     migrateDirectly();
     const service = newService();
 
     await service.connect();
 
     expect(await service.client.appSetting.count()).toBe(0);
+    expect(await service.client.store.count()).toBe(0);
     expect(await service.isReachable()).toBe(true);
   });
 

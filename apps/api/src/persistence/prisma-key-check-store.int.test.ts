@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Inject, Injectable, Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ConfigModule } from '../config/config.module.js';
 import { AesGcmSecretBox } from '../shared-kernel/secret-box/infrastructure/aes-gcm-secret-box.js';
@@ -15,10 +14,10 @@ import {
   KEY_CHECK_PLAINTEXT,
   SecretKeyBootstrap,
 } from '../shared-kernel/secret-box/secret-key-bootstrap.js';
-import { databaseFilePath, prepareDatabaseFile } from './database-location.js';
 import { KEY_CHECK_STORE, PersistenceModule, PRISMA_SERVICE } from './persistence.module.js';
 import { PrismaKeyCheckStore } from './prisma-key-check-store.js';
 import { PrismaService } from './prisma.service.js';
+import { applyMigrations } from './test-support/apply-migrations.js';
 
 let sandbox: string;
 let dataDir: string;
@@ -31,18 +30,7 @@ beforeEach(async () => {
   sandbox = await mkdtemp(join(tmpdir(), 'importer-key-check-'));
   dataDir = join(sandbox, 'data');
   keyFilePath = join(sandbox, 'keys', 'secret.key');
-  prepareDatabaseFile(dataDir);
-  const db = new Database(databaseFilePath(dataDir));
-  try {
-    db.exec(
-      readFileSync(
-        new URL('../../prisma/migrations/20261013180211_baseline/migration.sql', import.meta.url),
-        'utf8',
-      ),
-    );
-  } finally {
-    db.close();
-  }
+  expect(applyMigrations(sandbox).status).toBe(0);
   service = new PrismaService({ dataDir, busyTimeoutMs: 1234 });
   await service.connect();
   store = new PrismaKeyCheckStore(service);

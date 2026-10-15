@@ -3,7 +3,6 @@ import { chmodSync, readFileSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import Database from 'better-sqlite3';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   isDuplicateKeyError,
@@ -12,9 +11,9 @@ import {
   reconcileKey,
   registerKeyring,
 } from './key-boot.js';
-import { databaseFilePath, prepareDatabaseFile } from './persistence/database-location.js';
 import { PrismaKeyCheckStore } from './persistence/prisma-key-check-store.js';
 import { PrismaService } from './persistence/prisma.service.js';
+import { applyMigrations } from './persistence/test-support/apply-migrations.js';
 import { BootError } from './shared-kernel/boot-error.js';
 import { clearRegisteredSecretsForTests, redactString } from './shared-kernel/logging/redact.js';
 import { FileKeyProvider } from './shared-kernel/secret-box/infrastructure/file-key-provider.js';
@@ -39,18 +38,7 @@ beforeEach(async () => {
   sandbox = await mkdtemp(join(tmpdir(), 'importer-key-boot-'));
   dataDir = join(sandbox, 'data');
   keyFilePath = join(sandbox, 'keys', 'secret.key');
-  prepareDatabaseFile(dataDir);
-  const db = new Database(databaseFilePath(dataDir));
-  try {
-    db.exec(
-      readFileSync(
-        new URL('../prisma/migrations/20261013180211_baseline/migration.sql', import.meta.url),
-        'utf8',
-      ),
-    );
-  } finally {
-    db.close();
-  }
+  expect(applyMigrations(sandbox).status).toBe(0);
 });
 
 afterEach(async () => {

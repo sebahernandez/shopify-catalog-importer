@@ -18,3 +18,23 @@ model AppSetting {
 
   @@map("app_setting")
 }
+
+// One registered Shopify store. Credentials live only in `credentials_envelope` (a SecretBox
+// envelope). `auth_kind` and `status` are plain text checked by the application, and
+// `last_verification` is JSON kept as TEXT and parsed on read.
+model Store {
+  id                  String    @id
+  displayName         String    @map("display_name")
+  shopDomain          String    @unique @map("shop_domain")
+  shopifyShopId       String?   @map("shopify_shop_id")
+  apiVersion          String?   @map("api_version")
+  authKind            String    @map("auth_kind")
+  credentialsEnvelope String    @map("credentials_envelope")
+  status              String
+  lastVerifiedAt      DateTime? @map("last_verified_at")
+  lastVerification    String?   @map("last_verification")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @default(now()) @map("updated_at")
+
+  @@map("store")
+}
