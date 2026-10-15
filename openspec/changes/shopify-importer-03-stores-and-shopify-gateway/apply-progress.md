@@ -359,3 +359,25 @@ Hand-written lines: code 130 (port 10, provider 67, registry 53), tests 244 (pro
 
 - The margin comparison is inclusive (`now <= expiresAtMs - 60 s`). The requirement text says "earlier than expiry minus 60 s", but its scenarios (86399 s token reused at T+86339 s, exchanged at T+86340 s) only hold with an inclusive bound.
 - The "no fs/db writes" test spies on `node:fs` write functions (default import); there is no database dependency in these classes.
+
+## U7b Classification, version header, cost extraction (Phase 10, tasks 10.1 to 10.7)
+
+All seven tasks done. The unit measured over 400, so it was split at the pre-agreed cut after 10.4: Part A on `feat/stores-u7b-classification` (10.1 to 10.4), Part B on `feat/stores-u7b2-graphql-client` (10.5, 10.6), based on Part A.
+
+### What was built
+
+- `classifyResponse(TransportResponse)`: pure, status-first. Returns `{ ok: true, data }` or `{ ok: false, error }`. 401 `AUTH_FAILED`; 402, 403, 423 `SHOP_UNAVAILABLE`; 404 `STORE_NOT_FOUND`; 429 `THROTTLED` (integer `Retry-After` seconds to `retryAfterMs`, other values ignored); 5xx `SERVER_ERROR`; other non-2xx `GRAPHQL_ERROR` only for JSON with non-empty `errors`, else `INVALID_RESPONSE`. A 2xx with flagged body, non-object, or no `data` and no `errors` gives `INVALID_RESPONSE`; non-empty `errors` in a 2xx never yields data and is classified by precedence over all entries (THROTTLED, invalid key message, ACCESS_DENIED, SHOP_INACTIVE, MAX_COST_EXCEEDED, INTERNAL_SERVER_ERROR, else GRAPHQL_ERROR). Only `extensions.code` and `message` are read.
+- `createShopifyGraphqlClient({ fetchFn, timeoutSignal?, onThrottleStatus? }).execute({ connection, query, variables, schema })`: one POST to the version URL from `connection.apiVersion`, headers `content-type`, `accept`, `x-shopify-access-token` (token only there), JSON body `{ query, variables }`. Reads `extensions.cost.throttleStatus` from success and error responses (zod, malformed ignored) and hands it to the observer with the store id. Returns `{ value, apiVersionUsed }` where `apiVersionUsed` is the `X-Shopify-API-Version` header or null; a mismatch is not an error. A schema failure gives `INVALID_RESPONSE`. Single attempt; retry, wait and forced refresh are U8 (`estimatedCost` and `retry` inputs are added there).
+
+### TDD evidence
+
+RED: the client suite failed on the missing module (classification suites were written together with their code and passed on first run, so no separate RED was observed for 10.1 and 10.3). GREEN: focused gateway run 6 files, 61 tests (31 classification, 6 client new). Full API suite 3611 tests pass. Node 24.21.0.
+
+### Gate (10.7)
+
+`pnpm check`: lint and typecheck pass; the only failure is `prettier --check` on `.claude/settings.local.json`, an untracked, globally git-ignored harness file outside the change (all changed files pass prettier). Hand-written lines: code 148 (classify-response 82, client 66), tests 286 (classify-response 84, classify-body-errors 59, client 143), total 434 against budget 400 and plan about 230. Over budget by 34; nothing trimmed. Part A = 225 lines, Part B = 209 lines.
+
+### Deviations and notes
+
+- Over budget as a unit; split at the pre-agreed cut into two branches (two feat commits), so each PR is under 400.
+- `classifyResponse` returns a result object rather than throwing, so the client can read the cost block before deciding.
