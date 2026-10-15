@@ -94,6 +94,25 @@ describe('imagenesRules', () => {
     ]);
   });
 
+  it('accepts an https URL as written and marks its kind', () => {
+    const { issues, typed } = run([
+      row(2, { file: text('https://cdn.x.test/a.jpg') }),
+      row(3, { file: text('fotos/a.jpg'), order: number('2') }),
+    ]);
+    expect(issues).toEqual([]);
+    expect(typed.map(({ path, kind }) => [path, kind])).toEqual([
+      ['https://cdn.x.test/a.jpg', 'url'],
+      ['fotos/a.jpg', 'local'],
+    ]);
+  });
+
+  it('rejects a file: URL with the scheme reason', () => {
+    const { issues } = run([row(2, { file: text('file:///etc/passwd') })]);
+    expect(issues).toEqual([
+      issue('IMAGE_PATH_INVALID', 2, 'archivo', { reason: 'IMAGE_PATH_URL_SCHEME' }),
+    ]);
+  });
+
   it('reports an empty archivo with the empty reason', () => {
     const { issues } = run([row(2, { file: null })]);
     expect(issues).toEqual([

@@ -363,7 +363,7 @@ export const ISSUE_MESSAGES_ES: Readonly<Record<IssueCode, IssueTemplate>> = {
   IMAGE_PATH_INVALID: {
     message: 'La ruta de la imagen no es válida ({reason}).',
     suggestedAction:
-      'Escribe una ruta relativa con el nombre del archivo, por ejemplo fotos/camisa.jpg.',
+      'Escribe una URL http:// o https:// sin usuario ni contraseña (de hasta 2048 caracteres y sin espacios), o una ruta relativa con el nombre del archivo, por ejemplo fotos/camisa.jpg.',
   },
   ALT_TOO_LONG: {
     message: 'El texto alternativo supera los 512 caracteres.',

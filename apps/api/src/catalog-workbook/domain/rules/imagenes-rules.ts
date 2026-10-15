@@ -20,7 +20,7 @@ function textOf(source: SourceRow, field: string): string | undefined {
 }
 
 /**
- * Checks Imagenes rows: the path syntax, a positive unique `orden` per product, the soft `alt` and
+ * Checks Imagenes rows: the path or URL syntax, a positive unique `orden` per product, the soft `alt` and
  * count limits, and `variant_sku` against the variants of the same product. A row without a
  * product_key is left to the cross-sheet rule, and an untrusted field (already reported by
  * readRows) is skipped. The lowest `orden` of a product is its cover; picking it is the draft's
@@ -53,10 +53,13 @@ export function imagenesRules(
     ) => sink.add({ severity, code, sheet: SHEET, row: source.sourceRow, field, params });
 
     let path: string | undefined;
+    let kind: ImageRow['kind'];
     if (!source.untrusted.has('archivo')) {
       const checked = checkImagePath(textOf(source, 'archivo') ?? '');
-      if (checked.ok) path = checked.path;
-      else report('error', 'IMAGE_PATH_INVALID', 'archivo', { reason: checked.reason });
+      if (checked.ok) {
+        path = checked.path;
+        kind = checked.kind;
+      } else report('error', 'IMAGE_PATH_INVALID', 'archivo', { reason: checked.reason });
     }
 
     let order: number | undefined;
@@ -96,7 +99,7 @@ export function imagenesRules(
         orders.set(productKey, firstRows);
       }
     }
-    return { sourceRow: source.sourceRow, productKey, path, order, alt, variantSku };
+    return { sourceRow: source.sourceRow, productKey, path, kind, order, alt, variantSku };
   });
 
   for (const { total, overflowRow } of counts.values()) {
