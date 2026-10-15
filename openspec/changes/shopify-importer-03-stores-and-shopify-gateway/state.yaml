@@ -1,0 +1,63 @@
+change: shopify-importer-03-stores-and-shopify-gateway
+artifact_store: openspec
+updated_at: "2026-10-14"
+
+session:
+  execution_mode: interactive
+  delivery_strategy: ask-on-risk
+  chain_strategy: feature-branch-chain
+  review_budget_lines: 400
+
+roadmap:
+  umbrella: shopify-catalog-importer-mvp
+  slice: S2
+  depends_on: [shopify-importer-01-foundation]
+  later_slices: [S3, S4, S5, S6, S7]
+
+phases:
+  explore: done
+  research: done
+  proposal: done
+  specs: done
+  design: done
+  tasks: done
+  apply: pending
+  verify: pending
+  archive: pending
+
+preproposal:
+  schema: gentle-ai.sdd-preproposal/v1
+  revision: 2
+  exploration:
+    outcome: done
+    reference: openspec/changes/shopify-importer-03-stores-and-shopify-gateway/exploration.md
+    engram_reference: sdd/shopify-importer-03-stores-and-shopify-gateway/explore
+  research:
+    requested: selected
+    selected_by: user
+    classes: [documentation, open-web]
+    outcome: done
+    reference: openspec/changes/shopify-importer-03-stores-and-shopify-gateway/research.md
+    questions: [Q-R1, Q-R2, Q-R3, Q-R4, Q-R5, Q-R6, Q-R7, Q-R8, Q-R9]
+    note: Rescoped at revision 2 by user decision on 2026-10-14; the unanswered and undocumented items are deferred to the design as marked assumptions and to the live smoke test (see research.md).
+  product_decisions:
+    status: confirmed
+    confirmed_by: user
+    confirmed_at: "2026-10-14"
+    answer: D1 option 1 chosen; all proposed defaults for questions 3 to 12 accepted
+    decisions:
+      - "D1: option 1: CredentialProvider with static_token and client_credentials behind one port; OAuth authorization code stays a later adapter, not in S2"
+      - "Q2: informational only, no longer blocking after D1 (which stores will be connected first, and whether a legacy custom app exists)"
+      - "Q3: store removal is a hard delete of the row and its credentials"
+      - "Q4: two steps, create (no outbound call, status UNVERIFIED) and then verify"
+      - "Q5: shop domain accepted as handle, handle.myshopify.com, or a pasted URL from which only the host is used; custom domains and admin.shopify.com store URLs rejected"
+      - "Q6: API version pinned to 2026-10, the existing config default"
+      - "Q7: required scope set is a constant in contracts: write_products, write_files, write_inventory, and locations by any of three scopes; the scope for stagedUploadsCreate stays unverified"
+      - "Q8: timeouts, retries and caps are constants in code (15 s, 3 attempts, 2 MB, 250 locations), not environment variables"
+      - "Q9: locations are returned live and not persisted; only a count is stored"
+      - "Q10: a stored version that differs from the config version is re-verified on demand"
+      - "Q11: one stores module with the gateway ports inside"
+      - "Q12: the live smoke test against a real development store belongs to S7 unless a development store is available during S2"
+    pending: []
+  proposal_ready: true
+  proposal_ready_note: research closed by rescope; the proposal can run
