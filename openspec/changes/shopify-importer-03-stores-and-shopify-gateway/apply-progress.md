@@ -78,3 +78,26 @@ The shop domain guard source was read line by line against hostile inputs: schem
 - The 2.5 table row for PATH on a pasted URL with a foreign path needs the path rule, so the path check was added in 2.6 after the authority checks and 2.8 inserted the host checks before it (host first, as the spec requires).
 - The input my store (embedded space) is rejected with WHITESPACE (step 1), not INVALID_HANDLE; the spec only requires rejection.
 - The pre-agreed cut after 2.8 was not triggered by the size threshold (running total about 226), but the maintainer chose to split there anyway because the cut is clean and the guard is the security piece.
+
+## U2b Scope diff, verification status and store rules (2.9 to 2.16)
+
+Branch: feat/stores-u2b-store-rules (from develop at 24f3d86, after U2a). Strict TDD, Node 24. Second of the two parts of U2; the code was written and verified together with U2a and split afterwards, so the RED observations below were made in the combined run.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 2.9 and 2.10 | Suite failed: cannot find module for scope-diff | 4 tests pass | Write includes read; locations met by any of the three alternatives; missing follows the order of the required capabilities; granted kept verbatim. |
+| 2.11 and 2.12 | Suite failed: cannot find module for verification-status | 15 tests pass | Authentication outranks scope outranks unavailable; CONNECTED if and only if there is no problem. |
+| 2.13 and 2.14 | Suite failed: cannot find module for store-rules | 4 tests pass | New store UNVERIFIED with the four verification fields null; replacing credentials resets them and never moves updatedAt earlier. |
+| 2.15 | n/a | typecheck and lint pass | Type-only CredentialProvider port: authKind, accessToken(), refreshAfterRejection(rejected). |
+| 2.16 | n/a | pnpm check exit 0: contracts 263, web 193, api 3437 tests | |
+
+### Measured hand-written lines
+
+Code: scope-diff 29, verification-status 10, store 18, credentials-payload 13, store-rules 39, credential-provider port 9 = 118. Tests: scope-diff 31, verification-status 42, store-rules 73 = 146. Total 264. Nothing was trimmed. U2 across both parts is 490 hand-written lines (226 in U2a and 264 in U2b) against about 360 planned: the exhaustive shop domain tables and the 73-line store-rules test were the main drivers.
+
+### Deviations and decisions for later units
+
+- The Store record includes credentialsEnvelope; replaceCredentials takes authKind and the new envelope plus the time. Domain payload types are plain interfaces (no zod).
+- The CredentialProvider port is type only; its adapters arrive in U4 and U5a.
