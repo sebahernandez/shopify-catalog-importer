@@ -482,3 +482,30 @@ Mutation 1: the in-200 `THROTTLED` rule changed to `SCOPE_MISSING` in `classify-
 - The two-store HTTP case uses a host-routed fetch instead of an ordered script, because two stores interleave requests non-deterministically.
 - CP5: the throttled case is defined as in the task text (shared retry-on-retryable helper applied to both adapters; it asserts no visible failure for HTTP and exactly one retryable `THROTTLED` for the simulator).
 
+
+## U11 Verify store connection and D19 (Phase 15, tasks 15.1 to 15.8)
+
+All eight tasks done on `feat/stores-u11-u12-use-cases` (one branch and one PR for U11 and U12, agreed with the user; tests written alongside code, no separate RED and GREEN runs).
+
+### What was built
+
+- `application/stores.tokens.ts` (eight Symbols) and `application/store-errors.ts` (`StoreNotFoundError`); `application/store-id.ts` (`isStoreId`, UUID check so a malformed id is answered like an unknown one, before the repository).
+- `StoreRepository.recordVerification(id, expectedEnvelope, record)` with the Prisma adapter: one `updateMany WHERE id AND credentials_envelope`, returns whether a row changed (D19). `shopifyShopId` is only written when obtained; `updatedAt` is not touched by a verification.
+- `application/verification-result.ts`: pure `assembleVerification` (problems, scope union, version mismatch, status via the existing precedence) and `toSnapshot` (`locationCount` only).
+- `application/verify-store-connection.use-case.ts`: reads shop, scopes, locations in order with the configured version, stops at the first failure (a `SCOPE_MISSING` on `listLocations` keeps the earlier parts), maps `CredentialsUnreadableError` to `CREDENTIALS_UNREADABLE` with no outbound call, persists, and logs `store_verification_discarded` (fields `event`, `storeId`, `status` only) when zero rows changed.
+- `test-support/store-use-case-harness.ts`: in-memory repository, token-asking simulator wrapper, real vault and credential registry; shared with U12.
+
+### Tests added
+
+Assembler 10, use case 26 (13 kinds are one parameterized case each), repository int 6. Focused command: 3 files, 52 tests pass.
+
+### Deviations and notes
+
+- `CredentialsUnreadableError` moved from `infrastructure/credentials` to `ports/` (the registry port documents it and the lint rule forbids application importing adapters). Same class; imports updated.
+- The use case takes the credential registry (which opens the envelope through the vault) instead of the vault directly; the tests use the real vault and registry with a stub exchanger.
+- The result and the discard log are asserted free of the token, envelope and domain.
+- Root `pnpm lint` (`eslint .`) also scans the untracked `.claude/worktrees` copies left by other agents and reports thousands of unrelated errors; the gate was run as typecheck, `eslint apps packages`, format check and the full test run.
+
+### Gate (15.8)
+
+Typecheck, `eslint apps packages`, `prettier --check` and the full test run pass on Node 24.21.0. Hand-written lines: code about 300, tests about 470, shared harness about 180; the 400 budget is waived by the agreed process (one PR, no per-unit budget).
