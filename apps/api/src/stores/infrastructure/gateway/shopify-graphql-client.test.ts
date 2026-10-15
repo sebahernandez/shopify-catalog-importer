@@ -5,6 +5,7 @@ import type { StoreConnection } from '../../ports/shopify-gateway.port.js';
 import type { ShopifyGatewayError } from '../../ports/shopify-gateway-error.js';
 import { scriptedFetch, type ScriptStep } from '../../test-support/scripted-fetch.js';
 import { createShopifyGraphqlClient } from './shopify-graphql-client.js';
+import { createThrottleTracker } from './throttle-tracker.js';
 
 const TOKEN = 'shpat_CANARY_TOKEN_123';
 const parsed = parseShopDomain('mystore.myshopify.com');
@@ -30,20 +31,46 @@ const schema = z.object({ shop: z.object({ id: z.string() }) });
 const setup = (steps: ScriptStep[]) => {
   const { fetch, calls } = scriptedFetch(steps);
   const observed: unknown[] = [];
+  const waits: number[] = [];
+  const tracker = createThrottleTracker({ nowMs: () => 0 });
   const client = createShopifyGraphqlClient({
     fetchFn: fetch,
     timeoutSignal: () => new AbortController().signal,
     onThrottleStatus: (storeId, status) => observed.push([storeId, status]),
+    tracker,
+    sleep: (ms) => {
+      waits.push(ms);
+      return Promise.resolve();
+    },
+    random: () => 0,
   });
-  const run = (conn = connection()) =>
+  const run = (
+    conn = connection(),
+    extra: { estimatedCost?: number; retry?: 'safe' | 'none' } = {},
+  ) =>
     client.execute({
       connection: conn,
       query: 'query { shop { id } }',
       variables: { a: 1 },
       schema,
+      ...extra,
     });
-  return { run, calls, observed };
+  return { run, calls, observed, waits };
 };
+
+const refreshing = (
+  authKind: 'static_token' | 'client_credentials',
+  refresh: (rejected: string) => string | null,
+): StoreConnection => ({
+  ...connection(),
+  credentials: {
+    authKind,
+    accessToken: () => Promise.resolve('old-token'),
+    refreshAfterRejection: (rejected) => Promise.resolve(refresh(rejected)),
+  },
+});
+const unauthorized: ScriptStep = { status: 401, headers: JSON_HEADERS, body: '{"errors":[]}' };
+const serverError: ScriptStep = { status: 503, headers: JSON_HEADERS, body: '{}' };
 const failure = async (promise: Promise<unknown>) =>
   promise.then(
     () => {
@@ -139,5 +166,81 @@ describe('ShopifyGraphqlClient', () => {
     const error = await failure(run());
     expect(error.kind).toBe('TIMEOUT');
     expect(error.cause).toBeUndefined();
+  });
+
+  it('sleeps the tracker advice before sending and feeds every response to the tracker', async () => {
+    const low = { maximumAvailable: 1000, currentlyAvailable: 100, restoreRate: 50 };
+    const cost = { cost: { throttleStatus: low } };
+    const { run, waits } = setup([
+      ok({ data: { shop: { id: 'a' } }, extensions: cost }),
+      ok({ data: { shop: { id: 'a' } } }),
+    ]);
+    await run(connection(), { estimatedCost: 300 });
+    expect(waits).toEqual([]);
+    await run(connection(), { estimatedCost: 300 });
+    expect(waits).toEqual([4000]);
+  });
+
+  it('retries a safe read through the policy and never retries without a retry mode', async () => {
+    const { run, calls, waits } = setup([
+      serverError,
+      ok({ data: { shop: { id: 'a' } } }),
+      serverError,
+    ]);
+    await run(connection(), { retry: 'safe' });
+    expect(calls).toHaveLength(2);
+    expect(waits).toEqual([0]);
+    expect((await failure(run())).kind).toBe('SERVER_ERROR');
+    expect(calls).toHaveLength(3);
+  });
+
+  it('forces one credential refresh on AUTH_FAILED and retries once with the new token', async () => {
+    const { run, calls } = setup([unauthorized, ok({ data: { shop: { id: 'a' } } })]);
+    const seen: string[] = [];
+    const conn = refreshing('client_credentials', (rejected) => {
+      seen.push(rejected);
+      return 'new-token';
+    });
+    await run(conn);
+    expect(seen).toEqual(['old-token']);
+    expect(calls.map((call) => call.headers['x-shopify-access-token'])).toEqual([
+      'old-token',
+      'new-token',
+    ]);
+  });
+
+  it('gives AUTH_FAILED after exactly two requests and one refresh when the retry is also rejected', async () => {
+    const { run, calls } = setup([unauthorized, unauthorized, unauthorized]);
+    let refreshes = 0;
+    const conn = refreshing('client_credentials', () => {
+      refreshes++;
+      return 'new-token';
+    });
+    expect((await failure(run(conn, { retry: 'safe' }))).kind).toBe('AUTH_FAILED');
+    expect(calls).toHaveLength(2);
+    expect(refreshes).toBe(1);
+  });
+
+  it('gives AUTH_FAILED after one request for a static token', async () => {
+    const { run, calls } = setup([unauthorized, unauthorized]);
+    expect((await failure(run(refreshing('static_token', () => null)))).kind).toBe('AUTH_FAILED');
+    expect(calls).toHaveLength(1);
+  });
+
+  it.each([
+    ['SCOPE_MISSING', { errors: [{ message: 'x', extensions: { code: 'ACCESS_DENIED' } }] }],
+    ['THROTTLED', { errors: [{ message: 'x', extensions: { code: 'THROTTLED' } }] }],
+  ])('never forces a refresh for %s', async (_kind, body) => {
+    const { run } = setup([ok(body)]);
+    let refreshes = 0;
+    await failure(
+      run(
+        refreshing('client_credentials', () => {
+          refreshes++;
+          return 'n';
+        }),
+      ),
+    );
+    expect(refreshes).toBe(0);
   });
 });
