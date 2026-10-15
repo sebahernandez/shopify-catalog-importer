@@ -49,6 +49,8 @@ export interface StoresOverrides {
   readonly gateway?: ShopifyGateway;
   /** Replaces the `fetch` function the HTTP adapter and the token exchange use. */
   readonly fetchFn?: StoresFetch;
+  /** Replaces the retry and throttle wait of the HTTP adapter, so tests need no real delay. */
+  readonly sleep?: (ms: number) => Promise<void>;
 }
 
 export interface StoresModuleOptions {
@@ -118,7 +120,12 @@ export class StoresModule {
           inject: [STORES_FETCH],
           useFactory: (fetchFunction: StoresFetch): ShopifyGateway =>
             options.overrides?.gateway ??
-            createHttpShopifyGateway(createShopifyGraphqlClient({ fetchFn: fetchFunction })),
+            createHttpShopifyGateway(
+              createShopifyGraphqlClient({
+                fetchFn: fetchFunction,
+                ...(options.overrides?.sleep !== undefined && { sleep: options.overrides.sleep }),
+              }),
+            ),
         },
         {
           provide: CreateStoreUseCase,
