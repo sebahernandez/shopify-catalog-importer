@@ -94,7 +94,7 @@ The `ShopifyGateway` port MUST expose exactly three operations in S2: `getShopIn
 
 ### Requirement: Shared contract suite
 
-One parameterized suite MUST run against both the simulator and the HTTP adapter driven by a scripted `fetch` with fixture responses. Both MUST produce the same results and the same error kinds for at least: a healthy shop, a missing scope, an authentication failure, a throttled response followed by success, a server error, a network failure, a timeout, and an invalid response. Every fixture MUST carry a provenance tag, and every S2 fixture MUST be tagged `hand-authored-from-documentation`.
+One parameterized suite MUST run against both the simulator and the HTTP adapter driven by a scripted `fetch` with fixture responses. Both MUST produce the same results and the same error kinds for at least: a healthy shop, a missing scope, an authentication failure, a throttled response followed by success (defined through one shared retry-on-retryable helper: the HTTP adapter retries internally so the call succeeds with no visible failure, while the simulator throws one retryable `THROTTLED` error and succeeds on the second call; both end with the same value), a server error, a network failure, a timeout, and an invalid response. Every fixture MUST carry a provenance tag, and every S2 fixture MUST be tagged `hand-authored-from-documentation`.
 
 #### Scenario: Same result
 

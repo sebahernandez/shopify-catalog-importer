@@ -551,7 +551,7 @@ All nine tasks done on branch `feat/stores-u13-u14-http-and-canary` (one PR for 
 
 ### Tests added
 
-Filter 14, controller 18, module 5, `no-test-route-ships` updated (six imports, three controllers). Focused command: 47 tests pass.
+Filter 14, controller 20, module 5, `no-test-route-ships` updated (six imports, three controllers, 8 tests). Focused command: 47 tests pass (the controller test later moved to `bodyParser: false` in U13b).
 
 ### Deviations and notes
 
@@ -576,7 +576,7 @@ All seven tasks done (same branch and PR).
 ### What was built
 
 - `test-support/store-app-harness.ts`: boots the real `bootstrap()` in a migrated sandbox on port 0 with the simulator (token-asking wrapper) and a `fetch` that always rejects, returns a `send` helper over `node:http` (so the `Host` header can be set) and the log lines.
-- `stores-body-parsing.int.test.ts` (4), `stores.int.test.ts` (20), `stores-boot.int.test.ts` (4), `bounded-json-body.test.ts` (10 cases).
+- `stores-body-parsing.int.test.ts` (4), `stores.int.test.ts` (20), `stores-boot.int.test.ts` (4), `bounded-json-body.test.ts` (9).
 
 ### 18.3
 
@@ -589,3 +589,81 @@ The boot test needed no wiring change beyond 18.4: a store is created and verifi
 ### Gate (18.7)
 
 `pnpm check` on Node 24.21.0: exit 0 (api 3829 tests). Budget waived by the agreed process.
+
+## U14 Canary suite, log fields, README, spec deltas (Phase 19, tasks 19.1 to 19.14)
+
+All fourteen tasks done on the same branch (one PR for U13a, U13b, U14 and the final gate).
+
+### What was built
+
+- `test-support/canaries.ts`: the five canaries (static token, client secret, exchanged token, `shpat_` plus 32 hex, a `Bearer` string) and scanners for text, raw bytes and errors (message, name, stack, every own property including non-enumerable ones, full `cause` chain, cycle safe). Test: 11.
+- `infrastructure/store-log-fields.ts`: the eleven declared field names (plus the `event` key) and `isDeclaredStoreLogField`. Test: 16 (none is a secret key name for the redactor, none contains a redaction substring, `hasCredentials` is not a log field).
+- `infrastructure/http/stores-canary.int.test.ts` (13 tests): real application, migrated sandbox, logger sink at `debug`, real HTTP gateway over a routed `fetch`. 3 stores (static token, client credentials, a `Bearer`-shaped token); 17 scripted failure scenarios whose bodies echo canaries (one per gateway kind, including a token endpoint echoing the client secret and an exchanged token rejected with 401); rejected requests with canaries in the body; replace with another canary; delete. Scans: logger lines, every response body and header, every thrown gateway and exchanger error (message, properties, cause), raw bytes of the database and its WAL (live and after close), every column of every table, envelopes start with `sb1.`; swapped envelopes read as `CREDENTIALS_UNREADABLE` with zero outbound calls; an envelope under another context gives `DECRYPT_FAILED`; the row (and envelope) is gone after delete; no request body fragment is logged; every logged field name is declared.
+- `infrastructure/http/stores-leak-surfaces.int.test.ts` (8 tests, VS10).
+- `stores-source-scan.test.ts` (20 tests): rules for global `fetch`, version literals, environment access, direct clock, timer and random use, `console`, `cause`, Spanish text. Each rule is proved on a synthetic offender in the suite; in addition a real temporary offender (a Spanish string, a version literal and `Date.now()` appended to `application/store-id.ts`) failed three rules and was removed.
+- `test-support/readme-disclosure.test.ts` (16 tests).
+- `README.md` (Spanish, neutral): intro and status, `SHOPIFY_API_VERSION` row, key backup note (real credentials), `Estructura`, limitations (no local API authentication, redactor growth, verification sends real requests), and "Qué se verificó y qué no" rewritten with the unverified list and the planned smoke test.
+
+### 19.6 Leaks found by the canary suite
+
+None. The suite is sensitive: a temporary mutation that attached the token-endpoint body to the exchange error made it fail on the client secret canary, and was reverted (`git checkout`).
+
+### 19.8 and VS10
+
+- Repository errors that carry canaries in message, property and cause (four routes, each by a rejected repository method): generic Nest 500 body, `Cache-Control: no-store`, one log line `{ event: 'store_request_failed', errorName: 'TypeError' }`, no canary anywhere.
+- Prisma (7.10, better-sqlite3 adapter) unique violation message: `Invalid .create() invocation in <source path>:<line>` with the code excerpt and `Unique constraint failed on the fields: (shop_domain)`. It names the constraint and quotes the call site, not the bound values. Caveat: an excerpt of the calling code is printed, so a call written with inline literals would print them. The repository never passes a driver error on (fixed message) and the filter would hide it anyway.
+- undici (Node 24.21): the message is the fixed text `fetch failed`; the cause is a system error (`connect ECONNREFUSED 127.0.0.1:<port>`, or `getaddrinfo ENOTFOUND <host>`), naming host and port, never the path, the query, the headers or the body. The transport drops the cause, so the gateway error carries nothing. Real `fetch` to a closed loopback port with canaries in the URL path and query: no canary in logs or responses.
+- What the D20 filter hid: the raw Prisma and undici messages never reach the response or the log; only the error class name is logged.
+
+### 19.10 Offenders found by the source scan
+
+One: the simulator's fall-forward default was the literal `'2099-01'` (an API-version-shaped literal in shipped code). It is now derived from the requested version (same month, next year); no test relied on the old value. Earlier notes above that mention `2099-01` describe the superseded constant.
+
+### 19.13 Delta spec reconcile
+
+Edits (and only these):
+1. `specs/store-endpoints/spec.md`, requirement "Create request validation": added the rule that the module reads the JSON body itself with a 16 KB limit and answers a malformed, non-JSON, non-UTF-8 or oversize body with `STORE_REQUEST_INVALID` (VS9 parser path), plus the scenario "Oversize or non-JSON body". `tasks.md` coverage table updated to match (store-endpoints 28 scenarios, total 210).
+2. `specs/shopify-gateway/spec.md`, requirement "Shared contract suite": the throttled-then-success case is defined through the shared retry-on-retryable helper (HTTP retries internally with no visible failure; simulator throws one retryable `THROTTLED` and succeeds on the second call; same final value).
+No edit for VS7 (field names matched the documentation, see U9a) and none for the guard header (the guard filter is unchanged; the store filter adds `no-store` to the guard's 403 on store routes, covered by the integration test).
+Archive merge check (main specs read only): the RENAMED header "No credential persistence in S0" matches `openspec/specs/secret-protection/spec.md` exactly, and the MODIFIED header "Pinned Admin API version" matches `openspec/specs/runtime-configuration/spec.md`. The MODIFIED block in `secret-protection` names the NEW heading ("Credentials encrypted at rest per store"), which is correct for a rename followed by a modification, but the rename syntax is a single line with an arrow instead of explicit FROM and TO lines: warning for archive, check that the tool resolves it, or the rename may have to be applied by hand.
+Note: the delta specs do not state the generic 500 for unexpected errors on store routes (design D20); behaviour and tests exist, the spec was left as is.
+
+### Deviations and notes
+
+- `StoresOverrides` gained a test-only `sleep` (like `fetchFn` and `gateway`) so the canary suite can run retryable failures without real delays.
+- Outside the stores module this unit edited only `README.md` and the change's own openspec files.
+
+### Tests added
+
+canaries 11, log fields 16, canary int 13, leak surfaces 8, source scan 20, README disclosure 16: 84 tests. Focused `src/stores`: all pass.
+
+### Gate (19.14)
+
+`pnpm check` on Node 24.21.0: exit 0 (see the final gate below for the last run). Budget waived by the agreed process.
+
+## Final verification gate (Phase 20)
+
+| Task | Result |
+|---|---|
+| 20.1 | Docs edited: `README.md` (Spanish) and the delta spec reconcile of 19.13 only, plus this change's own `tasks.md` and `apply-progress.md`. No `.env*` or key file was read or written by this work (tests use temporary sandboxes with generated keys inside `os.tmpdir()`, removed afterwards). |
+| 20.2 | `pnpm install --frozen-lockfile`: exit 0, "Lockfile is up to date"; `pnpm-lock.yaml` sha unchanged (no new dependency). |
+| 20.3 | `pnpm check` on Node 24.21.0: exit 0 (typecheck, eslint, prettier check, tests: contracts 263, web 193, api 3913). The existing configuration tests for the default, malformed and out-of-set versions pass unchanged. |
+| 20.4 | `pnpm build`: exit 0. `apps/api/dist` holds no `test-support`, fixture, probe or `.test.` output; `dist/stores/infrastructure/simulator/` is present (D22). |
+| 20.5 | No `.only`; one pre-existing conditional `context.skip()` in `main.int.test.ts` (S0, a socket-probe guard, not a skipped test). No temporary lint-gate file, scratch or downloaded file in the repository (`git status` clean apart from the intended edits), one worktree only. No temporary mutation left (14.3 earlier, the 19.5 mutation and the 19.9 offender reverted). No fixture tagged `recorded` (the only `'recorded'` string is a negative assertion in `fixtures-provenance.test.ts`). No version literal and no `process.env` in non-test stores sources. No Spanish text in API production sources (Spanish appears only in tests that assert the README text, the source scan's own offender sample, and a pre-existing multi-byte case in `aes-gcm-secret-box.test.ts`). |
+| 20.6 | In the stores sources the global `fetch` is named once: `stores.module.ts` (`globalThis.fetch`, the injected default). The only call site of the injected function is `shopify-http-transport.ts` (`options.fetchFn`); `shopify-graphql-client.ts` and the module only pass it along. No `node:http`, `node:https`, `node:net` or `undici` in stores sources (`node:http` and `node:net` appear in `main.ts`, `local-security` and `config` as types and IP checks, outside the stores module). No task contacted Shopify: tests use scripted `fetch`, the simulator, or a loopback closed port. |
+| 20.7 | Canary suites run: `stores-canary.int.test.ts` 13, `stores-leak-surfaces.int.test.ts` 8, `canaries.test.ts` 11, all pass: zero canary hits in logs, responses, headers, thrown error chains, database bytes and WAL for create, verify (success and the 13 kinds), replace and delete. |
+| 20.8 | README ("Qué se verificó y qué no" and the intro), this progress file and the final report state that nothing was verified against a real Shopify store; the unverified items are throttling, access denied, bad token, version fall-forward, client-credentials errors, granted scope strings, plan values, `locations` limits and rename redirects; every fixture is tagged `hand-authored-from-documentation` (checked by `fixtures-provenance.test.ts` and `readme-disclosure.test.ts`). |
+| 20.9 | Not run: an orchestrator harness, not an apply task (the apply agent must not boot the app from a temporary clone with `curl`). Left unticked for the orchestrator. |
+| 20.10 | See the list below. |
+
+### 20.10 Proposal success criteria
+
+- [x] Every classification branch maps a hand-written response to exactly one kind; unknown shapes become `GRAPHQL_ERROR` or `INVALID_RESPONSE`: `classify-response.test.ts`, `classify-body-errors.test.ts`, and the 17 scripted scenarios of `stores-canary.int.test.ts`.
+- [x] One contract suite passes against the simulator and the fixture-backed HTTP adapter: `gateway-contract.int.test.ts`.
+- [x] Rejected domains never reach `fetch`; redirects are refused: `shop-domain-syntax.test.ts`, `shop-domain-host.test.ts`, `shopify-urls.test.ts`, `shopify-http-transport.test.ts`, `create-store.use-case.test.ts` (zero `fetch` calls), `stores.int.test.ts` (`myshopify.com.evil.example`).
+- [x] Throttle and retry tests with injected time: `throttle-tracker.test.ts`, `retry-policy.test.ts`, `shopify-graphql-client` tests.
+- [x] Token cache: `client-credentials-provider.test.ts`, `default-credential-provider-registry.test.ts`.
+- [x] Canary secrets never appear in logs, errors, responses or plaintext in the database; wrong context fails decryption: `stores-canary.int.test.ts`, `stores-leak-surfaces.int.test.ts`.
+- [x] Foreign `Origin` on every write route returns 403 and the handler does not run: `stores.int.test.ts`.
+- [x] `pnpm test`, typecheck, lint and build exit 0: 20.3 and 20.4.
+- Not verified (by design): real response bodies and statuses, client-credentials errors, scope strings, plan values, `locations` limits, rename redirects. Success here means the code matches the documentation, not that it works against Shopify.

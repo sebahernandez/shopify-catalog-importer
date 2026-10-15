@@ -2,9 +2,12 @@
 
 Aplicación local para importar un catálogo de productos desde Excel hacia Shopify.
 
-> **Estado: S0, la base.** Esta versión arranca, valida su configuración, protege una clave de
-> cifrado, responde en la ruta `GET /health` y muestra una página de estado. **Todavía no importa
-> catálogos, no lee archivos Excel y no se conecta a Shopify.**
+> **Estado: S2, tiendas y pasarela de Shopify.** Esta versión arranca, valida su configuración,
+> protege una clave de cifrado, responde en la ruta `GET /health`, muestra una página de estado,
+> registra tiendas con sus credenciales cifradas (`/api/stores`) y puede verificar una tienda con
+> consultas de solo lectura a la API de administración de Shopify. **Todavía no importa catálogos y
+> no lee archivos Excel. Nada se verificó contra una tienda real de Shopify** (vea
+> [Qué se verificó y qué no](#qué-se-verificó-y-qué-no)).
 
 ## Requisitos
 
@@ -58,20 +61,20 @@ Para detener todo, pulse `Ctrl+C` en la terminal de `pnpm dev`.
 Se leen del entorno real y del archivo `.env` de la raíz (copia de `env.example`). Si una variable
 está en ambos, **gana el entorno real**.
 
-| Variable                 | Por defecto                                   | Regla                                                           |
-| ------------------------ | --------------------------------------------- | --------------------------------------------------------------- |
-| `NODE_ENV`               | `development`                                 | `development`, `test` o `production`.                           |
-| `API_HOST`               | `127.0.0.1`                                   | Dirección o nombre válido. Fuera de loopback exige la opción.   |
-| `API_PORT`               | `3000`                                        | Entero de 1 a 65535, sin signo ni ceros a la izquierda.         |
-| `WEB_HOST`               | `127.0.0.1`                                   | Igual que `API_HOST`.                                           |
-| `WEB_PORT`               | `5173`                                        | Igual que `API_PORT`.                                           |
-| `ALLOW_NON_LOOPBACK`     | `false`                                       | Exactamente `true` o `false`. Cualquier otro valor es error.    |
-| `ALLOWED_ORIGINS`        | `http://127.0.0.1:5173,http://localhost:5173` | Orígenes exactos, separados por coma. Sin comodines ni rutas.   |
-| `SHOPIFY_API_VERSION`    | `2026-10`                                     | Año, guion y mes `01`, `04`, `07` o `10`. Solo se guarda.       |
-| `DATA_DIR`               | `./data`                                      | Ruta no vacía. Las relativas parten de la raíz del repositorio. |
-| `SECRET_KEY_FILE`        | `~/.shopify-catalog-importer/secret.key`      | Ruta del archivo de clave. `~` es su carpeta personal.          |
-| `SQLITE_BUSY_TIMEOUT_MS` | `5000`                                        | Entero positivo.                                                |
-| `LOG_LEVEL`              | `info`                                        | `error`, `warn`, `info` o `debug`.                              |
+| Variable                 | Por defecto                                   | Regla                                                                 |
+| ------------------------ | --------------------------------------------- | --------------------------------------------------------------------- |
+| `NODE_ENV`               | `development`                                 | `development`, `test` o `production`.                                 |
+| `API_HOST`               | `127.0.0.1`                                   | Dirección o nombre válido. Fuera de loopback exige la opción.         |
+| `API_PORT`               | `3000`                                        | Entero de 1 a 65535, sin signo ni ceros a la izquierda.               |
+| `WEB_HOST`               | `127.0.0.1`                                   | Igual que `API_HOST`.                                                 |
+| `WEB_PORT`               | `5173`                                        | Igual que `API_PORT`.                                                 |
+| `ALLOW_NON_LOOPBACK`     | `false`                                       | Exactamente `true` o `false`. Cualquier otro valor es error.          |
+| `ALLOWED_ORIGINS`        | `http://127.0.0.1:5173,http://localhost:5173` | Orígenes exactos, separados por coma. Sin comodines ni rutas.         |
+| `SHOPIFY_API_VERSION`    | `2026-10`                                     | Año, guion y mes `01`, `04`, `07` o `10`. Única fuente de la versión. |
+| `DATA_DIR`               | `./data`                                      | Ruta no vacía. Las relativas parten de la raíz del repositorio.       |
+| `SECRET_KEY_FILE`        | `~/.shopify-catalog-importer/secret.key`      | Ruta del archivo de clave. `~` es su carpeta personal.                |
+| `SQLITE_BUSY_TIMEOUT_MS` | `5000`                                        | Entero positivo.                                                      |
+| `LOG_LEVEL`              | `info`                                        | `error`, `warn`, `info` o `debug`.                                    |
 
 El valor por defecto de `ALLOWED_ORIGINS` se deriva de `WEB_PORT`.
 
@@ -101,8 +104,9 @@ La clave vive **fuera de la base de datos**, en un archivo. Por defecto es
 `~/.shopify-catalog-importer/secret.key` (carpeta oculta en su carpeta personal). Cámbiela con
 `SECRET_KEY_FILE`.
 
-> **Atención: si pierde la clave, los secretos cifrados son irrecuperables.** No existe forma de
-> descifrarlos sin ella. Haga una copia de seguridad del archivo en un lugar privado (por ejemplo,
+> **Atención: si pierde la clave, los secretos cifrados son irrecuperables.** Desde S2 esos
+> secretos son las **credenciales reales de sus tiendas de Shopify** (tokens de acceso y secretos de
+> cliente). No existe forma de descifrarlos sin la clave. Haga una copia de seguridad del archivo en un lugar privado (por ejemplo,
 > un gestor de contraseñas o un volumen cifrado). Quien tenga la clave y la base de datos puede leer
 > los secretos: guarde la copia con el mismo cuidado.
 
@@ -115,8 +119,10 @@ La clave vive **fuera de la base de datos**, en un archivo. Por defecto es
 - **Pérdida:** si la base de datos ya contiene el registro de comprobación de la clave y el archivo
   no existe, la aplicación **se detiene con un error** y no genera una clave nueva.
 - **Clave equivocada:** si el archivo no corresponde a esa base de datos, también se detiene.
-- **Alcance en S0:** no hay herramienta de rotación de claves y todavía no se guarda ningún dato
-  sensible. La base solo contiene un registro de comprobación de la clave.
+- **Alcance:** no hay herramienta de rotación de claves. La base contiene el registro de
+  comprobación de la clave y, por cada tienda, un sobre cifrado con sus credenciales reales
+  (empieza por `sb1.`). Perder la clave significa volver a introducir las credenciales de cada
+  tienda.
 
 ## Seguridad local
 
@@ -165,6 +171,8 @@ que en un clon nuevo basta con el orden del inicio rápido. Para ejecutar la API
 
 ```text
 apps/api            API NestJS (configuración, seguridad local, clave, persistencia, /health)
+apps/api/src/stores Módulo de tiendas: registro, credenciales cifradas, pasarela de Shopify
+                    (cliente HTTP y simulador), verificación y rutas /api/stores
 apps/web            Página de estado (React, Vite, Tailwind). Depende solo de packages/contracts
 packages/contracts  Esquemas compartidos (zod): respuesta de /health, errores, Money
 openspec            Artefactos de planificación del proceso SDD
@@ -205,11 +213,34 @@ clase del error (`Startup failed: unexpected error (...)`).
 - No hay integración continua configurada.
 - Las pruebas que abren sockets usan solo loopback y pueden fallar en entornos aislados que los
   prohíban.
+- **La API local no tiene autenticación.** Cualquier proceso de su máquina puede crear, reemplazar
+  o borrar las credenciales de las tiendas mediante `/api/stores`: solo se aplican las guardas de
+  `Host` y `Origin`, que no son autenticación. Este riesgo residual no está resuelto.
+- El conjunto de valores secretos que el registro oculta **crece durante la vida del proceso**: no
+  se puede quitar un valor, así que un token de una tienda borrada o reemplazada sigue ocultándose
+  hasta el siguiente arranque, y el costo de ocultar crece con ese conjunto.
+- La verificación de una tienda envía solicitudes reales a `https://<tienda>.myshopify.com`.
+  Ninguna prueba ni comando de verificación del repositorio lo hizo.
 
 ## Qué se verificó y qué no
 
 - Pruebas automatizadas (API, web y contratos) y un arranque desde un clon limpio siguiendo este
   documento, en macOS con Apple Silicon.
 - Un proceso automático **no** abrió la página en un navegador real.
-- **Nada se verificó contra una tienda real de Shopify**, porque nada se conecta a Shopify todavía.
-  `2026-10` es solo un valor de configuración.
+- **Nada se verificó contra una tienda real de Shopify.** Todo el comportamiento de la pasarela se
+  probó con un simulador y con respuestas escritas a mano a partir de la documentación (cada
+  ejemplo está etiquetado `hand-authored-from-documentation`; ninguno es una grabación real).
+- Lo que **no** se verificó y queda como suposición hasta una prueba contra una tienda real:
+  - el límite de ritmo (throttling), tanto el estado 429 como el error `THROTTLED` dentro de una
+    respuesta 200, y los valores de coste;
+  - la forma exacta del acceso denegado (`ACCESS_DENIED`) y de la falta de permisos;
+  - la respuesta ante un token inválido o revocado;
+  - el avance de versión (version fall-forward) y la cabecera `X-Shopify-API-Version`;
+  - los errores del intercambio de credenciales de cliente (client credentials), incluido
+    `shop_not_permitted`;
+  - las cadenas exactas de los permisos concedidos (granted scopes);
+  - los valores del plan de la tienda (`publicDisplayName` y similares);
+  - los límites de `locations` (tamaño de página, permiso necesario);
+  - las redirecciones por cambio de nombre de una tienda (se rechazan sin seguirlas).
+- Una **prueba de humo en vivo** contra una tienda de desarrollo está prevista para una etapa
+  posterior; hasta entonces trate la verificación de una tienda como no comprobada.

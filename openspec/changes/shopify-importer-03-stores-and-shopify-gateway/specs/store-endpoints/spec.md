@@ -34,7 +34,7 @@ The API MUST expose exactly these store routes with these success responses: `PO
 
 ### Requirement: Create request validation
 
-The body of `POST api/stores` MUST be `{ displayName, domain, credentials }` with no other field, where `credentials` is one of the two credential payloads. The body of `PUT api/stores/{id}/credentials` MUST be `{ credentials }` with no other field. Validation MUST run before any persistence or outbound call and MUST respond 400, using this precedence: malformed JSON, unknown fields, wrong types or an invalid `displayName` give `STORE_REQUEST_INVALID`; then an invalid domain gives `STORE_DOMAIN_INVALID`; then invalid credentials give `STORE_CREDENTIALS_INVALID`. A duplicate canonical domain MUST respond 409 with `STORE_ALREADY_EXISTS`.
+The body of `POST api/stores` MUST be `{ displayName, domain, credentials }` with no other field, where `credentials` is one of the two credential payloads. The body of `PUT api/stores/{id}/credentials` MUST be `{ credentials }` with no other field. Validation MUST run before any persistence or outbound call and MUST respond 400, using this precedence: malformed JSON, unknown fields, wrong types or an invalid `displayName` give `STORE_REQUEST_INVALID`; then an invalid domain gives `STORE_DOMAIN_INVALID`; then invalid credentials give `STORE_CREDENTIALS_INVALID`. A duplicate canonical domain MUST respond 409 with `STORE_ALREADY_EXISTS`. The module MUST read the JSON body itself, with a limit of 16 KB, and MUST answer a body that is malformed, not JSON, not UTF-8 or over the limit with `STORE_REQUEST_INVALID` and never with the framework's own parser message (the framework parser's errors do not reach the module's filter and quote the parser's complaint).
 
 #### Scenario: Invalid domain
 
@@ -53,6 +53,12 @@ The body of `POST api/stores` MUST be `{ displayName, domain, credentials }` wit
 - GIVEN malformed JSON, an extra field, and a 81 character `displayName`
 - WHEN each is posted
 - THEN each response is 400 with `STORE_REQUEST_INVALID`
+
+#### Scenario: Oversize or non-JSON body
+
+- GIVEN a body over 16 KB, or a body sent as `text/plain`
+- WHEN it is posted
+- THEN the response is 400 with `STORE_REQUEST_INVALID` and no parser message
 
 #### Scenario: Precedence
 
