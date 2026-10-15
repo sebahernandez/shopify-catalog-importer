@@ -101,3 +101,36 @@ Code: scope-diff 29, verification-status 10, store 18, credentials-payload 13, s
 
 - The Store record includes credentialsEnvelope; replaceCredentials takes authKind and the new envelope plus the time. Domain payload types are plain interfaces (no zod).
 - The CredentialProvider port is type only; its adapters arrive in U4 and U5a.
+
+## U3a Persistence, migration helper, expected-table check (3.1 to 3.12)
+
+Branch: feat/stores-u3-persistence (from develop at b08886d, after U1a, U1b, U2a, U2b). Strict TDD, Node 24. Stopped at the pre-agreed cut after 3.12: the running total measured 317 hand-written lines (above the about 280 threshold), and the repository (3.13 to 3.15) would have pushed the unit well past 400. Tasks 3.13 to 3.16 are left unticked for a second part (U3b).
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 3.1 and 3.2 | Suite failed: cannot find module apply-migrations | 3 tests pass | Helper runs prisma migrate deploy with DATA_DIR and HOME inside the sandbox; baselineOnly runs it against a copy of the schema with the baseline migration alone. |
+| 3.3 and 3.4 | 6 of 10 failed (no second migration, no store table) | 13 pass with the helper tests | Model Store mapped to store, migration folder 20261015120000_stores. |
+| 3.6 and 3.7 | Expected-tables suite: cannot find module; then 1 of 18 service tests failed (a baseline-only database was accepted) | 18 pass | connect() checks every table of EXPECTED_TABLES with one IN query. |
+| 3.8 | The four existing int tests applied the baseline only and failed with MIGRATION_REQUIRED (message: The database has not been migrated yet): prisma-key-check-store 12 of 12 failed, key-boot 6 of 24, main 22 of 41 (9 skipped), health 28 of 29 | See 3.9 to 3.12 | Run 68 failed, 36 passed, 9 skipped in total. |
+| 3.9 to 3.12 | n/a | CP1: the four tests pass through the shared helper; src/persistence, key-boot, main and health: 11 files, 157 tests pass | |
+
+### VS4 (migrate deploy over a baseline database, and empty migrate diff)
+
+All commands ran with env -i, PATH of the Node 24 install, HOME and DATA_DIR inside a temporary scratch folder, cwd apps/api.
+
+- Generation: a sandbox database was created from the baseline SQL, then `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script` printed only a CreateTable for store and a CreateIndex store_shop_domain_key (unique on shop_domain). That output is the committed migration.sql (18 lines, no other statement).
+- Deploy: `prisma migrate deploy` on an empty sandbox applied 20261013180211_baseline and 20261015120000_stores, ending with All migrations have been successfully applied; a second run printed No pending migrations to apply. The upgrade path (baseline first, an app_setting row, then the second migration) is covered by the baseline-migration int test.
+- Diff: `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code` against the migrated sandbox printed No difference detected and exited 0.
+
+### Measured hand-written lines (added lines)
+
+Code: schema 20, helper 65, expected-tables 2, prisma.service 6 = 93. SQL: 18. Tests: apply-migrations 60, expected-tables 8, baseline-migration 95, prisma.service 33, key-check store 2, key-boot 2, main 3, health 3 = 206. Total 317 (the four moved tests also delete 51 lines, the baseline test 56 and the service test 19). Nothing was trimmed.
+
+### Deviations and decisions for later units
+
+- The helper signature is applyMigrations(sandbox, { baselineOnly }) with the database in sandbox/data and HOME in sandbox/home (every caller already uses that layout); committedMigrations() is exported with it.
+- prisma.service.int.test.ts also uses the helper (its previous direct SQL run read only the first migration folder). Each of those tests now spawns the Prisma CLI (about 0.4 s each).
+- created_at and updated_at have a CURRENT_TIMESTAMP default in the model and no automatic update on write: the repository sets them explicitly, so replace never moves updatedAt earlier.
+- Open for U3b: tasks 3.13 to 3.16 (repository port, VS5, adapter, mapper) and the unit gate.
