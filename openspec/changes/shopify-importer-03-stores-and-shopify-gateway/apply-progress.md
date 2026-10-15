@@ -535,3 +535,29 @@ Id generator 1, create 9, list and get 4, replace 4, delete 4: 22 new tests. Foc
 ### Gate (16.11)
 
 Typecheck, `eslint apps packages`, prettier check on `apps packages openspec` and the full test run pass on Node 24.21.0 (contracts 263, web 193, api 3753). Hand-written lines: U12 code about 235 (use cases and errors, summary, id generator), tests about 380 (the shared harness is counted under U11); the 400 budget is waived by the agreed process.
+
+## U13a Controller, filter, module, wiring (Phase 17, tasks 17.1 to 17.9)
+
+All nine tasks done on branch `feat/stores-u13-u14-http-and-canary` (one PR for U13a, U13b, U14 and the final gate; tests written alongside code).
+
+### What was built
+
+- `infrastructure/http/stores-exception.filter.ts`: `@Catch()` filter, controller scoped. Typed store errors map to the five `ApiError` codes with the fixed spec messages; the body-parser error (status 400, type `entity.parse.failed`) maps to `STORE_REQUEST_INVALID` without its message; any other error answers the generic Nest 500 body and logs only `{ event: 'store_request_failed', errorName }`. Every response sets `Cache-Control: no-store`.
+- Guard rejections: a controller filter shadows the global `LocalRequestFilter`, so a `LocalRequestRejection` thrown by the global guard on a store route would have become a 500. The filter delegates it to `LocalRequestFilter` (body unchanged, no-store added).
+- `infrastructure/http/stores.controller.ts` and `store-request-parsing.ts`: six routes, `Cache-Control: no-store` on each, a malformed id answered as unknown before any use case call, outer body shape checked (exact members, string name and domain, object credentials) and everything else left to the use cases so the precedence is request, domain, credentials.
+- `stores.module.ts`: `forRoot(config, persistence, { secretBox, logger, overrides? })`, `useValue` box, `useFactory` wiring, default gateway is the HTTP adapter over the injected fetch (the module holds the only default reference to global `fetch`). `StoresOverrides` replaces the gateway and the fetch function.
+- `app.module.ts` imports `StoresModule.forRoot` and accepts a test-only `storeOverrides`; `main.ts` forwards it exactly like `extraModules` (production `run()` never passes it).
+- `store-errors.ts` gained `StoreRequestInvalidError`; `stores.tokens.ts` gained `STORES_LOGGER` and `STORES_FETCH`.
+
+### Tests added
+
+Filter 14, controller 18, module 5, `no-test-route-ships` updated (six imports, three controllers). Focused command: 47 tests pass.
+
+### Deviations and notes
+
+- Outside the stores module: `apps/api/src/app.module.ts`, `apps/api/src/main.ts`, `apps/api/src/local-security/no-test-route-ships.test.ts` (all as the tasks require).
+- The PUT route validates the id, then the body shape, then the use case checks existence: an unknown id with an invalid body reports the body error first. The spec scenarios use valid bodies.
+
+### Gate (17.9)
+
+`pnpm check` on Node 24.21.0: exit 0 (api 3792 tests, 120 files). Budget waived by the agreed process.
