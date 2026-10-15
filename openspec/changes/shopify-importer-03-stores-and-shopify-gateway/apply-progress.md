@@ -134,3 +134,30 @@ Code: schema 20, helper 65, expected-tables 2, prisma.service 6 = 93. SQL: 18. T
 - prisma.service.int.test.ts also uses the helper (its previous direct SQL run read only the first migration folder). Each of those tests now spawns the Prisma CLI (about 0.4 s each).
 - created_at and updated_at have a CURRENT_TIMESTAMP default in the model and no automatic update on write: the repository sets them explicitly, so replace never moves updatedAt earlier.
 - Open for U3b: tasks 3.13 to 3.16 (repository port, VS5, adapter, mapper) and the unit gate.
+
+## U3b Store repository port, adapter and mapper (3.13 to 3.16)
+
+Branch: feat/stores-u3b-repository (from develop at f7727f2, after U3a). U3 was delivered in two parts: U3a (3.1 to 3.12, 317 lines) and U3b (3.13 to 3.16). Strict TDD, Node 24.
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 3.13 | n/a (type-only port plus the error class) | typechecked with the adapter | Port: insert, findById, list, replaceCredentials(id, next), delete; replace returns the store or null, delete returns a boolean. |
+| 3.14 and 3.15 | The int suite failed to load: cannot find module prisma-store-repository.js | 10 of 10 pass | One test case needed a fix of the test itself (single-letter shop names are not valid domains), not of the code. |
+| 3.16 | n/a | Focused command: 12 files, 167 tests pass | pnpm check exit 0: contracts 263, web 193, api 3457 tests. |
+
+### VS5 (unique violation through the better-sqlite3 adapter)
+
+Confirmed. Two creates of one shop_domain through PrismaService (migrated sandbox) made the second reject with PrismaClientKnownRequestError, code P2002, driver cause SQLITE_CONSTRAINT_UNIQUE (UNIQUE constraint failed: store.shop_domain), kind UniqueConstraintViolation. The repository maps exactly that code to DuplicateShopDomainError. The throwaway probe test was deleted.
+
+### Measured hand-written lines
+
+Code: port 25, repository 93, mapper 57 = 175. Tests: int test 174. Total 349 (U3a was 317, so U3 is 666 across both parts). Nothing was trimmed.
+
+### Deviations and decisions for later units
+
+- The repository takes (PrismaService, Clock, LoggerPort). replaceCredentials reads the Clock, applies the domain rule, and writes updatedAt explicitly; insert writes the dates of the Store given.
+- Every non-unique driver error is replaced by a fixed message with no cause, because Prisma errors can quote bound values such as the envelope. The mapper rejects an unknown status or auth_kind with a fixed message, and a corrupt last_verification yields the single warning event store.last_verification.corrupt with no fields.
+- Replace is a read then an update (no transaction); a concurrent delete between them would surface as the generic failure.
+- Isolation: every test database lives in a temporary sandbox through the shared helper. No data directory, key file or db file exists in the repository, and the real home has no importer folder.
