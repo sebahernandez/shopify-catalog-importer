@@ -51,3 +51,30 @@ Code: stores 77, api-error +5, index +11 = 93. Tests: stores 85, stores-credenti
 - displayName counts code points with a refine, because zod max counts UTF-16 units and an 80-emoji name would otherwise fail.
 - Extra exports beyond the task list: AuthKind, StoreStatus.
 - The U1 total across both parts is 542 hand-written lines (307 in U1a and 235 in U1b), against about 300 planned: the store-verification suite and prettier wrapping of long test expectations were the main drivers.
+
+## U2a Lint, clock and shop domain guard (2.1 to 2.8)
+
+Branch: feat/stores-u2a-shop-domain-guard (from develop at e23b92e, after U1a and U1b). Strict TDD, Node 24. U2 was written in one piece (490 hand-written lines against about 360 planned) and split in two by maintainer decision on 2026-10-15 at the pre-agreed cut after 2.8: U2a (this unit: lint purity block, Clock port and SystemClock, the shop domain guard) and U2b (scope diff, verification status, store record and rules, the CredentialProvider port type; tasks 2.9 to 2.16).
+
+### TDD evidence
+
+| Task | RED observed | GREEN | Notes |
+|------|--------------|-------|-------|
+| 2.1 and 2.2 | Negative gate: a temporary file importing node:net failed lint naming the import | Temporary file deleted, confirmed gone | OTHER_MODULES gains stores; new purity block for stores domain and application. |
+| 2.3 and 2.4 | Suite failed: cannot find module for system-clock | 2 tests pass | Clock port and SystemClock under shared-kernel/time. |
+| 2.5 and 2.6 | Suite failed: cannot find module for shop-domain; then 1 of 23 failed (PATH for a foreign URL path) | 23 tests pass | Own authority parser, no URL, no node imports. |
+| 2.7 and 2.8 | 22 of 27 failed before steps 4 to 6 | 27 pass (50 in stores) | Suffix is one constant. |
+
+### Measured hand-written lines
+
+Code: eslint 13, clock port 4, SystemClock 8, shop-domain 83 = 108. Tests: system-clock 17, shop-domain-syntax 39, shop-domain-host 62 = 118. Total 226. Nothing was trimmed.
+
+### Security review by the orchestrator
+
+The shop domain guard source was read line by line against hostile inputs: schemes other than http and https fall to PATH, myshopify.com.evil.example, evilmyshopify.com and the apex give WRONG_SUFFIX, userinfo, ports, IPv4 and IPv6 literals and a trailing dot are rejected before the handle is looked at, the handle regex is anchored and xn-- handles are refused, and a path such as admin followed by an at sign cannot change the host because the host comes from the authority cut at the first slash. No gap was found.
+
+### Deviations and decisions for later units
+
+- The 2.5 table row for PATH on a pasted URL with a foreign path needs the path rule, so the path check was added in 2.6 after the authority checks and 2.8 inserted the host checks before it (host first, as the spec requires).
+- The input my store (embedded space) is rejected with WHITESPACE (step 1), not INVALID_HANDLE; the spec only requires rejection.
+- The pre-agreed cut after 2.8 was not triggered by the size threshold (running total about 226), but the maintainer chose to split there anyway because the cut is clean and the guard is the security piece.
