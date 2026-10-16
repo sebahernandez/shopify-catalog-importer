@@ -13,17 +13,30 @@ describe('App shell', () => {
     expect(html).toMatch(/<h1[^>]*>Shopify Catalog Importer<\/h1>/);
   });
 
-  it('has one level-two heading for the status area and no deeper headings', () => {
-    expect(html.match(/<h2[\s>]/g)).toHaveLength(1);
-    expect(html).toContain(`>${es.health.heading}</h2>`);
-    expect(html.match(/<h[3-6][\s>]/g)).toBeNull();
+  it('has the three wizard steps and the status area as level-two headings', () => {
+    expect(html.match(/<h2[\s>]/g)).toHaveLength(4);
+    for (const heading of [
+      es.stores.heading,
+      es.file.heading,
+      es.import.heading,
+      es.health.heading,
+    ]) {
+      expect(html).toContain(`>${heading}</h2>`);
+    }
+    expect(html.match(/<h[4-6][\s>]/g)).toBeNull();
   });
 
   it('shows the health status, still loading on the server, inside the main landmark', () => {
-    expect(html.match(/role="status"/g)).toHaveLength(1);
     expect(html).toContain(es.health.states.loading);
-    expect(html.indexOf('<main')).toBeLessThan(html.indexOf('role="status"'));
-    expect(html.indexOf('role="status"')).toBeLessThan(html.indexOf('</main>'));
+    const health = html.indexOf(es.health.states.loading);
+    expect(html.indexOf('<main')).toBeLessThan(health);
+    expect(health).toBeLessThan(html.indexOf('</main>'));
+  });
+
+  it('starts at the store step, with the file and import steps locked', () => {
+    expect(html).toContain(es.wizard.locked.file);
+    expect(html).toContain(es.wizard.locked.import);
+    expect(html).toContain(es.stores.loading);
   });
 
   it('no longer carries the under-construction placeholder', () => {
